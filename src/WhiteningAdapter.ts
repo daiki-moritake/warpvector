@@ -180,4 +180,34 @@ export class WhiteningAdapter implements WarpAdapter {
     // 必要なら呼び出し側で `normalize(result)` を行う。
     return result;
   }
+
+  /**
+   * 現在の学習状態（平均ベクトル、主成分ベクトルなど）をシリアライズして出力します。
+   * エッジ環境でのインスタンス再構築時に役立ちます。
+   */
+  public exportState(): string {
+    return JSON.stringify({
+      dim: this.dim,
+      count: this.count,
+      learningRate: this.learningRate,
+      numComponents: this.numComponents,
+      mean: Array.from(this.mean),
+      components: this.components.map(c => Array.from(c)),
+    });
+  }
+
+  /**
+   * シリアライズされた学習状態から WhiteningAdapter を復元します。
+   */
+  public static importState(stateJson: string): WhiteningAdapter {
+    const data = JSON.parse(stateJson);
+    const adapter = new WhiteningAdapter(data.dim, {
+      learningRate: data.learningRate,
+      numComponents: data.numComponents,
+    });
+    adapter.count = data.count;
+    adapter.mean = new Float32Array(data.mean);
+    adapter.components = data.components.map((c: number[]) => new Float32Array(c));
+    return adapter;
+  }
 }

@@ -214,11 +214,11 @@ const loss = trainer.updateOnline(
 );
 ```
 
-### 8. LangChain / LlamaIndex との統合 (Integrations)
+### 9. LangChain / LlamaIndex との統合 (Integrations)
 
-`warpvector` は、LangChain などの既存のエコシステムに「たった数行」で組み込むことができます。
-`WarpEmbeddings` クラスを使用することで、クエリ検索時のみベクトル空間を動的にワープさせ、そのまま VectorStore に渡すことができます。
+`warpvector` は、既存の巨大エコシステムに「たった数行」で組み込むことができます。
 
+#### LangChain 統合 (`WarpEmbeddings`)
 ```typescript
 import { OpenAIEmbeddings } from "@langchain/openai";
 import { IntentAdapter } from "warpvector";
@@ -227,15 +227,41 @@ import { WarpEmbeddings } from "warpvector/integrations/langchain";
 const baseEmbeddings = new OpenAIEmbeddings();
 const adapter = new IntentAdapter(myIntents);
 
-// ベースのEmbeddingsをラップする
 const warpEmbeddings = new WarpEmbeddings({
-  baseEmbeddings,
-  adapter,
+  baseEmbeddings, adapter, intentName: "riskAnalysis"
+});
+// 検索時のみ動的ワープが適用されます
+const vectorStore = new MemoryVectorStore(warpEmbeddings);
+```
+
+#### LlamaIndex 統合 (`WarpLlamaIndexEmbeddings`) [✨ NEW]
+```typescript
+import { OpenAIEmbedding } from "llamaindex";
+import { WarpLlamaIndexEmbeddings } from "warpvector/integrations/llama-index";
+
+const warpLlamaIndexEmbeddings = new WarpLlamaIndexEmbeddings({
+  baseEmbeddings: new OpenAIEmbedding(),
+  adapter: intentAdapter,
   intentName: "riskAnalysis"
 });
+// LlamaIndex の VectorStoreIndex などに直接渡せます
+```
 
-const vectorStore = new MemoryVectorStore(warpEmbeddings);
-const results = await vectorStore.similaritySearch("Market crash", 5);
+### 10. 全アダプタの状態永続化 (Universal Serialization) [✨ NEW]
+
+Cloudflare Workers 等の揮発性環境でも、オンライン学習やPCAで得られたコンポーネントを即座にJSONで保存・復元できます。
+
+```typescript
+import { WhiteningAdapter } from 'warpvector';
+
+const adapter = new WhiteningAdapter(1536);
+// ... オンライン学習 (update) を実行 ...
+
+// 状態をシリアライズしてRedis等に保存
+const stateJson = adapter.exportState();
+
+// 次回起動時や別インスタンスで即座に復元
+const restoredAdapter = WhiteningAdapter.importState(stateJson);
 ```
 
 ---

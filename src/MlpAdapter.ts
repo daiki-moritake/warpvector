@@ -1,4 +1,4 @@
-import { getWasmInstance, ensureWasmMemory, writeFloat32ArrayToWasm } from "./wasm/wasm-loader";
+import { initWasm, ensureWasmMemory, writeFloat32ArrayToWasm } from "./wasm/wasm-loader";
 import { WarpAdapter } from "./WarpAdapter";
 import { Activation } from "./utils";
 
@@ -61,7 +61,7 @@ export class MlpAdapter implements WarpAdapter {
    * インスタンス作成後に必ず呼び出してください。
    */
   public async init(): Promise<void> {
-    this.wasmInstance = await getWasmInstance();
+    this.wasmInstance = await initWasm();
     if (!this.wasmInstance) {
       throw new Error("Failed to initialize WASM for MlpAdapter.");
     }
@@ -214,5 +214,41 @@ export class MlpAdapter implements WarpAdapter {
     }
 
     return result;
+  }
+
+  /**
+   * 現在のMLP構造と重みをシリアライズして出力します。
+   */
+  public exportState(): string {
+    return JSON.stringify({
+      layers: this.layers.map(layer => {
+        let matrix: number[][] | number[];
+        if (layer.matrix instanceof Float32Array) {
+          matrix = Array.from(layer.matrix);
+        } else {
+          matrix = layer.matrix;
+        }
+        return {
+          matrix,
+          bias: Array.from(layer.bias),
+          activation: layer.activation,
+        };
+      })
+    });
+  }
+
+  /**
+   * シリアライズされた状態から MlpAdapter を復元します。
+   * 注意: 復元後、再度 `await init()` を呼び出してWASMメモリを初期化する必要があります。
+   */
+  public static importState(stateJson: string): MlpAdapter {
+    const data = JSON.parse(stateJson);
+    const layers: MlpLayer[] = data.layers.map((l: any) => ({
+      // Float32Array に戻すか、そのまま2D配列として扱う
+      matrix: Array.isArray(l.matrix[0]) ? l.matrix : new Float32Array(l.matrix),
+      bias: new Float32Array(l.bias),
+      activation: l.activation,
+    }));
+    return new MlpAdapter(layers);
   }
 }

@@ -174,4 +174,40 @@ export class ProjectionAdapter implements WarpAdapter {
 
     return result;
   }
+
+  /**
+   * 現在の射影行列の状態をシリアライズしてエクスポートします。
+   */
+  public exportState(): string {
+    const projections: Record<string, { matrix: number[], bias?: number[] }> = {};
+    for (const [name, matrix] of this.matrices.entries()) {
+      const bias = this.biases.get(name);
+      projections[name] = {
+        matrix: Array.from(matrix),
+        bias: bias ? Array.from(bias) : undefined,
+      };
+    }
+    return JSON.stringify({
+      inDimension: this.inDimension,
+      outDimension: this.outDimension,
+      projections,
+    });
+  }
+
+  /**
+   * エクスポートされた状態から ProjectionAdapter を復元します。
+   * 注意: 保存されている matrix は既にフラット化された 1D 配列であることを前提としています。
+   */
+  public static importState(stateJson: string): ProjectionAdapter {
+    const data = JSON.parse(stateJson);
+    const adapter = new ProjectionAdapter(data.inDimension, data.outDimension);
+    for (const [name, proj] of Object.entries(data.projections) as any) {
+      // 内部状態を直接復元
+      adapter.matrices.set(name, new Float32Array(proj.matrix));
+      if (proj.bias) {
+        adapter.biases.set(name, new Float32Array(proj.bias));
+      }
+    }
+    return adapter;
+  }
 }
