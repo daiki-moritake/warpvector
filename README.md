@@ -36,6 +36,31 @@
 
 ---
 
+## 📚 詳細ドキュメント (Documentation)
+
+各機能のより詳細な仕組み、コードスニペット、ユースケースについては以下の個別ドキュメントをご参照ください。
+
+1. **[コアアダプタ (Core Adapters)](./docs/1-core-adapters.md)**
+   - `IntentAdapter`, `ProjectionAdapter`, `LoraIntentAdapter` の基本
+2. **[ニューラルネットワーク (Neural Networks)](./docs/2-neural-networks.md)**
+   - `MlpAdapter` を用いた多層パーセプトロンと非線形活性化関数
+3. **[オンライン等方化・PCA (Whitening)](./docs/3-whitening-pca.md)**
+   - 空間的偏り (異方性) のストリーミング学習による除去
+4. **[量子化と圧縮 (Quantization)](./docs/4-quantization.md)**
+   - `Int8` (1/4圧縮) および `Binary` (1/32圧縮) による高速化と省メモリ化
+5. **[Late Interaction / ColBERT](./docs/5-colbert.md)**
+   - WASM を用いた MaxSim 演算による緻密なトークン照合
+6. **[ハイブリッド検索フュージョン (Hybrid Search)](./docs/6-hybrid-search.md)**
+   - ベクトル検索とキーワード検索の統合 (`RRF`, `RSF`)
+7. **[オンライン学習エンジン (Trainers)](./docs/7-trainers.md)**
+   - 対照学習によるリアルタイムな空間最適化 (`InfoNCETrainer`, `TripletTrainer`)
+8. **[エコシステム統合 (Integrations)](./docs/8-integrations.md)**
+   - `LangChain`, `LlamaIndex`, `Prisma + pgvector` とのシームレスな連携
+9. **[状態の永続化・シリアライズ (Serialization)](./docs/9-serialization.md)**
+   - 学習結果の JSON / バイナリ形式での保存と復元
+
+---
+
 ## 📦 インストール
 
 ```bash
