@@ -1,4 +1,4 @@
-import { assertDimension, normalize, reject } from "./utils";
+import { assertDimension, normalize, innerProduct } from "./utils";
 import { WarpAdapter } from "./WarpAdapter";
 import { getWasmInstance, ensureWasmMemory, writeFloat32ArrayToWasm } from "./wasm/wasm-loader";
 
@@ -126,10 +126,7 @@ export class WhiteningAdapter implements WarpAdapter {
       for (let k = 0; k < this.numComponents; k++) {
         const w = this.components[k];
         
-        let y = 0;
-        for (let i = 0; i < this.dim; i++) {
-          y += w[i] * x_residual[i];
-        }
+        let y = innerProduct(w, x_residual);
 
         for (let i = 0; i < this.dim; i++) {
           w[i] += this.learningRate * y * (x_residual[i] - y * w[i]);
@@ -166,10 +163,7 @@ export class WhiteningAdapter implements WarpAdapter {
       const w = this.components[k];
       // reject(result, w) だが、w は既に正規化済みなので計算を最適化できる
       // u・u = 1 なので、スカラー値は単なる内積 v・u
-      let dot = 0;
-      for (let i = 0; i < this.dim; i++) {
-        dot += result[i] * w[i];
-      }
+      let dot = innerProduct(result, w);
       for (let i = 0; i < this.dim; i++) {
         result[i] -= dot * w[i];
       }

@@ -48,6 +48,22 @@ export class WarpPipeline {
     WarpPipeline.adapterRegistry.set(type, importFn);
   }
 
+  /**
+   * フォーマット変換ロジックを保持するレジストリ。
+   */
+  private static formatRegistry = new Map<string, (vector: number[] | Float32Array, options: any) => any>();
+
+  /**
+   * カスタムの出力フォーマットを登録します。
+   * これにより、ユーザー独自のDB形式（Milvus, Weaviateなど）への変換を動的に追加できます。
+   * 
+   * @param format フォーマット名 (例: "pgvector")
+   * @param formatFn 変換を行うコールバック関数
+   */
+  public static registerFormat(format: string, formatFn: (vector: number[] | Float32Array, options: any) => any): void {
+    WarpPipeline.formatRegistry.set(format, formatFn);
+  }
+
   constructor(public inputDim: number) {}
 
   /**
@@ -195,25 +211,17 @@ export class WarpPipeline {
    */
   public runAndFormat(
     vector: number[] | Float32Array,
-    dbOptions: { format: "pgvector" | "pinecone" | "redis", topK?: number, filter?: Record<string, any> },
+    dbOptions: { format: string, topK?: number, filter?: Record<string, any>, [key: string]: any },
     context?: RunContext
   ): any {
     const tunedVector = this.run(vector, context);
 
-    switch (dbOptions.format) {
-      case "pgvector":
-        return VectorDBAdapter.toPgvector(tunedVector as number[] | Float32Array);
-      case "pinecone":
-        return VectorDBAdapter.toPineconeQuery(
-          tunedVector as number[] | Float32Array, 
-          dbOptions.topK, 
-          dbOptions.filter
-        );
-      case "redis":
-        return VectorDBAdapter.toRedis(tunedVector as number[] | Float32Array);
-      default:
-        throw new Error(`Unknown format: ${dbOptions.format}`);
+    const formatFn = WarpPipeline.formatRegistry.get(dbOptions.format);
+    if (!formatFn) {
+      throw new Error(`Unknown format: ${dbOptions.format}. Did you forget to register it?`);
     }
+
+    return formatFn(tunedVector as number[] | Float32Array, dbOptions);
   }
 
   /**
@@ -272,3 +280,8 @@ WarpPipeline.registerAdapter("WhiteningAdapter", WhiteningAdapter.importState);
 WarpPipeline.registerAdapter("ProjectionAdapter", ProjectionAdapter.importState);
 WarpPipeline.registerAdapter("MlpAdapter", MlpAdapter.importState);
 WarpPipeline.registerAdapter("QuantizationAdapter", QuantizationAdapter.importState);
+
+// 組み込みフォーマットを初期登録
+WarpPipeline.registerFormat("pgvector", (vec, _opts) => VectorDBAdapter.toPgvector(vec));
+WarpPipeline.registerFormat("pinecone", (vec, opts) => VectorDBAdapter.toPineconeQuery(vec, opts.topK, opts.filter));
+WarpPipeline.registerFormat("redis", (vec, _opts) => VectorDBAdapter.toRedis(vec));

@@ -1,4 +1,4 @@
-import { assertDimension, flattenMatrix } from "./utils";
+import { assertDimension, flattenMatrix, applyAffine } from "./utils";
 import { WarpAdapter } from "./WarpAdapter";
 
 /**
@@ -138,25 +138,15 @@ export class LoraIntentAdapter implements WarpAdapter {
     // Step 1: y = B * x (サイズ: rank)
     // 複雑度: O(r * D)
     const y = new Float32Array(this.rank);
-    for (let i = 0; i < this.rank; i++) {
-      let sum = 0;
-      const rowOffset = i * this.dimension;
-      for (let j = 0; j < this.dimension; j++) {
-        sum += matB[rowOffset + j] * baseVector[j];
-      }
-      y[i] = sum;
-    }
+    applyAffine(matB, null, baseVector, y, this.dimension, this.rank);
 
-    // Step 2: z = A * y (サイズ: dimension)
+    // Step 2: z = A * y + b (サイズ: dimension)
     // 複雑度: O(D * r)
-    // そして残差結合 result = x + z + b を一度に行う
+    applyAffine(matA, bias, y, result, this.rank, this.dimension);
+
+    // Step 3: 残差結合 result = x + z
     for (let i = 0; i < this.dimension; i++) {
-      let sum = 0;
-      const rowOffset = i * this.rank;
-      for (let j = 0; j < this.rank; j++) {
-        sum += matA[rowOffset + j] * y[j];
-      }
-      result[i] = baseVector[i] + sum + bias[i];
+      result[i] += baseVector[i];
     }
 
     return result;
