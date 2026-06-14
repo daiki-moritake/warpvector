@@ -198,3 +198,53 @@ export function mlpInferenceWasm(
     store<f32>(outputPtr + i * 4, val);
   }
 }
+
+/**
+ * Late Interaction (ColBERT) の MaxSim スコアを計算するWASMコア関数。
+ * クエリ行列 (N x d) とドキュメント行列 (M x d) の総当たり内積を計算し、
+ * クエリの各トークンに対するドキュメントトークンの最大内積 (Max) を取得、
+ * 最後にそれらを合計 (Sum) してスコアを返す。
+ * 
+ * @param {usize} queryPtr - クエリ行列のポインタ (f32)
+ * @param {usize} docPtr - ドキュメント行列のポインタ (f32)
+ * @param {i32} queryTokens - クエリのトークン数 (N)
+ * @param {i32} docTokens - ドキュメントのトークン数 (M)
+ * @param {i32} dim - ベクトルの次元数 (d)
+ * @returns {f32} MaxSim スコア
+ */
+export function colbertMaxSimWasm(
+  queryPtr: usize,
+  docPtr: usize,
+  queryTokens: i32,
+  docTokens: i32,
+  dim: i32
+): f32 {
+  if (queryTokens <= 0 || docTokens <= 0) return 0.0;
+
+  let totalScore: f32 = 0.0;
+
+  for (let i = 0; i < queryTokens; i++) {
+    let qOffset = queryPtr + (i * dim) * 4;
+    let maxSim: f32 = -1e30; // 負の無限大の代わり
+
+    for (let j = 0; j < docTokens; j++) {
+      let dOffset = docPtr + (j * dim) * 4;
+      let sim: f32 = 0.0;
+
+      // 内積の計算
+      for (let k = 0; k < dim; k++) {
+        let qVal = load<f32>(qOffset + k * 4);
+        let dVal = load<f32>(dOffset + k * 4);
+        sim += qVal * dVal;
+      }
+
+      if (sim > maxSim) {
+        maxSim = sim;
+      }
+    }
+
+    totalScore += maxSim;
+  }
+
+  return totalScore;
+}

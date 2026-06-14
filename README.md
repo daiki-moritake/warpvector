@@ -24,6 +24,7 @@
 - **次世代DBミドルウェア:** 既存のベクトルDB（Pinecone, Qdrant, DuckDBなど）とフロントエンドの間に立ち、動的なコンテキストルーティングを提供。
 - **動的アフィン変換 & 非線形MLP [NEW]:** 単純な行列変換（$W \cdot x + b$）に加え、WASMを用いた超高速な多層パーセプトロン(MLP)と非線形活性化関数(ReLU, Sigmoid, Tanh)による高度な空間変形をサポート。
 - **オンライン等方化 (Whitening) [NEW]:** Oja's Rule を用いたオンラインPCAにより、OpenAI `ada-002` などが抱える「検索空間の極端な偏り（異方性）」をエッジ側でストリーミング補正し、検索精度を劇的に向上。
+- **ColBERT / Late Interaction (WASM) [✨ NEW]:** 単一ベクトルの代わりに「トークン行列」を用いて検索する最高峰の手法 (ColBERT) を WASM 化。TS環境では絶望的に遅い MaxSim 演算を爆速で処理し、RAGの検索品質を極限まで引き上げます。
 - **WASM/SIMDによる超高速バッチ処理:** 大量のベクトル処理にはAssemblyScriptでコンパイルされたインラインWebAssembly（WASM）バックエンドを自動的に呼び出し、計算速度を最大化します（130万推論/秒以上）。
 - **InfoNCE & Triplet 学習エンジン (Adam Optimizer内蔵) [NEW]:** Pythonサーバー不要。ユーザーのフィードバックから Contrastive Learning (複数Negative対応の対照学習) をエッジワーカー上で直接オンライン学習。
 - **LoRA (低ランク適応) アーキテクチャ:** `LoraIntentAdapter` により、超高次元ベクトル（1536次元など）でもメモリ使用量・計算量を劇的に削減。
@@ -134,7 +135,23 @@ const results = await prisma.document.searchByVector({
 });
 ```
 
-### 5. 動的学習エンジン (Trainers with Adam) [✨ UPGRADED]
+### 5. 高品質 RAG のための Late Interaction (ColBERT) [✨ NEW]
+
+単一ベクトルでは潰れてしまう細かいニュアンスを、トークンごとの行列で保持し、WASMの超高速 MaxSim 演算によって緻密に照合します。
+
+```typescript
+import { ColbertAdapter } from 'warpvector';
+
+const adapter = new ColbertAdapter();
+
+// queryTokens: クエリのトークン行列 (平坦化された Float32Array)
+// documentTokensArray: 各ドキュメントのトークン行列の配列
+const results = adapter.rank(queryTokens, [doc1Tokens, doc2Tokens, doc3Tokens], 1536);
+
+console.log(results); // [{ index: 1, score: 1.44 }, { index: 0, score: 0.76 }, ...]
+```
+
+### 6. 動的学習エンジン (Trainers with Adam) [✨ UPGRADED]
 
 Pythonサーバーを立てることなく、ユーザーのフィードバックをもとにエッジ上でベクトル空間を最適化できます。Adamオプティマイザーと InfoNCE Loss (複数Negative) に対応しました。
 
