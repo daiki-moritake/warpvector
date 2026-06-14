@@ -116,22 +116,28 @@ export abstract class BaseTrainer<TExample, TResult> {
     }
     const bias = new Float32Array(tDim);
 
+    const mMatrix = new Float32Array(tDim * sDim);
     const vMatrix = new Float32Array(tDim * sDim);
+    const mBias = new Float32Array(tDim);
     const vBias = new Float32Array(tDim);
+    let t = 0;
 
     for (let epoch = 0; epoch < epochs; epoch++) {
       for (const example of this.examples) {
+        t++;
         const { source, target } = this.getInputs(example);
-        this.sgdMomentumStep(
+        this.adamStep(
           flatMatrix,
           bias,
+          mMatrix,
           vMatrix,
+          mBias,
           vBias,
           source,
           target,
           lr,
           reg,
-          momentum,
+          t
         );
       }
     }
@@ -164,22 +170,28 @@ export abstract class BaseTrainer<TExample, TResult> {
         if (i < sDim) flatMatrix[i * sDim + i] = 1.0;
       }
       const bias = new Float32Array(tDim);
+      const mMatrix = new Float32Array(tDim * sDim);
       const vMatrix = new Float32Array(tDim * sDim);
+      const mBias = new Float32Array(tDim);
       const vBias = new Float32Array(tDim);
+      let t = 0;
 
       for (let epoch = 0; epoch < testEpochs; epoch++) {
         for (const example of this.examples) {
+          t++;
           const { source, target } = this.getInputs(example);
-          this.sgdMomentumStep(
+          this.adamStep(
             flatMatrix,
             bias,
+            mMatrix,
             vMatrix,
+            mBias,
             vBias,
             source,
             target,
             lr,
             reg,
-            momentum,
+            t
           );
         }
       }
@@ -209,97 +221,29 @@ export abstract class BaseTrainer<TExample, TResult> {
   }
 
   /**
-   * SGD + Momentum アルゴリズムによる1ステップのパラメータ更新を実行します。
+   * Adam オプティマイザによる1ステップのパラメータ更新を実行します。
    * In-place (破壊的) に `matrix` と `bias` を更新します。
-   *
-   * @param {Float32Array} matrix 現在の変換行列 (1次元フラット配列)
-   * @param {Float32Array} bias 現在のバイアスベクトル
-   * @param {Float32Array} vMatrix 行列のモメンタム (速度)
-   * @param {Float32Array} vBias バイアスのモメンタム (速度)
-   * @param {number[] | Float32Array} x 入力ベクトル (ソース)
-   * @param {number[] | Float32Array} y 理想の出力ベクトル (ターゲット)
-   * @param {number} lr 学習率
-   * @param {number} reg L2正則化係数
-   * @param {number} momentum モメンタム係数
+   * WASM 版の Adam 実装ができるまではネイティブ JS で処理します。
    */
-  protected sgdMomentumStep(
+  protected adamStep(
     matrix: Float32Array,
     bias: Float32Array,
+    mMatrix: Float32Array,
     vMatrix: Float32Array,
+    mBias: Float32Array,
     vBias: Float32Array,
     x: number[] | Float32Array,
     y: number[] | Float32Array,
     lr: number,
     reg: number,
-    momentum: number,
+    t: number
   ): void {
     const sDim = this.sourceDimension;
     const tDim = this.targetDimension;
-    const instance = getWasmInstance();
+    const beta1 = 0.9;
+    const beta2 = 0.999;
+    const epsilon = 1e-8;
 
-    const requiredBytes =
-      sDim * tDim * 4 +
-      tDim * 4 +
-      sDim * tDim * 4 +
-      tDim * 4 +
-      sDim * 4 +
-      tDim * 4 +
-      tDim * 4;
-
-    if (instance && ensureWasmMemory(requiredBytes)) {
-      const wasmMemory = getWasmMemory()!;
-      const f32Mem = new Float32Array(wasmMemory.buffer);
-
-      let offset = 0;
-      const matrixOffset = offset;
-      offset += sDim * tDim;
-      const biasOffset = offset;
-      offset += tDim;
-      const vMatrixOffset = offset;
-      offset += sDim * tDim;
-      const vBiasOffset = offset;
-      offset += tDim;
-      const xOffset = offset;
-      offset += sDim;
-      const yOffset = offset;
-      offset += tDim;
-      const predOffset = offset;
-      offset += tDim;
-
-      f32Mem.set(matrix, matrixOffset);
-      f32Mem.set(bias, biasOffset);
-      f32Mem.set(vMatrix, vMatrixOffset);
-      f32Mem.set(vBias, vBiasOffset);
-      f32Mem.set(x as Float32Array, xOffset);
-      f32Mem.set(y as Float32Array, yOffset);
-
-      const sgdMomentumStepWasm = instance.exports
-        .sgdMomentumStepWasm as CallableFunction;
-
-      sgdMomentumStepWasm(
-        matrixOffset * 4,
-        biasOffset * 4,
-        vMatrixOffset * 4,
-        vBiasOffset * 4,
-        xOffset * 4,
-        yOffset * 4,
-        lr,
-        reg,
-        momentum,
-        sDim,
-        tDim,
-        predOffset * 4,
-      );
-
-      matrix.set(f32Mem.subarray(matrixOffset, matrixOffset + sDim * tDim));
-      bias.set(f32Mem.subarray(biasOffset, biasOffset + tDim));
-      vMatrix.set(f32Mem.subarray(vMatrixOffset, vMatrixOffset + sDim * tDim));
-      vBias.set(f32Mem.subarray(vBiasOffset, vBiasOffset + tDim));
-
-      return;
-    }
-
-    // WASMが使えない場合のJSフォールバック
     const pred = new Float32Array(tDim);
 
     for (let i = 0; i < tDim; i++) {
@@ -315,15 +259,24 @@ export abstract class BaseTrainer<TExample, TResult> {
       const error = pred[i] - y[i];
 
       const bGrad = error;
-      vBias[i] = momentum * vBias[i] - lr * bGrad;
-      bias[i] += vBias[i];
+      mBias[i] = beta1 * mBias[i] + (1 - beta1) * bGrad;
+      vBias[i] = beta2 * vBias[i] + (1 - beta2) * (bGrad * bGrad);
+      const mHatB = mBias[i] / (1 - Math.pow(beta1, t));
+      const vHatB = vBias[i] / (1 - Math.pow(beta2, t));
+      
+      bias[i] -= lr * mHatB / (Math.sqrt(vHatB) + epsilon);
 
       const rowOffset = i * sDim;
       for (let j = 0; j < sDim; j++) {
         const wIdx = rowOffset + j;
         const wGrad = error * x[j] + reg * matrix[wIdx];
-        vMatrix[wIdx] = momentum * vMatrix[wIdx] - lr * wGrad;
-        matrix[wIdx] += vMatrix[wIdx];
+        
+        mMatrix[wIdx] = beta1 * mMatrix[wIdx] + (1 - beta1) * wGrad;
+        vMatrix[wIdx] = beta2 * vMatrix[wIdx] + (1 - beta2) * (wGrad * wGrad);
+        const mHatW = mMatrix[wIdx] / (1 - Math.pow(beta1, t));
+        const vHatW = vMatrix[wIdx] / (1 - Math.pow(beta2, t));
+
+        matrix[wIdx] -= lr * mHatW / (Math.sqrt(vHatW) + epsilon);
       }
     }
   }

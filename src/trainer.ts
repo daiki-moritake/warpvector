@@ -32,6 +32,13 @@ export interface TrainingOptions extends BaseTrainingOptions {}
 export class IntentTrainer extends BaseTrainer<TrainingExample, IntentWeights> {
   private dimension: number;
 
+  // Adam Optimizer States for Online Learning
+  private t: number = 0;
+  private mW: Float32Array;
+  private vW: Float32Array;
+  private mb: Float32Array;
+  private vb: Float32Array;
+
   /**
    * IntentTrainer のインスタンスを作成します。
    * @param {number} dimension ベクトルの次元数（入力・出力ともに同じ次元数となります）
@@ -39,6 +46,10 @@ export class IntentTrainer extends BaseTrainer<TrainingExample, IntentWeights> {
   constructor(dimension: number) {
     super();
     this.dimension = dimension;
+    this.mW = new Float32Array(dimension * dimension);
+    this.vW = new Float32Array(dimension * dimension);
+    this.mb = new Float32Array(dimension);
+    this.vb = new Float32Array(dimension);
   }
 
   protected get sourceDimension(): number {
@@ -60,19 +71,9 @@ export class IntentTrainer extends BaseTrainer<TrainingExample, IntentWeights> {
     flatMatrix: Float32Array,
     bias: Float32Array,
   ): IntentWeights {
-    const dim = this.dimension;
-    const outMatrix: number[][] = new Array(dim);
-    for (let i = 0; i < dim; i++) {
-      const row = new Array(dim);
-      const rowOffset = i * dim;
-      for (let j = 0; j < dim; j++) {
-        row[j] = flatMatrix[rowOffset + j];
-      }
-      outMatrix[i] = row;
-    }
     return {
-      matrix: outMatrix,
-      bias: Array.from(bias),
+      matrix: flatMatrix, // 変換のオーバーヘッドを避けるためネイティブ配列のまま返す
+      bias: bias,
     };
   }
 
@@ -109,20 +110,20 @@ export class IntentTrainer extends BaseTrainer<TrainingExample, IntentWeights> {
     }
     const bias = new Float32Array(currentWeights.bias);
 
-    // オンライン更新では Momentum を 0 として1ステップのみのSGDを行う
-    const vMatrix = new Float32Array(dim * dim);
-    const vBias = new Float32Array(dim);
-
-    this.sgdMomentumStep(
+    // オンライン更新では内部の Adam ステートを使用する
+    this.t++;
+    this.adamStep(
       flatMatrix,
       bias,
-      vMatrix,
-      vBias,
+      this.mW,
+      this.vW,
+      this.mb,
+      this.vb,
       input,
       target,
       learningRate,
       regularization,
-      0.0, // no momentum for 1-shot online update
+      this.t
     );
 
     const newWeights = this.toWeights(flatMatrix, bias);
