@@ -1,5 +1,5 @@
 import { IntentWeights } from "./IntentAdapter";
-import { flattenMatrix, assertDimension } from "./utils";
+import { assertDimension, getFlatMatrixAndBias, applyAffine } from "./utils";
 import { AbstractAdamTrainer } from "./BaseTrainer";
 
 /**
@@ -73,24 +73,11 @@ export class InfoNCETrainer extends AbstractAdamTrainer {
       assertDimension(negatives[i], dim, `InfoNCETrainer.train negative[${i}]`);
     }
 
-    let flatMatrix: Float32Array;
-    if (currentWeights.matrix instanceof Float32Array) {
-      flatMatrix = new Float32Array(currentWeights.matrix);
-    } else {
-      flatMatrix = flattenMatrix(currentWeights.matrix, dim, dim, "updateOnline Matrix");
-    }
-    const bias = new Float32Array(currentWeights.bias);
+    const { flatMatrix, bias } = getFlatMatrixAndBias(currentWeights, dim, "updateOnline Matrix");
 
     // 1. Forward Pass: アンカーベクトルを現在のアフィン変換でワープさせる A' = W * A + b
     const warpedAnchor = new Float32Array(dim);
-    for (let i = 0; i < dim; i++) {
-      let sum = bias[i];
-      const rowOffset = i * dim;
-      for (let j = 0; j < dim; j++) {
-        sum += flatMatrix[rowOffset + j] * anchor[j];
-      }
-      warpedAnchor[i] = sum;
-    }
+    applyAffine(flatMatrix, bias, anchor, warpedAnchor, dim);
 
     // 2. スコア計算: s(A', X) = A' \cdot X
     let posScore = 0;

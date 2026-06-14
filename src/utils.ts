@@ -301,3 +301,52 @@ export function assertDimension(
     );
   }
 }
+
+/**
+ * 変換行列とバイアスを持つオブジェクトから、処理しやすいFloat32Arrayのセットを生成します。
+ *
+ * @param weights 行列(2Dまたは1D)とバイアスを含むオブジェクト
+ * @param dim 次元数
+ * @param contextName エラー時のコンテキスト名
+ * @returns 1次元化されたFloat32Arrayの行列とバイアス
+ */
+export function getFlatMatrixAndBias(
+  weights: { matrix: number[][] | Float32Array; bias: number[] | Float32Array },
+  dim: number,
+  contextName: string = "Weights",
+): { flatMatrix: Float32Array; bias: Float32Array } {
+  let flatMatrix: Float32Array;
+  if (weights.matrix instanceof Float32Array) {
+    flatMatrix = new Float32Array(weights.matrix);
+  } else {
+    flatMatrix = flattenMatrix(weights.matrix, dim, dim, contextName);
+  }
+  const bias = new Float32Array(weights.bias);
+  return { flatMatrix, bias };
+}
+
+/**
+ * ベクトルに対してアフィン変換 (x' = W * x + b) を適用します。
+ * 
+ * @param matrix 1次元にフラット化された変換行列 (dim x dim)
+ * @param bias バイアスベクトル (dim)
+ * @param vector 変換元の入力ベクトル
+ * @param result 計算結果を格納する配列 (出力先)
+ * @param dim 次元数
+ */
+export function applyAffine(
+  matrix: Float32Array,
+  bias: Float32Array,
+  vector: number[] | Float32Array,
+  result: Float32Array,
+  dim: number,
+): void {
+  for (let i = 0; i < dim; i++) {
+    let sum = bias[i];
+    const rowOffset = i * dim;
+    for (let j = 0; j < dim; j++) {
+      sum += matrix[rowOffset + j] * vector[j];
+    }
+    result[i] = sum;
+  }
+}

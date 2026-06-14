@@ -1,7 +1,7 @@
 import { IntentWeights } from "./IntentAdapter";
 import { BaseTrainer, BaseTrainingOptions } from "./BaseTrainer";
 import { initWasm } from "./wasm/wasm-loader";
-import { flattenMatrix, assertDimension } from "./utils";
+import { assertDimension, getFlatMatrixAndBias, applyAffine } from "./utils";
 
 /**
  * 学習データのペア（ベースのクエリベクトルと、目標となる結果ベクトル）
@@ -91,13 +91,11 @@ export class IntentTrainer extends BaseTrainer<TrainingExample, IntentWeights> {
     assertDimension(target, this.dimension, "IntentTrainer.addExample target");
 
     const dim = this.dimension;
-    let flatMatrix: Float32Array;
-    if (currentWeights.matrix instanceof Float32Array) {
-      flatMatrix = new Float32Array(currentWeights.matrix);
-    } else {
-      flatMatrix = flattenMatrix(currentWeights.matrix, dim, dim, "updateOnline Matrix");
-    }
-    const bias = new Float32Array(currentWeights.bias);
+    const { flatMatrix, bias } = getFlatMatrixAndBias(currentWeights, dim, "updateOnline Matrix");
+
+    // 1. Forward pass (アフィン変換のみ。活性化関数は適用前)
+    const warpedInput = new Float32Array(dim);
+    applyAffine(flatMatrix, bias, input, warpedInput, dim);
 
     // オンライン更新では内部の Adam ステートを使用する
     this.t++;

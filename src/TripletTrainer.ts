@@ -1,5 +1,5 @@
 import { IntentWeights } from "./IntentAdapter";
-import { flattenMatrix, assertDimension } from "./utils";
+import { assertDimension, getFlatMatrixAndBias, applyAffine } from "./utils";
 import { AbstractAdamTrainer } from "./BaseTrainer";
 
 /**
@@ -72,24 +72,11 @@ export class TripletTrainer extends AbstractAdamTrainer {
     assertDimension(negative, this.dimension, "TripletTrainer.train negative");
 
     const dim = this.dimension;
-    let flatMatrix: Float32Array;
-    if (currentWeights.matrix instanceof Float32Array) {
-      flatMatrix = new Float32Array(currentWeights.matrix);
-    } else {
-      flatMatrix = flattenMatrix(currentWeights.matrix, dim, dim, "updateOnline Matrix");
-    }
-    const bias = new Float32Array(currentWeights.bias);
+    const { flatMatrix, bias } = getFlatMatrixAndBias(currentWeights, dim, "updateOnline Matrix");
 
     // 1. Forward Pass: アンカーベクトルを現在のアフィン変換でワープさせる A' = W * A + b
     const warpedAnchor = new Float32Array(dim);
-    for (let i = 0; i < dim; i++) {
-      let sum = bias[i];
-      const rowOffset = i * dim;
-      for (let j = 0; j < dim; j++) {
-        sum += flatMatrix[rowOffset + j] * anchor[j];
-      }
-      warpedAnchor[i] = sum;
-    }
+    applyAffine(flatMatrix, bias, anchor, warpedAnchor, dim);
 
     // 2. Compute Loss: L = max(0, margin + (A' * N) - (A' * P))
     // ※内積が大きいほど「近い（類似度が高い）」とみなします。

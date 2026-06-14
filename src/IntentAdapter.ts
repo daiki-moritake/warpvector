@@ -5,6 +5,7 @@ import {
   cosineSimilarity,
   flattenMatrix,
   assertDimension,
+  applyAffine,
 } from "./utils";
 import { getWasmInstance, ensureWasmMemory, writeFloat32ArrayToWasm } from "./wasm/wasm-loader";
 import { WarpAdapter } from "./WarpAdapter";
@@ -137,31 +138,7 @@ export class IntentAdapter implements WarpAdapter {
     this.weightsMap.delete(intentName);
   }
 
-  /**
-   * 行列とバイアスを用いてベクトルにアフィン変換を適用する内部関数 (x' = W * x + b)
-   *
-   * @param {Float32Array} matrix - フラット化された変換行列
-   * @param {Float32Array} bias - バイアスベクトル
-   * @param {number[] | Float32Array} vector - 変換元の入力ベクトル
-   * @param {Float32Array} result - 計算結果を格納する配列 (出力先)
-   * @returns {void}
-   */
-  private applyAffine(
-    matrix: Float32Array,
-    bias: Float32Array,
-    vector: number[] | Float32Array,
-    result: Float32Array,
-  ): void {
-    const dim = this.dimension;
-    for (let i = 0; i < dim; i++) {
-      let sum = 0;
-      const rowOffset = i * dim;
-      for (let j = 0; j < dim; j++) {
-        sum += matrix[rowOffset + j] * vector[j];
-      }
-      result[i] = sum + bias[i];
-    }
-  }
+  // (Private applyAffine was removed in favor of utils.ts applyAffine)
 
   /**
    * 複数の意図を指定された重みでブレンドした一時的な行列とバイアスを計算します。
@@ -224,7 +201,7 @@ export class IntentAdapter implements WarpAdapter {
     }
 
     const result = new Float32Array(this.dimension);
-    this.applyAffine(matrix, bias, baseVector, result);
+    applyAffine(matrix, bias, baseVector, result, this.dimension);
     applyActivationToVector(result, activation); // 活性化関数の適用
     return result;
   }
@@ -310,7 +287,7 @@ export class IntentAdapter implements WarpAdapter {
       const baseVector = baseVectors[k];
       assertDimension(baseVector, this.dimension, `Base vector at index ${k}`);
       const result = new Float32Array(this.dimension);
-      this.applyAffine(matrix, bias, baseVector, result);
+      applyAffine(matrix, bias, baseVector, result, this.dimension);
       applyActivationToVector(result, activation);
       results[k] = result;
     }
@@ -338,7 +315,7 @@ export class IntentAdapter implements WarpAdapter {
     const { matrix, bias } = this.computeBlendedWeights(blendWeights);
     const result = new Float32Array(this.dimension);
 
-    this.applyAffine(matrix, bias, baseVector, result);
+    applyAffine(matrix, bias, baseVector, result, this.dimension);
     applyActivationToVector(result, activation);
     return result;
   }
@@ -418,7 +395,7 @@ export class IntentAdapter implements WarpAdapter {
       const baseVector = baseVectors[k];
       assertDimension(baseVector, this.dimension, `Base vector at index ${k}`);
       const result = new Float32Array(this.dimension);
-      this.applyAffine(matrix, bias, baseVector, result);
+      applyAffine(matrix, bias, baseVector, result, this.dimension);
       applyActivationToVector(result, activation);
       results[k] = result;
     }
