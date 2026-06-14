@@ -36,9 +36,11 @@ describe("InfoNCETrainer", () => {
         anchor,
         positive,
         negatives,
-        0.05,  // learningRate
-        0.1,   // temperature
-        0.001  // regularization
+        {
+          learningRate: 0.05,
+          temperature: 0.1,
+          regularization: 0.001
+        }
       );
     }
 

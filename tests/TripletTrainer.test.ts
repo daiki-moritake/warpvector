@@ -39,9 +39,11 @@ describe("TripletTrainer", () => {
         anchor,
         positive,
         negative,
-        0.01,  // learningRate
-        0.2,   // margin
-        0.001  // regularization
+        {
+          learningRate: 0.01,
+          margin: 0.2,
+          regularization: 0.001
+        }
       );
     }
 

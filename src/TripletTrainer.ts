@@ -16,6 +16,18 @@ export interface TripletExample {
 }
 
 /**
+ * TripletTrainer のオンライン学習オプション
+ */
+export interface TripletOnlineOptions {
+  /** 1ステップの学習率 (デフォルト: 0.01) */
+  learningRate?: number;
+  /** トリプレットロスのマージン (デフォルト: 0.1) */
+  margin?: number;
+  /** L2正則化の強さ (デフォルト: 0.001) */
+  regularization?: number;
+}
+
+/**
  * Contrastive Learning (トリプレットロス) を用いて、相対的な距離感から
  * IntentWeights (行列W と バイアスb) を学習するトレーナークラス。
  * 
@@ -53,9 +65,7 @@ export class TripletTrainer extends AbstractAdamTrainer {
    * @param {number[] | Float32Array} anchor - 検索されたクエリベクトル
    * @param {number[] | Float32Array} positive - 正解（近づけたい）ベクトル
    * @param {number[] | Float32Array} negative - 不正解（遠ざけたい）ベクトル
-   * @param {number} learningRate - 1ステップの学習率 (デフォルト: 0.01)
-   * @param {number} margin - トリプレットロスのマージン (デフォルト: 0.1)
-   * @param {number} regularization - L2正則化の強さ (デフォルト: 0.001)
+   * @param {TripletOnlineOptions} [options={}] - 学習オプション
    * @returns {Promise<IntentWeights>} 微調整された新しい重み
    */
   public async updateOnline(
@@ -63,10 +73,11 @@ export class TripletTrainer extends AbstractAdamTrainer {
     anchor: number[] | Float32Array,
     positive: number[] | Float32Array,
     negative: number[] | Float32Array,
-    learningRate: number = 0.01,
-    margin: number = 0.1,
-    regularization: number = 0.001,
+    options: TripletOnlineOptions = {}
   ): Promise<IntentWeights> {
+    const learningRate = options.learningRate ?? 0.01;
+    const margin = options.margin ?? 0.1;
+    const regularization = options.regularization ?? 0.001;
     assertDimension(anchor, this.dimension, "TripletTrainer.train anchor");
     assertDimension(positive, this.dimension, "TripletTrainer.train positive");
     assertDimension(negative, this.dimension, "TripletTrainer.train negative");

@@ -16,8 +16,17 @@ export interface TrainingExample {
 
 /**
  * 学習時の最適化オプション
- */
 export interface TrainingOptions extends BaseTrainingOptions {}
+
+/**
+ * IntentTrainer のオンライン学習オプション
+ */
+export interface IntentOnlineOptions {
+  /** 1ステップの学習率 (デフォルト: 0.01) */
+  learningRate?: number;
+  /** L2正則化の強さ (デフォルト: 0.001) */
+  regularization?: number;
+}
 
 /**
  * サンプルデータから最適な `IntentWeights` (行列Wとバイアスb) を
@@ -74,17 +83,17 @@ export class IntentTrainer extends BaseTrainer<TrainingExample, IntentWeights> {
    * @param {IntentWeights} currentWeights - 現在の重み
    * @param {number[] | Float32Array} input - 検索されたクエリベクトル
    * @param {number[] | Float32Array} target - クリックされた(理想の)ドキュメントのベクトル
-   * @param {number} learningRate - 1ステップの学習率 (デフォルト: 0.01)
-   * @param {number} regularization - L2正則化の強さ (デフォルト: 0.001)
+   * @param {IntentOnlineOptions} [options={}] - 学習オプション
    * @returns {IntentWeights} 微調整された新しい重み
    */
   public async updateOnline(
     currentWeights: IntentWeights,
     input: number[] | Float32Array,
     target: number[] | Float32Array,
-    learningRate: number = 0.01,
-    regularization: number = 0.001,
+    options: IntentOnlineOptions = {}
   ): Promise<IntentWeights> {
+    const learningRate = options.learningRate ?? 0.01;
+    const regularization = options.regularization ?? 0.001;
     await initWasm();
 
     assertDimension(input, this.dimension, "IntentTrainer.addExample input");

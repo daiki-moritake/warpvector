@@ -16,6 +16,18 @@ export interface InfoNCEExample {
 }
 
 /**
+ * InfoNCETrainer のオンライン学習オプション
+ */
+export interface InfoNCEOnlineOptions {
+  /** 1ステップの学習率 (デフォルト: 0.01) */
+  learningRate?: number;
+  /** Softmaxの温度パラメータ (デフォルト: 0.1) */
+  temperature?: number;
+  /** L2正則化の強さ (デフォルト: 0.001) */
+  regularization?: number;
+}
+
+/**
  * InfoNCE Loss (Softmax Cross Entropy) を用いて、
  * 「1つの正解を近づけ、複数の不正解を一気に遠ざける」ように
  * IntentWeights (行列W と バイアスb) を学習するトレーナークラス。
@@ -51,9 +63,7 @@ export class InfoNCETrainer extends AbstractAdamTrainer {
    * @param {number[] | Float32Array} anchor - 検索されたクエリベクトル
    * @param {number[] | Float32Array} positive - 正解（近づけたい）ベクトル
    * @param {(number[] | Float32Array)[]} negatives - 不正解（遠ざけたい）ベクトルの配列
-   * @param {number} learningRate - 1ステップの学習率 (デフォルト: 0.01)
-   * @param {number} temperature - Softmaxの温度パラメータ (デフォルト: 0.1)
-   * @param {number} regularization - L2正則化の強さ (デフォルト: 0.001)
+   * @param {InfoNCEOnlineOptions} [options={}] - 学習オプション
    * @returns {Promise<IntentWeights>} 微調整された新しい重み
    */
   public async updateOnline(
@@ -61,10 +71,11 @@ export class InfoNCETrainer extends AbstractAdamTrainer {
     anchor: number[] | Float32Array,
     positive: number[] | Float32Array,
     negatives: (number[] | Float32Array)[],
-    learningRate: number = 0.01,
-    temperature: number = 0.1,
-    regularization: number = 0.001,
+    options: InfoNCEOnlineOptions = {}
   ): Promise<IntentWeights> {
+    const learningRate = options.learningRate ?? 0.01;
+    const temperature = options.temperature ?? 0.1;
+    const regularization = options.regularization ?? 0.001;
     const dim = this.dimension;
 
     assertDimension(anchor, dim, "InfoNCETrainer.train anchor");

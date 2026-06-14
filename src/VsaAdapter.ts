@@ -7,6 +7,15 @@ import { assertDimension, normalize, addScaledVector } from "./utils";
  * 1つの密なベクトルの中にキーと値（メタデータなど）を埋め込み、検索空間上で
  * そのまま演算を行えるようにする機能を提供します。
  */
+
+/**
+ * VSA演算のオプション
+ */
+export interface VsaOptions {
+  /** 結果をL2正規化するかどうか（デフォルト: true） */
+  shouldNormalize?: boolean;
+}
+
 export class VsaAdapter {
   /**
    * ベクトルのバンドリング (Bundling / Superposition)
@@ -14,12 +23,12 @@ export class VsaAdapter {
    * 「A と B の両方の概念を含む」ベクトルを作成する際に使用します。
    *
    * @param vectors 束ねるベクトルの配列
-   * @param shouldNormalize 結果をL2正規化するかどうか（デフォルト: true）
+   * @param options 演算オプション
    * @returns 束ねられた新しいベクトル
    */
   public static bundle(
     vectors: (number[] | Float32Array)[],
-    shouldNormalize: boolean = true
+    options: VsaOptions = {}
   ): Float32Array {
     if (vectors.length === 0) {
       throw new Error("Cannot bundle an empty array of vectors.");
@@ -34,6 +43,7 @@ export class VsaAdapter {
       addScaledVector(result, vec, 1.0);
     }
 
+    const shouldNormalize = options.shouldNormalize ?? true;
     if (shouldNormalize) {
       return normalize(result);
     }
@@ -48,13 +58,13 @@ export class VsaAdapter {
    *
    * @param vec1 バインドするベクトル1
    * @param vec2 バインドするベクトル2
-   * @param shouldNormalize 結果をL2正規化するかどうか（デフォルト: true）
+   * @param options 演算オプション
    * @returns バインドされた新しいベクトル
    */
   public static bind(
     vec1: number[] | Float32Array,
     vec2: number[] | Float32Array,
-    shouldNormalize: boolean = true
+    options: VsaOptions = {}
   ): Float32Array {
     const dim = vec1.length;
     assertDimension(vec2, dim, "Vector 2");
@@ -64,6 +74,7 @@ export class VsaAdapter {
       result[i] = vec1[i] * vec2[i];
     }
 
+    const shouldNormalize = options.shouldNormalize ?? true;
     if (shouldNormalize) {
       return normalize(result);
     }
@@ -78,13 +89,13 @@ export class VsaAdapter {
    *
    * @param boundVec バインド済みのベクトル
    * @param keyVec 抽出に使用するキーベクトル
-   * @param shouldNormalize 結果をL2正規化するかどうか（デフォルト: true）
+   * @param options 演算オプション
    * @returns アンバインドされて抽出されたベクトル
    */
   public static unbind(
     boundVec: number[] | Float32Array,
     keyVec: number[] | Float32Array,
-    shouldNormalize: boolean = true
+    options: VsaOptions = {}
   ): Float32Array {
     const dim = boundVec.length;
     assertDimension(keyVec, dim, "Key Vector");
@@ -96,6 +107,7 @@ export class VsaAdapter {
       result[i] = boundVec[i] / val;
     }
 
+    const shouldNormalize = options.shouldNormalize ?? true;
     if (shouldNormalize) {
       return normalize(result);
     }
