@@ -77,4 +77,66 @@ describe("WarpPipeline", () => {
   test("throws error when importing empty states", () => {
     expect(() => WarpPipeline.importState([])).toThrow();
   });
+
+  test("runBatch processes multiple vectors correctly", () => {
+    const pipeline = new WarpPipeline(3)
+      .addIntent({
+        "my_intent": {
+          matrix: [
+            [2, 0, 0],
+            [0, 2, 0],
+            [0, 0, 2]
+          ],
+          bias: [0, 0, 0]
+        }
+      });
+      
+    const batch = [
+      [1, 2, 3],
+      [4, 5, 6]
+    ];
+    
+    const result = pipeline.runBatch(batch, { intent: "my_intent" });
+    expect(result.length).toBe(2);
+    expect(Array.from(result[0])).toEqual([2, 4, 6]);
+    expect(Array.from(result[1])).toEqual([8, 10, 12]);
+  });
+
+  test("runAndFormat outputs to pgvector format correctly", () => {
+    const pipeline = new WarpPipeline(2); // no-op pipeline for testing formatting
+    const result = pipeline.runAndFormat([0.1, 0.2], { format: "pgvector" });
+    expect(result).toBe("[0.1, 0.2]");
+  });
+
+  test("runAndFormat outputs to pinecone format correctly", () => {
+    const pipeline = new WarpPipeline(2);
+    const result = pipeline.runAndFormat([0.1, 0.2], { format: "pinecone", topK: 5, filter: { genre: "action" } });
+    expect(result.vector).toEqual([0.1, 0.2]);
+    expect(result.topK).toBe(5);
+    expect(result.filter.genre).toBe("action");
+  });
+
+  test("runAndFormat outputs to redis format correctly", () => {
+    const pipeline = new WarpPipeline(2);
+    const result = pipeline.runAndFormat([1.0, -1.0], { format: "redis" });
+    expect(result).toBeInstanceOf(Uint8Array);
+    // Float32Array [1.0, -1.0] has byte length 8
+    expect(result.length).toBe(8);
+  });
+
+  test("init successfully initializes async adapters", async () => {
+    // Tests that init doesn't throw and successfully awaits MlpAdapter init.
+    const pipeline = new WarpPipeline(2)
+      .addMlp([{
+        matrix: [[1, 0], [0, 1]],
+        bias: [0, 0],
+        activation: "linear"
+      }]);
+      
+    await pipeline.init();
+    
+    // Test if run works after init
+    const result = pipeline.run([1, 2]);
+    expect(Array.from(result)).toEqual([1, 2]);
+  });
 });

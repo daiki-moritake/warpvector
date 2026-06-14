@@ -5,6 +5,7 @@ import { WhiteningAdapter } from "./WhiteningAdapter";
 import { ProjectionAdapter, ProjectionWeights } from "./ProjectionAdapter";
 import { MlpAdapter, MlpLayer } from "./MlpAdapter";
 import { QuantizationAdapter, QuantizationType } from "./QuantizationAdapter";
+import { VectorDBAdapter } from "./db";
 
 export interface PipelineStep {
   type: string;
@@ -102,11 +103,23 @@ export class WarpPipeline {
   }
 
   /**
+   * パイプライン内に WASM などの非同期初期化を必要とするアダプタが含まれている場合、
+   * それらを一括でセットアップします。
+   */
+  public async init(): Promise<void> {
+    for (const step of this.steps) {
+      if (typeof (step.adapter as any).init === "function") {
+        await (step.adapter as any).init();
+      }
+    }
+  }
+
+  /**
    * パイプラインを順次実行し、入力ベクトルを最終的な表現に変換します。
    *
    * @param vector 変換元のベースベクトル
    * @param context インテントやバージョンなどのコンテキスト情報
-   * @returns パイプラインを通過した最終的なベクトル (Float32Array または Uint8Array)
+   * @returns パイプラインを通過した最終的なベクトル (Float32Array または Uint8Array/Int8Array)
    */
   public run(vector: number[] | Float32Array, context?: RunContext): any {
     let currentVector: any = vector;
@@ -122,6 +135,71 @@ export class WarpPipeline {
     }
 
     return currentVector;
+  }
+
+  /**
+   * 複数のベクトル（バッチ）を一括でパイプラインに通します。
+   * 内部の tuneBatch が実装されているアダプタでは WASM/SIMD による高速処理が適用されます。
+   *
+   * @param vectors 変換元のベースベクトルの配列
+   * @param context インテントやバージョンなどのコンテキスト情報
+   * @returns 変換されたベクトルの配列
+   */
+  public runBatch(vectors: (number[] | Float32Array)[], context?: RunContext): any[] {
+    let currentVectors: any[] = vectors;
+
+    for (const step of this.steps) {
+      if (typeof (step.adapter as any).tuneBatch === "function") {
+        // tuneBatch メソッドがある場合は一括処理を委譲
+        if (step.adapter instanceof QuantizationAdapter) {
+          currentVectors = (step.adapter as any).tuneBatch(currentVectors);
+        } else {
+          currentVectors = (step.adapter as any).tuneBatch(currentVectors, context?.intent || "default");
+        }
+      } else {
+        // tuneBatch がない場合は通常のループ処理へフォールバック
+        currentVectors = currentVectors.map(vec => {
+          if (step.adapter instanceof QuantizationAdapter) {
+            return step.adapter.tune(vec as any);
+          } else {
+            return step.adapter.tune(vec, context?.intent || "default");
+          }
+        });
+      }
+    }
+
+    return currentVectors;
+  }
+
+  /**
+   * ベクトル変換から特定データベース向けのフォーマットまでを1回の呼び出しで行います。
+   *
+   * @param vector 変換元のベースベクトル
+   * @param dbOptions フォーマットの指定オプション
+   * @param context パイプラインのコンテキスト
+   * @returns 指定されたデータベース形式のオブジェクトや文字列
+   */
+  public runAndFormat(
+    vector: number[] | Float32Array,
+    dbOptions: { format: "pgvector" | "pinecone" | "redis", topK?: number, filter?: Record<string, any> },
+    context?: RunContext
+  ): any {
+    const tunedVector = this.run(vector, context);
+
+    switch (dbOptions.format) {
+      case "pgvector":
+        return VectorDBAdapter.toPgvector(tunedVector as number[] | Float32Array);
+      case "pinecone":
+        return VectorDBAdapter.toPineconeQuery(
+          tunedVector as number[] | Float32Array, 
+          dbOptions.topK, 
+          dbOptions.filter
+        );
+      case "redis":
+        return VectorDBAdapter.toRedis(tunedVector as number[] | Float32Array);
+      default:
+        throw new Error(`Unknown format: ${dbOptions.format}`);
+    }
   }
 
   /**

@@ -6,6 +6,27 @@
 
 ## Classes
 
+### `WarpPipeline`
+複数のアダプタを直感的に繋ぎ合わせ、ベクトルの変換、非同期初期化、バッチ処理、DBフォーマット出力を一括で管理できる統合インターフェース。
+
+- `constructor(inputDim: number)`
+- `addIntent(intents?: Record<string, IntentWeights>): this`
+- `addLoraIntent(rank: number, intents?: Record<string, LoraIntentWeights>): this`
+- `addWhitening(options?: { learningRate?: number; numComponents?: number }): this`
+- `addProjection(outputDim: number, projections?: Record<string, ProjectionWeights>): this`
+- `addMlp(layers: MlpLayer[]): this`
+- `quantize(type: QuantizationType): this`
+- `init(): Promise<void>`
+  - WASM等の非同期初期化が必要な組み込みアダプタを一括でセットアップします。
+- `run(vector: number[] | Float32Array, context?: RunContext): any`
+  - 構成された全ての変換ステップを順次適用します。
+- `runBatch(vectors: (number[] | Float32Array)[], context?: RunContext): any[]`
+  - 複数のベクトルを一括でパイプラインに流し込みます。WASM対応アダプタではバッチ処理が並列化されます。
+- `runAndFormat(vector: number[] | Float32Array, dbOptions: { format: string, topK?: number, filter?: any }, context?: RunContext): any`
+  - 変換からデータベース向けフォーマット（pinecone, pgvector, redis）までの処理を1行で行います。
+- `exportState(): PipelineState[]`
+- `static importState(states: PipelineState[]): WarpPipeline`
+
 ### `IntentAdapter`
 インメモリでベクトルのアフィン変換を行うメインクラス。
 

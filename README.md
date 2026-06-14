@@ -38,22 +38,31 @@
 
 ## 基本的な使い方 (WarpPipeline)
 
-新しく導入された `WarpPipeline` を使うと、複雑なベクトル変換（空間偏りの除去、インテント変換、次元圧縮、量子化）を数行のチェーンメソッドで直感的に記述できます。
+新しく導入された `WarpPipeline` を使うと、複雑なベクトル変換（非線形推論、インテント変換、量子化）からDBフォーマットへの出力までを数行で直感的に記述できます。
 
 ```typescript
 import { WarpPipeline } from 'warpvector';
 
 // 1. パイプラインの構築
 const pipeline = new WarpPipeline(1536)
-  .addWhitening({ numComponents: 1 })         // 空間の偏りを除去
+  .addMlp(layers)                             // 非線形変換 (WASM使用)
   .addIntent({ "domain_x": intentWeights })   // ユーザーごとに空間を歪める
-  .addProjection(256, projectionWeights)      // 次元を256に圧縮
-  .quantize("int8");                          // 最後に Int8 に量子化
+  .quantize("int8");                          // 最後に Int8 に量子化して圧縮
 
-// 2. ベクトルの変換 (1回の呼び出しで全ステップを適用)
-const finalVector = pipeline.run(rawVector, { intent: "domain_x" });
+// 2. 非同期初期化 (WASMモジュールのセットアップなどを一括実行)
+await pipeline.init();
 
-// 3. パイプライン丸ごとの永続化と復元
+// 3. 超高速バッチ処理 (WASM/SIMD対応)
+const batchVectors = [[0.1, ...], [0.5, ...]]; // 大量データ
+const results = pipeline.runBatch(batchVectors, { intent: "domain_x" });
+
+// 4. Vector DB 用フォーマットへの直接出力
+const pineconeQuery = pipeline.runAndFormat(
+  rawVector, 
+  { format: "pinecone", topK: 10, filter: { genre: "action" } }
+);
+
+// 5. パイプライン丸ごとの永続化と復元
 const stateJson = pipeline.exportState(); 
 const restoredPipeline = WarpPipeline.importState(stateJson);
 ```
