@@ -1,0 +1,45 @@
+name: Publish to npm
+
+on:
+  release:
+    types: [published]
+  # GitHubの画面から手動で実行できるようにする
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    
+    # npm provenance (Trusted Publishing) のための権限設定
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # warpvector は Bun と Node.js(npm) の両方を使用するため両方をセットアップします
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Run tests
+        run: bun test
+
+      - name: Build the project
+        run: bun run build
+
+      - name: Publish to npm
+        # --provenance フラグを付けることで Trusted Publishing を有効化します
+        run: npm publish --provenance
