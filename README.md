@@ -15,6 +15,7 @@
 ## 🚀 主な特徴
 
 - **動的アフィン変換 ($W \cdot x + b$):** 回転・拡大・縮小（行列 $W$）と平行移動（バイアス $b$）を組み合わせ、コンテキストに最適化されたベクトル空間を動的に生成。
+- **バッチ処理とユーティリティ:** `tuneBatch` による複数ベクトルの高速一括変換や、`normalize`（L2正規化）などの実用的な機能を標準搭載。
 - **TypeScriptネイティブ & ゼロ依存（Zero-dependency）:** Python環境や重厚な機械学習ライブラリは一切不要。`Float32Array` をベースにした極限まで無駄を削ぎ落とした行列演算ロジック。
 - **エッジ・ローカルファースト対応:** 超軽量かつ高速に動作するため、Cloudflare Workers、Bun、Node.jsなどのモダンなサーバーレス/エッジ環境や、ローカルの膨大なデータ解析（DuckDB等との併用）に即座に組み込み可能。
 
@@ -29,9 +30,10 @@ bun add warpvector
 
 ```
 
-🛠 クイックスタートTypeScriptimport { IntentAdapter, IntentWeights } from 'warpvector';
-
+🛠 クイックスタートTypeScript
 ```ts
+import { IntentAdapter, IntentWeights, normalize } from 'warpvector';
+
 // 1. 意図（インテント）ごとの変換行列とバイアスを定義
 const myIntents: Record<string, IntentWeights> = {
   riskAnalysis: {
@@ -64,6 +66,14 @@ const tunedVectorForRisk = adapter.tune(baseVector, "riskAnalysis");
 
 console.log(tunedVectorForRisk);
 // 出力: Float32Array [ 0.211, -0.184, 1.259 ] (アフィン変換後のベクトル)
+
+// 5. 複数ベクトルのバッチ変換と正規化（オプション）
+const batchVectors = [
+  [0.15, -0.23, 0.88],
+  [0.44, 0.11, -0.05]
+];
+const tunedBatch = adapter.tuneBatch(batchVectors, "riskAnalysis");
+const normalizedVector = normalize(tunedBatch[0]); // コサイン類似度計算用などにL2正規化
 ```
 
 ## 📐 数学的背景：動的アフィン変換（詳細）

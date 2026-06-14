@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { IntentAdapter, IntentWeights } from "../src/IntentAdapter";
+import { normalize } from "../src/utils";
 
 describe("IntentAdapter Core Logic", () => {
   const dummyIntents: Record<string, IntentWeights> = {
@@ -98,6 +99,21 @@ describe("IntentAdapter Core Logic", () => {
     }).toThrow("Intent 'badIntent': Matrix row dimension mismatch. Expected 3, got 2.");
   });
 
+  test("バッチ処理(tuneBatch)が正しく適用されること", () => {
+    const adapter = new IntentAdapter(dummyIntents);
+    const base1 = [2, 4, 8];
+    const base2 = new Float32Array([1, 1, 1]);
+    const results = adapter.tuneBatch([base1, base2], "scaleAndShift");
+
+    expect(results.length).toBe(2);
+    expect(results[0][0]).toBeCloseTo(5, 5);
+    expect(results[0][1]).toBeCloseTo(11, 5);
+    expect(results[0][2]).toBeCloseTo(6, 5);
+    expect(results[1][0]).toBeCloseTo(3, 5);
+    expect(results[1][1]).toBeCloseTo(2, 5);
+    expect(results[1][2]).toBeCloseTo(2.5, 5);
+  });
+
   test("should throw error on initialization if matrix is not square", () => {
     const invalidIntents: Record<string, IntentWeights> = {
       badIntent: {
@@ -113,5 +129,25 @@ describe("IntentAdapter Core Logic", () => {
     expect(() => {
       new IntentAdapter(invalidIntents);
     }).toThrow("Intent 'badIntent': Matrix column dimension mismatch at row 1. Expected 3, got 2.");
+  });
+});
+
+describe("Utils", () => {
+  test("normalizeが正しくベクトルを正規化できること", () => {
+    const base = [3, 4];
+    const result = normalize(base);
+    expect(result[0]).toBeCloseTo(0.6, 5);
+    expect(result[1]).toBeCloseTo(0.8, 5);
+    
+    const norm = Math.sqrt(result[0] * result[0] + result[1] * result[1]);
+    expect(norm).toBeCloseTo(1.0, 5);
+  });
+
+  test("ゼロベクトルのnormalizeはゼロベクトルを返すこと", () => {
+    const base = [0, 0, 0];
+    const result = normalize(base);
+    expect(result[0]).toBe(0);
+    expect(result[1]).toBe(0);
+    expect(result[2]).toBe(0);
   });
 });

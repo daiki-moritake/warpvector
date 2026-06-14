@@ -104,4 +104,49 @@ export class IntentAdapter {
 
     return result;
   }
+
+  /**
+   * 複数のベースベクトルに対して、指定された意図（intent）のアフィン変換をバッチ処理で適用します。
+   * ループのオーバーヘッドを減らし、大規模なデータセットに対してより効率的に変換を行います。
+   *
+   * @param baseVectors 変換元のベクトルの配列 (2次元配列)
+   * @param intent 適用する意図（intent）の名前
+   * @returns 変換後のベクトルを格納した Float32Array の配列
+   */
+  public tuneBatch(baseVectors: (number[] | Float32Array)[], intent: string): Float32Array[] {
+    const matrix = this.matrices.get(intent);
+    const bias = this.biases.get(intent);
+
+    if (!matrix || !bias) {
+      throw new Error(`Intent '${intent}' not found.`);
+    }
+
+    const dim = this.dimension;
+    const batchSize = baseVectors.length;
+    const results = new Array<Float32Array>(batchSize);
+
+    for (let k = 0; k < batchSize; k++) {
+      const baseVector = baseVectors[k];
+      if (baseVector.length !== dim) {
+        throw new Error(
+          `Vector dimension mismatch at index ${k}. Expected ${dim}, got ${baseVector.length}.`
+        );
+      }
+
+      const result = new Float32Array(dim);
+      for (let i = 0; i < dim; i++) {
+        let sum = 0;
+        const rowOffset = i * dim;
+        
+        for (let j = 0; j < dim; j++) {
+          sum += matrix[rowOffset + j] * baseVector[j];
+        }
+        
+        result[i] = sum + bias[i];
+      }
+      results[k] = result;
+    }
+
+    return results;
+  }
 }
