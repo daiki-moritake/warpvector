@@ -3,9 +3,9 @@ import {
   getWasmInstance,
   ensureWasmMemory,
   allocateWasmMemory,
-  getWasmAllocatorOffset,
-  setWasmAllocatorOffset,
+  withWasmMemoryStack,
   writeFloat32ArrayToWasm,
+  wasmMutex,
 } from "./wasm/wasm-loader";
 import { assertDimension, applyAffine } from "./utils";
 
@@ -79,8 +79,7 @@ export abstract class AbstractAdamTrainer {
       const inputBytes = sDim * 4;
       const gradBytes = tDim * 4;
 
-      const initialOffset = getWasmAllocatorOffset();
-      try {
+      withWasmMemoryStack(() => {
         const matrixPtr = allocateWasmMemory(matrixBytes);
         const biasPtr = allocateWasmMemory(biasBytes);
         const mMatrixPtr = allocateWasmMemory(matrixBytes);
@@ -128,10 +127,7 @@ export abstract class AbstractAdamTrainer {
         vMatrix.set(f32.subarray(vMatrixPtr / 4, vMatrixPtr / 4 + vMatrix.length));
         mBias.set(f32.subarray(mBiasPtr / 4, mBiasPtr / 4 + mBias.length));
         vBias.set(f32.subarray(vBiasPtr / 4, vBiasPtr / 4 + vBias.length));
-
-      } finally {
-        setWasmAllocatorOffset(initialOffset);
-      }
+      });
     } else {
       // WASMが使えない場合のJSフォールバック
       for (let i = 0; i < tDim; i++) {
@@ -232,56 +228,58 @@ export abstract class BaseTrainer<
    * @throws {Error} サンプルデータが追加されていない場合にスローされます。
    */
   public async train(options: BaseTrainingOptions = {}): Promise<TResult> {
-    await initWasm();
+    return wasmMutex.runExclusive(async () => {
+      await initWasm();
 
-    if (this.examples.length === 0) {
-      throw new Error("No training examples provided.");
-    }
-
-    if (options.autoTune) {
-      options.learningRate = this.findBestLearningRate(options);
-      options.autoTune = false;
-    }
-
-    const lr = options.learningRate ?? 0.01;
-    const epochs = options.epochs ?? 100;
-    const reg = options.regularization ?? 0.001;
-    const momentum = options.momentum ?? 0.9;
-
-    const sDim = this.sourceDimension;
-    const tDim = this.targetDimension;
-
-    const flatMatrix = new Float32Array(tDim * sDim);
-    for (let i = 0; i < tDim; i++) {
-      if (i < sDim) {
-        flatMatrix[i * sDim + i] = 1.0;
+      if (this.examples.length === 0) {
+        throw new Error("No training examples provided.");
       }
-    }
-    const bias = new Float32Array(tDim);
 
-    this.initAdamState(sDim, tDim);
-
-    for (let epoch = 0; epoch < epochs; epoch++) {
-      for (const example of this.examples) {
-        this.t++;
-        const { source, target } = this.getInputs(example);
-        this.adamStep(
-          flatMatrix,
-          bias,
-          this.mW,
-          this.vW,
-          this.mb,
-          this.vb,
-          source,
-          target,
-          lr,
-          reg,
-          this.t,
-        );
+      if (options.autoTune) {
+        options.learningRate = this.findBestLearningRate(options);
+        options.autoTune = false;
       }
-    }
 
-    return this.toWeights(flatMatrix, bias);
+      const lr = options.learningRate ?? 0.01;
+      const epochs = options.epochs ?? 100;
+      const reg = options.regularization ?? 0.001;
+      const momentum = options.momentum ?? 0.9;
+
+      const sDim = this.sourceDimension;
+      const tDim = this.targetDimension;
+
+      const flatMatrix = new Float32Array(tDim * sDim);
+      for (let i = 0; i < tDim; i++) {
+        if (i < sDim) {
+          flatMatrix[i * sDim + i] = 1.0;
+        }
+      }
+      const bias = new Float32Array(tDim);
+
+      this.initAdamState(sDim, tDim);
+
+      for (let epoch = 0; epoch < epochs; epoch++) {
+        for (const example of this.examples) {
+          this.t++;
+          const { source, target } = this.getInputs(example);
+          this.adamStep(
+            flatMatrix,
+            bias,
+            this.mW,
+            this.vW,
+            this.mb,
+            this.vb,
+            source,
+            target,
+            lr,
+            reg,
+            this.t,
+          );
+        }
+      }
+
+      return this.toWeights(flatMatrix, bias);
+    });
   }
 
   /**

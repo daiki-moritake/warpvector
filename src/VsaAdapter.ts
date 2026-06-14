@@ -101,9 +101,12 @@ export class VsaAdapter {
     assertDimension(keyVec, dim, "Key Vector");
 
     const result = new Float32Array(dim);
+    const EPSILON = 1e-5;
     for (let i = 0; i < dim; i++) {
-      // ゼロ除算を防ぐための微小なイプシロン
-      const val = keyVec[i] === 0 ? 1e-8 : keyVec[i];
+      let val = keyVec[i];
+      if (Math.abs(val) < EPSILON) {
+        val = val >= 0 ? EPSILON : -EPSILON;
+      }
       result[i] = boundVec[i] / val;
     }
 

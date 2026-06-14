@@ -11,7 +11,8 @@
     "forceConsistentCasingInFileNames": true,
     "outDir": "./dist",
     "baseUrl": ".",
-    "types": ["bun"]
+    "types": ["bun"],
+    "experimentalDecorators": true
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "tests", "examples"]

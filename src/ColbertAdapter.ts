@@ -3,8 +3,7 @@ import {
   ensureWasmMemory,
   writeFloat32ArrayToWasm,
   allocateWasmMemory,
-  getWasmAllocatorOffset,
-  setWasmAllocatorOffset,
+  withWasmMemoryStack,
 } from "./wasm/wasm-loader";
 
 export class ColbertAdapter {
@@ -46,8 +45,7 @@ export class ColbertAdapter {
     const queryBytes = queryTokens.byteLength;
     const docBytes = documentTokens.byteLength;
 
-    const initialOffset = getWasmAllocatorOffset();
-    try {
+    return withWasmMemoryStack(() => {
       const queryPtr = allocateWasmMemory(queryBytes);
       const docPtr = allocateWasmMemory(docBytes);
 
@@ -61,9 +59,7 @@ export class ColbertAdapter {
         numDocTokens,
         dim,
       );
-    } finally {
-      setWasmAllocatorOffset(initialOffset);
-    }
+    });
   }
 
   /**
@@ -97,8 +93,7 @@ export class ColbertAdapter {
     const queryBytes = queryTokens.byteLength;
     const maxDocBytes = maxDocLen * Float32Array.BYTES_PER_ELEMENT;
 
-    const initialOffset = getWasmAllocatorOffset();
-    try {
+    return withWasmMemoryStack(() => {
       const queryPtr = allocateWasmMemory(queryBytes);
       const docPtr = allocateWasmMemory(maxDocBytes);
 
@@ -128,8 +123,6 @@ export class ColbertAdapter {
 
       // スコアの降順にソート
       return results.sort((a, b) => b.score - a.score);
-    } finally {
-      setWasmAllocatorOffset(initialOffset);
-    }
+    });
   }
 }

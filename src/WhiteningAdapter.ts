@@ -11,6 +11,7 @@ import {
   writeFloat32ArrayToWasm,
   allocateWasmMemory,
   initWasm,
+  withWasmMemoryStack,
 } from "./wasm/wasm-loader";
 
 export interface WhiteningConfig {
@@ -51,10 +52,6 @@ export class WhiteningAdapter implements WarpAdapter {
   public async init(): Promise<void> {
     const instance = await initWasm();
     if (instance) {
-      const componentsSize = this.numComponents * this.dim * 4;
-      const xResidualSize = this.dim * 4;
-      this.componentsPtr = allocateWasmMemory(componentsSize);
-      this.xResidualPtr = allocateWasmMemory(xResidualSize);
       this.isWasmReady = true;
     }
   }
@@ -121,44 +118,40 @@ export class WhiteningAdapter implements WarpAdapter {
       instance &&
       instance.exports.sangerUpdateWasm
     ) {
-      if (!this.isWasmReady) {
+      const memory = instance.exports.memory as WebAssembly.Memory;
+      withWasmMemoryStack(() => {
         const componentsSize = this.numComponents * this.dim * 4;
         const xResidualSize = this.dim * 4;
-        this.componentsPtr = allocateWasmMemory(componentsSize);
-        this.xResidualPtr = allocateWasmMemory(xResidualSize);
-        this.isWasmReady = true;
-      }
-      const memory = instance.exports.memory as WebAssembly.Memory;
+        const componentsPtr = allocateWasmMemory(componentsSize);
+        const xResidualPtr = allocateWasmMemory(xResidualSize);
 
-      const componentsPtr = this.componentsPtr;
-      const xResidualPtr = this.xResidualPtr;
-
-      // components配列をフラットなFloat32ArrayにしてWASMメモリに書き込む
-      const f32 = new Float32Array(memory.buffer);
-      for (let k = 0; k < this.numComponents; k++) {
-        const comp = this.components[k];
-        for (let i = 0; i < this.dim; i++) {
-          f32[componentsPtr / 4 + k * this.dim + i] = comp[i];
+        // components配列をフラットなFloat32ArrayにしてWASMメモリに書き込む
+        const f32 = new Float32Array(memory.buffer);
+        for (let k = 0; k < this.numComponents; k++) {
+          const comp = this.components[k];
+          for (let i = 0; i < this.dim; i++) {
+            f32[componentsPtr / 4 + k * this.dim + i] = comp[i];
+          }
         }
-      }
-      writeFloat32ArrayToWasm(memory, x_residual, xResidualPtr);
+        writeFloat32ArrayToWasm(memory, x_residual, xResidualPtr);
 
-      const sangerUpdateWasm = instance.exports
-        .sangerUpdateWasm as CallableFunction;
-      sangerUpdateWasm(
-        componentsPtr,
-        xResidualPtr,
-        this.dim,
-        this.numComponents,
-        this.learningRate,
-      );
+        const sangerUpdateWasm = instance.exports
+          .sangerUpdateWasm as CallableFunction;
+        sangerUpdateWasm(
+          componentsPtr,
+          xResidualPtr,
+          this.dim,
+          this.numComponents,
+          this.learningRate,
+        );
 
-      // 更新されたcomponentsをWASMメモリから読み戻す
-      for (let k = 0; k < this.numComponents; k++) {
-        for (let i = 0; i < this.dim; i++) {
-          this.components[k][i] = f32[componentsPtr / 4 + k * this.dim + i];
+        // 更新されたcomponentsをWASMメモリから読み戻す
+        for (let k = 0; k < this.numComponents; k++) {
+          for (let i = 0; i < this.dim; i++) {
+            this.components[k][i] = f32[componentsPtr / 4 + k * this.dim + i];
+          }
         }
-      }
+      });
     } else {
       // --- WASMが使えない場合のフォールバック (純粋なJS処理) ---
       for (let k = 0; k < this.numComponents; k++) {

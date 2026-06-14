@@ -12,6 +12,8 @@ import {
   getWasmInstance,
   ensureWasmMemory,
   writeFloat32ArrayToWasm,
+  allocateWasmMemory,
+  withWasmMemoryStack,
 } from "./wasm/wasm-loader";
 import { WarpAdapter } from "./WarpAdapter";
 
@@ -238,51 +240,47 @@ export class IntentAdapter implements WarpAdapter {
       4;
 
     // WASMモジュールが利用可能で、共有メモリにアクセス・拡張できる場合
-    if (instance && ensureWasmMemory(requiredBytes)) {
+    if (instance) {
       const memory = instance.exports.memory as WebAssembly.Memory;
-      let ptr = 0;
+      return withWasmMemoryStack(() => {
+        const matrixPtr = allocateWasmMemory(this.dimension * this.dimension * 4);
+        const biasPtr = allocateWasmMemory(this.dimension * 4);
+        const vectorsPtr = allocateWasmMemory(batchSize * this.dimension * 4);
+        const resultsPtr = allocateWasmMemory(batchSize * this.dimension * 4);
 
-      const matrixPtr = ptr;
-      writeFloat32ArrayToWasm(memory, matrix, ptr);
-      ptr += this.dimension * this.dimension * 4;
+        writeFloat32ArrayToWasm(memory, matrix, matrixPtr);
+        writeFloat32ArrayToWasm(memory, bias, biasPtr);
 
-      const biasPtr = ptr;
-      writeFloat32ArrayToWasm(memory, bias, ptr);
-      ptr += this.dimension * 4;
+        for (let k = 0; k < batchSize; k++) {
+          writeFloat32ArrayToWasm(
+            memory,
+            baseVectors[k],
+            vectorsPtr + k * this.dimension * 4,
+          );
+        }
 
-      const vectorsPtr = ptr;
-      for (let k = 0; k < batchSize; k++) {
-        writeFloat32ArrayToWasm(
-          memory,
-          baseVectors[k],
-          ptr + k * this.dimension * 4,
+        const tuneBatchWasm = instance.exports.tuneBatchWasm as CallableFunction;
+        tuneBatchWasm(
+          matrixPtr,
+          biasPtr,
+          vectorsPtr,
+          resultsPtr,
+          this.dimension,
+          batchSize,
         );
-      }
-      ptr += batchSize * this.dimension * 4;
 
-      const resultsPtr = ptr;
-
-      const tuneBatchWasm = instance.exports.tuneBatchWasm as CallableFunction;
-      tuneBatchWasm(
-        matrixPtr,
-        biasPtr,
-        vectorsPtr,
-        resultsPtr,
-        this.dimension,
-        batchSize,
-      );
-
-      const results = new Array<Float32Array>(batchSize);
-      const outF32Mem = new Float32Array(memory.buffer);
-      for (let k = 0; k < batchSize; k++) {
-        const res = outF32Mem.slice(
-          resultsPtr / 4 + k * this.dimension,
-          resultsPtr / 4 + (k + 1) * this.dimension,
-        );
-        applyActivationToVector(res, activation);
-        results[k] = res;
-      }
-      return results;
+        const results = new Array<Float32Array>(batchSize);
+        const outF32Mem = new Float32Array(memory.buffer);
+        for (let k = 0; k < batchSize; k++) {
+          const res = outF32Mem.slice(
+            resultsPtr / 4 + k * this.dimension,
+            resultsPtr / 4 + (k + 1) * this.dimension,
+          );
+          applyActivationToVector(res, activation);
+          results[k] = res;
+        }
+        return results;
+      });
     }
 
     // --- WASMが使えない場合のフォールバック (純粋なJS処理) ---
@@ -350,51 +348,47 @@ export class IntentAdapter implements WarpAdapter {
         batchSize * this.dimension * 2) *
       4;
 
-    if (instance && ensureWasmMemory(requiredBytes)) {
+    if (instance) {
       const memory = instance.exports.memory as WebAssembly.Memory;
-      let ptr = 0;
+      return withWasmMemoryStack(() => {
+        const matrixPtr = allocateWasmMemory(this.dimension * this.dimension * 4);
+        const biasPtr = allocateWasmMemory(this.dimension * 4);
+        const vectorsPtr = allocateWasmMemory(batchSize * this.dimension * 4);
+        const resultsPtr = allocateWasmMemory(batchSize * this.dimension * 4);
 
-      const matrixPtr = ptr;
-      writeFloat32ArrayToWasm(memory, matrix, ptr);
-      ptr += this.dimension * this.dimension * 4;
+        writeFloat32ArrayToWasm(memory, matrix, matrixPtr);
+        writeFloat32ArrayToWasm(memory, bias, biasPtr);
 
-      const biasPtr = ptr;
-      writeFloat32ArrayToWasm(memory, bias, ptr);
-      ptr += this.dimension * 4;
+        for (let k = 0; k < batchSize; k++) {
+          writeFloat32ArrayToWasm(
+            memory,
+            baseVectors[k],
+            vectorsPtr + k * this.dimension * 4,
+          );
+        }
 
-      const vectorsPtr = ptr;
-      for (let k = 0; k < batchSize; k++) {
-        writeFloat32ArrayToWasm(
-          memory,
-          baseVectors[k],
-          ptr + k * this.dimension * 4,
+        const tuneBatchWasm = instance.exports.tuneBatchWasm as CallableFunction;
+        tuneBatchWasm(
+          matrixPtr,
+          biasPtr,
+          vectorsPtr,
+          resultsPtr,
+          this.dimension,
+          batchSize,
         );
-      }
-      ptr += batchSize * this.dimension * 4;
 
-      const resultsPtr = ptr;
-
-      const tuneBatchWasm = instance.exports.tuneBatchWasm as CallableFunction;
-      tuneBatchWasm(
-        matrixPtr,
-        biasPtr,
-        vectorsPtr,
-        resultsPtr,
-        this.dimension,
-        batchSize,
-      );
-
-      const results = new Array<Float32Array>(batchSize);
-      const outF32Mem = new Float32Array(memory.buffer);
-      for (let k = 0; k < batchSize; k++) {
-        const res = outF32Mem.slice(
-          resultsPtr / 4 + k * this.dimension,
-          resultsPtr / 4 + (k + 1) * this.dimension,
-        );
-        applyActivationToVector(res, activation);
-        results[k] = res;
-      }
-      return results;
+        const results = new Array<Float32Array>(batchSize);
+        const outF32Mem = new Float32Array(memory.buffer);
+        for (let k = 0; k < batchSize; k++) {
+          const res = outF32Mem.slice(
+            resultsPtr / 4 + k * this.dimension,
+            resultsPtr / 4 + (k + 1) * this.dimension,
+          );
+          applyActivationToVector(res, activation);
+          results[k] = res;
+        }
+        return results;
+      });
     }
 
     // --- WASMフォールバック (JS) ---

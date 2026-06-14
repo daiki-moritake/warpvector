@@ -1,4 +1,50 @@
 /**
+ * 2つのベクトルの内積をSIMDを用いて高速に計算するインライン関数
+ */
+// @ts-ignore
+@inline
+function innerProductSimd(ptr1: usize, ptr2: usize, dim: i32): f32 {
+  let sumVec = f32x4.splat(0.0);
+  let j: i32 = 0;
+
+  for (; j <= dim - 16; j += 16) {
+    let v1_0 = v128.load(ptr1 + (j) * 4);
+    let v2_0 = v128.load(ptr2 + (j) * 4);
+    let v1_1 = v128.load(ptr1 + (j + 4) * 4);
+    let v2_1 = v128.load(ptr2 + (j + 4) * 4);
+    let v1_2 = v128.load(ptr1 + (j + 8) * 4);
+    let v2_2 = v128.load(ptr2 + (j + 8) * 4);
+    let v1_3 = v128.load(ptr1 + (j + 12) * 4);
+    let v2_3 = v128.load(ptr2 + (j + 12) * 4);
+
+    let sum0 = f32x4.mul(v1_0, v2_0);
+    let sum1 = f32x4.mul(v1_1, v2_1);
+    let sum2 = f32x4.mul(v1_2, v2_2);
+    let sum3 = f32x4.mul(v1_3, v2_3);
+
+    sumVec = f32x4.add(sumVec, f32x4.add(f32x4.add(sum0, sum1), f32x4.add(sum2, sum3)));
+  }
+
+  for (; j <= dim - 4; j += 4) {
+    let v1 = v128.load(ptr1 + j * 4);
+    let v2 = v128.load(ptr2 + j * 4);
+    sumVec = f32x4.add(sumVec, f32x4.mul(v1, v2));
+  }
+
+  let sum: f32 = f32x4.extract_lane(sumVec, 0) +
+                 f32x4.extract_lane(sumVec, 1) +
+                 f32x4.extract_lane(sumVec, 2) +
+                 f32x4.extract_lane(sumVec, 3);
+
+  for (; j < dim; j++) {
+    let v1 = load<f32>(ptr1 + j * 4);
+    let v2 = load<f32>(ptr2 + j * 4);
+    sum += v1 * v2;
+  }
+  return sum;
+}
+
+/**
  * ベクトルのバッチアフィン変換 (W * x + b) を行うWASMコア関数。
  * メモリレイアウトを直線的にアクセスすることで高速化を図る。
  * 
@@ -20,19 +66,11 @@ export function tuneBatchWasm(
 ): void {
   // バッチごとのループ
   for (let k = 0; k < batchSize; k++) {
+    let vectorOffset = k * dim * 4;
     // 出力ベクトルの次元ごとのループ
     for (let i = 0; i < dim; i++) {
-      let sum: f32 = 0;
-      let rowOffset = i * dim;
-      let vectorOffset = k * dim;
-      
-      // 行列ベクトル積の計算ループ
-      for (let j = 0; j < dim; j++) {
-        // float32は4バイトなのでオフセットに4を掛ける
-        let m = load<f32>(matrixPtr + (rowOffset + j) * 4);
-        let v = load<f32>(vectorsPtr + (vectorOffset + j) * 4);
-        sum += m * v;
-      }
+      let rowOffset = i * dim * 4;
+      let sum = innerProductSimd(matrixPtr + rowOffset, vectorsPtr + vectorOffset, dim);
       
       // バイアスを加算して結果を保存
       let b = load<f32>(biasPtr + i * 4);
@@ -75,13 +113,8 @@ export function sgdMomentumStepWasm(
 ): void {
   // 順伝播: pred = Wx + b
   for (let i = 0; i < tDim; i++) {
-    let sum: f32 = 0;
     let rowOffset = i * sDim;
-    for (let j = 0; j < sDim; j++) {
-      let m = load<f32>(matrixPtr + (rowOffset + j) * 4);
-      let x_val = load<f32>(xPtr + j * 4);
-      sum += m * x_val;
-    }
+    let sum = innerProductSimd(matrixPtr + rowOffset * 4, xPtr, sDim);
     let b = load<f32>(biasPtr + i * 4);
     store<f32>(predPtr + i * 4, sum + b);
   }
@@ -162,13 +195,8 @@ export function mlpInferenceWasm(
 
     // 行列ベクトル積とバイアス加算
     for (let i = 0; i < tDim; i++) {
-      let sum: f32 = 0;
-      for (let j = 0; j < sDim; j++) {
-        let m = load<f32>(currentWeightsOffset);
-        let x_val = load<f32>(inBuf + j * 4);
-        sum += m * x_val;
-        currentWeightsOffset += 4;
-      }
+      let sum = innerProductSimd(currentWeightsOffset, inBuf, sDim);
+      currentWeightsOffset += sDim * 4;
       
       let b = load<f32>(currentWeightsOffset);
       sum += b;
@@ -231,14 +259,8 @@ export function colbertMaxSimWasm(
 
     for (let j = 0; j < docTokens; j++) {
       let dOffset = docPtr + (j * dim) * 4;
-      let sim: f32 = 0.0;
-
       // 内積の計算
-      for (let k = 0; k < dim; k++) {
-        let qVal = load<f32>(qOffset + k * 4);
-        let dVal = load<f32>(dOffset + k * 4);
-        sim += qVal * dVal;
-      }
+      let sim = innerProductSimd(qOffset, dOffset, dim);
 
       if (sim > maxSim) {
         maxSim = sim;
@@ -270,13 +292,8 @@ export function projectWasm(
   outDim: i32
 ): void {
   for (let i = 0; i < outDim; i++) {
-    let sum: f32 = 0;
     let rowOffset = i * inDim;
-    for (let j = 0; j < inDim; j++) {
-      let m = load<f32>(matrixPtr + (rowOffset + j) * 4);
-      let v = load<f32>(inputPtr + j * 4);
-      sum += m * v;
-    }
+    let sum = innerProductSimd(matrixPtr + rowOffset * 4, inputPtr, inDim);
     
     if (biasPtr != 0) {
       let b = load<f32>(biasPtr + i * 4);
@@ -307,12 +324,7 @@ export function sangerUpdateWasm(
     let wOffset = componentsPtr + k * dim * 4;
     
     // y = w^T * x_residual
-    let y: f32 = 0;
-    for (let i = 0; i < dim; i++) {
-      let w_val = load<f32>(wOffset + i * 4);
-      let x_val = load<f32>(xResidualPtr + i * 4);
-      y += w_val * x_val;
-    }
+    let y = innerProductSimd(wOffset, xResidualPtr, dim);
     
     // Oja's rule: w = w + lr * y * (x_residual - y * w)
     let normSq: f32 = 0;

@@ -47,9 +47,9 @@ describe("Vector Symbolic Architecture (VSA) Adapter", () => {
     const key = [0, 1, 0];
 
     const unbound = VsaAdapter.unbind(bound, key, { shouldNormalize: false });
-    expect(unbound[0]).toBeGreaterThan(1000000); // 1 / 1e-8
+    expect(unbound[0]).toBeCloseTo(100000); // 1 / 1e-5
     expect(unbound[1]).toBeCloseTo(1);
-    expect(unbound[2]).toBeGreaterThan(1000000);
+    expect(unbound[2]).toBeCloseTo(100000);
   });
 
   test("bundle throws error if array is empty", () => {

@@ -3,6 +3,8 @@ import {
   ensureWasmMemory,
   writeFloat32ArrayToWasm,
   allocateWasmMemory,
+  withWasmMemoryStack,
+  readFloat32ArrayFromWasm,
 } from "./wasm/wasm-loader";
 import { WarpAdapter } from "./WarpAdapter";
 import { Activation, assertDimension } from "./utils";
@@ -51,13 +53,11 @@ export class MlpAdapter implements WarpAdapter {
   private outputDim = 0;
   private numLayers = 0;
 
-  private inputPtr = 0;
-  private outputPtr = 0;
-  private weightsPtr = 0;
-  private layerDimsPtr = 0;
-  private activationsPtr = 0;
-  private bufferPtr = 0;
-  private bufBPtr = 0;
+  // 計算に必要な中間パラメータのキャッシュ
+  private layerDims: number[] = [];
+  private activations: number[] = [];
+  private totalWeights = 0;
+  private maxDim = 0;
 
   constructor(layers: MlpLayer[]) {
     if (layers.length === 0) {
@@ -77,16 +77,14 @@ export class MlpAdapter implements WarpAdapter {
       throw new Error("Failed to initialize WASM for MlpAdapter.");
     }
 
-    const memory = this.wasmInstance.exports.memory as WebAssembly.Memory;
-
     // 次元数の検証と計算
     let sDim = 0;
     let tDim = 0;
-    let maxDim = 0;
-    let totalWeights = 0;
+    this.maxDim = 0;
+    this.totalWeights = 0;
 
-    const layerDims: number[] = [];
-    const activations: number[] = [];
+    this.layerDims = [];
+    this.activations = [];
 
     for (let i = 0; i < this.layers.length; i++) {
       const layer = this.layers[i];
@@ -101,7 +99,7 @@ export class MlpAdapter implements WarpAdapter {
 
       if (i === 0) {
         sDim = cols;
-        layerDims.push(sDim);
+        this.layerDims.push(sDim);
       } else if (cols !== tDim) {
         throw new Error(
           `Dimension mismatch at layer ${i}: expected input dim ${tDim}, got ${cols}`,
@@ -109,65 +107,17 @@ export class MlpAdapter implements WarpAdapter {
       }
 
       tDim = rows;
-      layerDims.push(tDim);
+      this.layerDims.push(tDim);
 
-      if (sDim > maxDim) maxDim = sDim;
-      if (tDim > maxDim) maxDim = tDim;
+      if (sDim > this.maxDim) this.maxDim = sDim;
+      if (tDim > this.maxDim) this.maxDim = tDim;
 
-      totalWeights += rows * cols + rows; // 行列要素 + バイアス要素
-      activations.push(getActivationId(layer.activation));
+      this.totalWeights += rows * cols + rows; // 行列要素 + バイアス要素
+      this.activations.push(getActivationId(layer.activation));
     }
 
-    this.inputDim = layerDims[0];
-    this.outputDim = layerDims[layerDims.length - 1];
-
-    // メモリレイアウトの計算 (各ポインタのオフセット)
-    this.inputPtr = allocateWasmMemory(this.inputDim * 4);
-    this.outputPtr = allocateWasmMemory(this.outputDim * 4);
-    this.layerDimsPtr = allocateWasmMemory((this.numLayers + 1) * 4);
-    this.activationsPtr = allocateWasmMemory(this.numLayers * 4);
-    this.weightsPtr = allocateWasmMemory(totalWeights * 4);
-    this.bufferPtr = allocateWasmMemory(maxDim * 4);
-    this.bufBPtr = allocateWasmMemory(maxDim * 4);
-
-    // データの書き込み
-    const memoryBuffer = memory.buffer;
-    const f32 = new Float32Array(memoryBuffer);
-    const i32 = new Int32Array(memoryBuffer);
-
-    // layerDims
-    for (let i = 0; i < layerDims.length; i++) {
-      i32[this.layerDimsPtr / 4 + i] = layerDims[i];
-    }
-    // activations
-    for (let i = 0; i < activations.length; i++) {
-      i32[this.activationsPtr / 4 + i] = activations[i];
-    }
-    // weights & bias
-    let wIdx = this.weightsPtr / 4;
-    for (let i = 0; i < this.numLayers; i++) {
-      const layer = this.layers[i];
-      let rows, cols;
-      if (layer.matrix instanceof Float32Array) {
-        rows = layer.bias.length;
-        cols = layer.matrix.length / rows;
-        for (let r = 0; r < rows; r++) {
-          for (let c = 0; c < cols; c++) {
-            f32[wIdx++] = layer.matrix[r * cols + c];
-          }
-          f32[wIdx++] = layer.bias[r];
-        }
-      } else {
-        rows = layer.matrix.length;
-        cols = layer.matrix[0].length;
-        for (let r = 0; r < rows; r++) {
-          for (let c = 0; c < cols; c++) {
-            f32[wIdx++] = layer.matrix[r][c];
-          }
-          f32[wIdx++] = layer.bias[r];
-        }
-      }
-    }
+    this.inputDim = this.layerDims[0];
+    this.outputDim = this.layerDims[this.layerDims.length - 1];
 
     this.isWasmReady = true;
   }
@@ -188,33 +138,74 @@ export class MlpAdapter implements WarpAdapter {
     assertDimension(input, this.inputDim, "MlpAdapter.tune");
 
     const memory = this.wasmInstance.exports.memory as WebAssembly.Memory;
+    return withWasmMemoryStack(() => {
+      const inputPtr = allocateWasmMemory(this.inputDim * 4);
+      const outputPtr = allocateWasmMemory(this.outputDim * 4);
+      const layerDimsPtr = allocateWasmMemory((this.numLayers + 1) * 4);
+      const activationsPtr = allocateWasmMemory(this.numLayers * 4);
+      const weightsPtr = allocateWasmMemory(this.totalWeights * 4);
+      const bufferPtr = allocateWasmMemory(this.maxDim * 4);
+      const bufBPtr = allocateWasmMemory(this.maxDim * 4);
 
-    // 入力ベクトルの書き込み
-    writeFloat32ArrayToWasm(memory, input, this.inputPtr);
+      // データの書き込み
+      const memoryBuffer = memory.buffer;
+      const f32 = new Float32Array(memoryBuffer);
+      const i32 = new Int32Array(memoryBuffer);
 
-    // WASMの呼び出し
-    const mlpInferenceWasm = this.wasmInstance.exports
-      .mlpInferenceWasm as CallableFunction;
-    mlpInferenceWasm(
-      this.inputPtr,
-      this.outputPtr,
-      this.weightsPtr,
-      this.layerDimsPtr,
-      this.activationsPtr,
-      this.numLayers,
-      this.bufferPtr,
-      this.bufBPtr,
-    );
+      // layerDims
+      for (let i = 0; i < this.layerDims.length; i++) {
+        i32[layerDimsPtr / 4 + i] = this.layerDims[i];
+      }
+      // activations
+      for (let i = 0; i < this.activations.length; i++) {
+        i32[activationsPtr / 4 + i] = this.activations[i];
+      }
+      // weights & bias
+      let wIdx = weightsPtr / 4;
+      for (let i = 0; i < this.numLayers; i++) {
+        const layer = this.layers[i];
+        let rows, cols;
+        if (layer.matrix instanceof Float32Array) {
+          rows = layer.bias.length;
+          cols = layer.matrix.length / rows;
+          for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+              f32[wIdx++] = layer.matrix[r * cols + c];
+            }
+            f32[wIdx++] = layer.bias[r];
+          }
+        } else {
+          rows = layer.matrix.length;
+          cols = layer.matrix[0].length;
+          for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < cols; c++) {
+              f32[wIdx++] = layer.matrix[r][c];
+            }
+            f32[wIdx++] = layer.bias[r];
+          }
+        }
+      }
 
-    // 結果の読み取り
-    const result = new Float32Array(this.outputDim);
-    const outF32 = new Float32Array(memory.buffer);
-    const outIdx = this.outputPtr / 4;
-    for (let i = 0; i < this.outputDim; i++) {
-      result[i] = outF32[outIdx + i];
-    }
+      // 入力ベクトルの書き込み
+      writeFloat32ArrayToWasm(memory, input, inputPtr);
 
-    return result;
+      // WASMの呼び出し
+      const mlpInferenceWasm = this.wasmInstance!.exports
+        .mlpInferenceWasm as CallableFunction;
+      mlpInferenceWasm(
+        inputPtr,
+        outputPtr,
+        weightsPtr,
+        layerDimsPtr,
+        activationsPtr,
+        this.numLayers,
+        bufferPtr,
+        bufBPtr,
+      );
+
+      // 結果の読み取り
+      return readFloat32ArrayFromWasm(memory, outputPtr, this.outputDim);
+    });
   }
 
   /**

@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client/extension";
 import { VectorDBAdapter } from "../db";
 import { WarpAdapter } from "../WarpAdapter";
+import sqlTemplate, { Sql, raw } from "sql-template-tag";
 
 export interface WarpPrismaConfig {
   /**
@@ -39,14 +40,14 @@ export const withWarpVector = (config: WarpPrismaConfig) => {
            *
            * @param args.vector 生のベクトル (変換前)
            * @param args.topK 取得する最大件数 (デフォルト: 10)
-           * @param args.where 追加のフィルタリング条件 (例: "category = 'science'")
+           * @param args.where 追加のフィルタリング条件 (安全な sql-template-tag Sql オブジェクト)
            */
           async searchByVector<T>(
             this: T,
             args: {
               vector: number[] | Float32Array;
               topK?: number;
-              where?: string;
+              where?: Sql;
             },
           ) {
             const context = Prisma.getExtensionContext(this);
@@ -66,36 +67,40 @@ export const withWarpVector = (config: WarpPrismaConfig) => {
               throw new Error(`Invalid distance operator: ${distanceOp}`);
             }
 
-            // 3. where 句のサニタイズ (セミコロンやコメント行などの不正なSQLを弾く)
-            let whereClause = "";
-            if (args.where) {
-              const trimmedWhere = args.where.trim();
-              if (/;|--|\/\*/.test(trimmedWhere)) {
-                throw new Error("Potential SQL injection detected in where clause.");
-              }
-              whereClause = `WHERE ${trimmedWhere}`;
-            }
-
-            // 4. limit (topK) の数値バリデーション
+            // 3. limit (topK) の数値バリデーション
             const limit = args.topK ?? 10;
             if (typeof limit !== "number" || isNaN(limit) || limit < 0) {
               throw new Error("Invalid topK value.");
             }
 
-            // 5. WarpVectorによる推論（リアルタイム変換）
+            // 4. WarpVectorによる推論（リアルタイム変換）
             const tunedVector = config.adapter.tune(args.vector);
             const pgVectorStr = VectorDBAdapter.toPgvector(tunedVector);
 
-            // 6. 安全に組み立てた SQL を実行
-            const sql = `
-              SELECT *
-              FROM "${tableName}"
-              ${whereClause}
-              ORDER BY "${vectorField}" ${distanceOp} '${pgVectorStr}'::vector
-              LIMIT ${limit};
-            `.trim();
+            // 5. 安全な SQL プレースホルダーオブジェクトの組み立て
+            const rawTable = raw(`"${tableName}"`);
+            const rawField = raw(`"${vectorField}"`);
+            const rawOp = raw(distanceOp);
 
-            return (client as any).$queryRawUnsafe(sql);
+            let sqlQuery: Sql;
+            if (args.where) {
+              sqlQuery = sqlTemplate`
+                SELECT *
+                FROM ${rawTable}
+                WHERE ${args.where}
+                ORDER BY ${rawField} ${rawOp} ${pgVectorStr}::vector
+                LIMIT ${limit};
+              `;
+            } else {
+              sqlQuery = sqlTemplate`
+                SELECT *
+                FROM ${rawTable}
+                ORDER BY ${rawField} ${rawOp} ${pgVectorStr}::vector
+                LIMIT ${limit};
+              `;
+            }
+
+            return (client as any).$queryRaw(sqlQuery);
           },
         },
       },

@@ -43,6 +43,7 @@
     "@types/node": "^20.0.0",
     "assemblyscript": "^0.28.19",
     "prettier": "^3.0.0",
+    "sql-template-tag": "^5.2.1",
     "tsup": "^8.0.0",
     "typescript": "^5.0.0"
   },

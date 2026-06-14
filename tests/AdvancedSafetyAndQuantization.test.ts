@@ -5,6 +5,7 @@ import { WarpPipeline } from "../src/WarpPipeline";
 import { QuantizationAdapter } from "../src/QuantizationAdapter";
 import { withWarpVector } from "../src/integrations/prisma";
 import { VectorDBAdapter } from "../src/db";
+import sql from "sql-template-tag";
 
 describe("Advanced Safety, Memory allocation, and Quantization Tests", () => {
   
@@ -113,7 +114,7 @@ describe("Advanced Safety, Memory allocation, and Quantization Tests", () => {
       $extends: (ext: any) => {
         const extObj = ext({
           $extends: (e: any) => e,
-          $queryRawUnsafe: async () => []
+          $queryRaw: async () => []
         });
         return {
           document: {
@@ -126,23 +127,15 @@ describe("Advanced Safety, Memory allocation, and Quantization Tests", () => {
 
     const client = mockClient.$extends(extension);
 
-    // 1. 不正な where 句 (セミコロンによるSQLインジェクション) はエラーになること
-    expect(
-      client.document.searchByVector({
-        vector: [0.1, 0.2],
-        where: "category = 'science'; DROP TABLE 'Document';"
-      })
-    ).rejects.toThrow("Potential SQL injection detected in where clause.");
+    // 1. Prisma.Sql 形式での正常動作テスト
+    const results = await client.document.searchByVector({
+      vector: [0.1, 0.2],
+      where: sql`category = ${"science"}`,
+      topK: 5
+    });
+    expect(results).toEqual([]);
 
-    // 2. コメントアウト記号を用いた SQL インジェクションもブロックされること
-    expect(
-      client.document.searchByVector({
-        vector: [0.1, 0.2],
-        where: "category = 'science' --"
-      })
-    ).rejects.toThrow("Potential SQL injection detected in where clause.");
-
-    // 3. 不正な topK パラメータ
+    // 2. 不正な topK パラメータ
     expect(
       client.document.searchByVector({
         vector: [0.1, 0.2],
@@ -157,5 +150,53 @@ describe("Advanced Safety, Memory allocation, and Quantization Tests", () => {
     const pgvectorStr = VectorDBAdapter.toPgvector(binaryVector);
     
     expect(pgvectorStr).toBe("1111000000001111");
+  });
+
+  test("MlpAdapter consecutive execution does not grow WASM memory offset (leak-free)", async () => {
+    const dim = 16;
+    const w = new Float32Array(dim * dim);
+    w.fill(0.01);
+    const b = new Float32Array(dim);
+    
+    const mlp = new MlpAdapter([{ matrix: w, bias: b, activation: "linear" }]);
+    await mlp.init();
+
+    const input = new Float32Array(dim);
+    input.fill(1.0);
+
+    const { getWasmAllocatorOffset } = require("../src/wasm/wasm-loader");
+    const offsetBefore = getWasmAllocatorOffset();
+    
+    for (let i = 0; i < 50; i++) {
+      mlp.tune(input);
+    }
+    
+    const offsetAfter = getWasmAllocatorOffset();
+    expect(offsetAfter).toBe(offsetBefore);
+  });
+
+  test("BaseTrainer concurrent training runs without WASM memory collision", async () => {
+    class DummyTrainer extends require("../src/BaseTrainer").BaseTrainer {
+      get sourceDimension() { return 2; }
+      get targetDimension() { return 2; }
+      getInputs(example: any) { return example; }
+      toWeights(matrix: any, bias: any) { return { matrix, bias }; }
+    }
+
+    const trainer1 = new DummyTrainer();
+    trainer1.addExample({ source: [1, 2], target: [2, 4] });
+    trainer1.addExample({ source: [3, 6], target: [6, 12] });
+
+    const trainer2 = new DummyTrainer();
+    trainer2.addExample({ source: [2, 3], target: [4, 6] });
+    trainer2.addExample({ source: [4, 5], target: [8, 10] });
+
+    const [w1, w2] = await Promise.all([
+      trainer1.train({ epochs: 10 }),
+      trainer2.train({ epochs: 10 })
+    ]);
+
+    expect(w1).toBeDefined();
+    expect(w2).toBeDefined();
   });
 });

@@ -66,6 +66,23 @@ export class VectorDBAdapter {
   public static toRedis(
     vector: number[] | Float32Array | Int8Array | Uint8Array,
   ): Uint8Array {
+    if (vector instanceof Int8Array) {
+      return new Uint8Array(
+        vector.buffer.slice(
+          vector.byteOffset,
+          vector.byteOffset + vector.byteLength,
+        ),
+      );
+    }
+    if (vector instanceof Uint8Array) {
+      return new Uint8Array(
+        vector.buffer.slice(
+          vector.byteOffset,
+          vector.byteOffset + vector.byteLength,
+        ),
+      );
+    }
+
     const f32Array =
       vector instanceof Float32Array
         ? vector

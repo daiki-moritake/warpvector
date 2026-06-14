@@ -1,6 +1,7 @@
 import { expect, test, describe } from "bun:test";
-import { withWarpVector, WarpAdapter } from "../src/integrations/prisma";
-import { PrismaClient } from "@prisma/client";
+import { withWarpVector } from "../src/integrations/prisma";
+import { WarpAdapter } from "../src/WarpAdapter";
+import sql from "sql-template-tag";
 
 // モック用のアダプター (ベクトルの値を2倍にするだけ)
 class MockAdapter implements WarpAdapter {
@@ -16,11 +17,11 @@ describe("WarpPrismaExtension", () => {
     const rawVector = [1.0, 2.0, 3.0];
 
     // PrismaClientのモック
-    let capturedSql = "";
+    let capturedSql: any = null;
 
     // ベースとなるモッククライアント
     const baseClient: any = {
-      $queryRawUnsafe: async (sql: string) => {
+      $queryRaw: async (sql: any) => {
         capturedSql = sql;
         return [{ id: 1, content: "Mock Result" }];
       },
@@ -30,7 +31,6 @@ describe("WarpPrismaExtension", () => {
     const mockPrismaClient: any = {
       $extends: (ext: any) => {
         // extは(client) => client.$extends(...) という関数
-        // この client にベースクライアントの機能を渡す
         const extension = ext(baseClient);
 
         return {
@@ -43,7 +43,6 @@ describe("WarpPrismaExtension", () => {
       },
     };
 
-    // withWarpVectorは Prisma.defineExtension を返す
     const prismaExtension = withWarpVector({
       adapter: mockAdapter,
       vectorField: "my_embedding",
@@ -52,23 +51,34 @@ describe("WarpPrismaExtension", () => {
 
     const client = mockPrismaClient.$extends(prismaExtension);
 
-    // テスト対象のメソッドを呼び出す
+    // テスト対象のメソッドを呼び出す (where 句に sql-template-tag の sql を指定)
     const results = await client.document.searchByVector({
       vector: rawVector,
       topK: 5,
-      where: "category = 'science'",
+      where: sql`category = ${"science"}`,
     });
 
     expect(results).toEqual([{ id: 1, content: "Mock Result" }]);
 
-    // 生成されたSQLの検証
-    // vector [1,2,3] は MockAdapter により [2,4,6] に変換されるはず
-    expect(capturedSql).toContain("SELECT *");
-    expect(capturedSql).toContain('FROM "Document"');
-    expect(capturedSql).toContain("WHERE category = 'science'");
-    expect(capturedSql).toContain(
-      "ORDER BY \"my_embedding\" <=> '[2, 4, 6]'::vector",
+    // 生成されたSQLの検証 (capturedSql は Sql)
+    expect(capturedSql).not.toBeNull();
+    const text = capturedSql.text;
+    const values = capturedSql.values;
+
+    expect(text).toContain("SELECT *");
+    expect(text).toContain('FROM "Document"');
+    expect(text).toContain("WHERE category = $1");
+    // $2::vector ではなく、Prisma拡張の展開順により $2 が pgVectorStr、
+    // そして $3 が limit になる。
+    // text表現を確認する：
+    // SELECT * FROM "Document" WHERE category = $1 ORDER BY "my_embedding" <=> $2::vector LIMIT $3;
+    expect(text).toContain(
+      "ORDER BY \"my_embedding\" <=> $2::vector",
     );
-    expect(capturedSql).toContain("LIMIT 5");
+    expect(text).toContain("LIMIT $3");
+
+    expect(values[0]).toBe("science");
+    expect(values[1]).toBe("[2, 4, 6]");
+    expect(values[2]).toBe(5);
   });
 });

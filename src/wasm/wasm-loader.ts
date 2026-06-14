@@ -99,3 +99,49 @@ export function writeFloat32ArrayToWasm(
     }
   }
 }
+
+/**
+ * 非同期処理でのWASMメモリ競合を防ぐための排他制御用ミューテックスクラス
+ */
+export class WasmMutex {
+  private queue: Promise<void> = Promise.resolve();
+
+  public async runExclusive<T>(fn: () => Promise<T> | T): Promise<T> {
+    const next = this.queue.then(async () => {
+      return fn();
+    });
+    this.queue = next.then(
+      () => {},
+      () => {},
+    );
+    return next;
+  }
+}
+
+export const wasmMutex = new WasmMutex();
+
+/**
+ * WASMメモリスタックのオフセットを自動的に管理（確保と解放）するヘルパー関数
+ */
+export function withWasmMemoryStack<T>(fn: () => T): T {
+  const initialOffset = getWasmAllocatorOffset();
+  try {
+    return fn();
+  } finally {
+    setWasmAllocatorOffset(initialOffset);
+  }
+}
+
+/**
+ * WASMメモリからFloat32Arrayを読み取るヘルパー関数
+ */
+export function readFloat32ArrayFromWasm(
+  memory: WebAssembly.Memory,
+  byteOffset: number,
+  length: number,
+): Float32Array {
+  const f32 = new Float32Array(memory.buffer);
+  const floatOffset = byteOffset / 4;
+  return new Float32Array(f32.subarray(floatOffset, floatOffset + length));
+}
+
