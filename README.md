@@ -126,8 +126,9 @@ const projectionWeights = {
   bias: [...]    // 512 バイアス
 };
 
-const projector = new ProjectionAdapter(projectionWeights);
-const reducedVector = projector.project(highDimVector); // 1536 -> 512
+// 入力1536次元、出力512次元のアダプターを初期化
+const projector = new ProjectionAdapter(1536, 512, { "v1_to_v2": projectionWeights });
+const reducedVector = projector.project(highDimVector, "v1_to_v2"); // 1536 -> 512
 ```
 
 ---
