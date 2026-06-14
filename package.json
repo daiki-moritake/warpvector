@@ -1,6 +1,6 @@
 {
   "name": "warpvector",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A lightweight, zero-dependency TypeScript middleware for dynamic vector space transformation (affine transformation).",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
