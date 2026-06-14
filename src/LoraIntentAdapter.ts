@@ -1,4 +1,4 @@
-import { assertDimension, flattenMatrix, applyAffine } from "./utils";
+import { assertDimension, flattenMatrix, applyAffine, addScaledVector } from "./utils";
 import { WarpAdapter } from "./WarpAdapter";
 
 /**
@@ -145,9 +145,7 @@ export class LoraIntentAdapter implements WarpAdapter {
     applyAffine(matA, bias, y, result, this.rank, this.dimension);
 
     // Step 3: 残差結合 result = x + z
-    for (let i = 0; i < this.dimension; i++) {
-      result[i] += baseVector[i];
-    }
+    addScaledVector(result, baseVector, 1.0);
 
     return result;
   }

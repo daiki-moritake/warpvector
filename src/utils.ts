@@ -121,6 +121,29 @@ export function innerProduct(
 }
 
 /**
+ * target ベクトルに対して、source ベクトルを定数倍したものを足し込みます（インプレース操作）。
+ * target += scale * source (BLAS の axpy 相当)
+ *
+ * @param target 更新対象のベクトル (In-place)
+ * @param source 足し込むベクトル
+ * @param scale 掛け合わせるスカラー値 (デフォルト: 1.0)
+ * @throws {Error} ベクトルの次元数が異なる場合にエラーをスローします。
+ */
+export function addScaledVector(
+  target: Float32Array | number[],
+  source: Float32Array | number[],
+  scale: number = 1.0
+): void {
+  const dim = target.length;
+  if (dim !== source.length) {
+    throw new Error("Vectors must have the same dimension.");
+  }
+  for (let i = 0; i < dim; i++) {
+    target[i] += scale * source[i];
+  }
+}
+
+/**
  * コサイン類似度 (Cosine Similarity)
  * 2つのベクトル間のコサイン類似度 (-1.0 〜 1.0) を計算します。
  *

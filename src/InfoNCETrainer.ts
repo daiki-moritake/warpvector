@@ -112,44 +112,19 @@ export class InfoNCETrainer extends AbstractAdamTrainer {
 
     // 4. Backward Pass: 勾配計算と Adam Optimizer
     this.t += 1;
-    const beta1 = 0.9;
-    const beta2 = 0.999;
-    const epsilon = 1e-8;
-
     // dL/dA'_i = (1 / tau) * [ (pPos - 1) * P_i + sum_k (pNegs_k * N_ki) ]
+    const outputGradients = new Float32Array(dim);
     for (let i = 0; i < dim; i++) {
       let gradA_i = (pPos - 1.0) * positive[i];
       for (let n = 0; n < negatives.length; n++) {
         gradA_i += pNegs[n] * negatives[n][i];
       }
-      gradA_i /= temperature;
-
-      // バイアスに対する勾配
-      const gradB_i = gradA_i;
-
-      // Adam for Bias
-      this.mb[i] = beta1 * this.mb[i] + (1 - beta1) * gradB_i;
-      this.vb[i] = beta2 * this.vb[i] + (1 - beta2) * (gradB_i * gradB_i);
-      const mHatB = this.mb[i] / (1 - Math.pow(beta1, this.t));
-      const vHatB = this.vb[i] / (1 - Math.pow(beta2, this.t));
-      
-      bias[i] -= learningRate * mHatB / (Math.sqrt(vHatB) + epsilon);
-
-      const rowOffset = i * dim;
-      for (let j = 0; j < dim; j++) {
-        // 行列に対する勾配: dL / dW_ij
-        const gradW_ij = gradA_i * anchor[j] + regularization * flatMatrix[rowOffset + j];
-
-        // Adam for Weights
-        const idx = rowOffset + j;
-        this.mW[idx] = beta1 * this.mW[idx] + (1 - beta1) * gradW_ij;
-        this.vW[idx] = beta2 * this.vW[idx] + (1 - beta2) * (gradW_ij * gradW_ij);
-        const mHatW = this.mW[idx] / (1 - Math.pow(beta1, this.t));
-        const vHatW = this.vW[idx] / (1 - Math.pow(beta2, this.t));
-
-        flatMatrix[idx] -= learningRate * mHatW / (Math.sqrt(vHatW) + epsilon);
-      }
+      outputGradients[i] = gradA_i / temperature;
     }
+
+    this.applyAdamToAffine(
+      flatMatrix, bias, this.mW, this.vW, this.mb, this.vb, anchor, outputGradients, learningRate, regularization, this.t
+    );
 
     const newWeights = this.toWeights(flatMatrix, bias);
     if (currentWeights.routingVector) {

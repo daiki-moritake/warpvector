@@ -1,4 +1,4 @@
-import { assertDimension, normalize } from "./utils";
+import { assertDimension, normalize, addScaledVector } from "./utils";
 
 /**
  * ベクトル・シンボリック・アーキテクチャ (VSA) / 超次元計算アダプタ
@@ -31,9 +31,7 @@ export class VsaAdapter {
     for (let i = 0; i < vectors.length; i++) {
       const vec = vectors[i];
       assertDimension(vec, dim, `Vector at index ${i}`);
-      for (let j = 0; j < dim; j++) {
-        result[j] += vec[j];
-      }
+      addScaledVector(result, vec, 1.0);
     }
 
     if (shouldNormalize) {

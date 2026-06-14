@@ -1,5 +1,5 @@
 import { IntentWeights } from "./IntentAdapter";
-import { flattenMatrix, assertDimension } from "./utils";
+import { flattenMatrix, assertDimension, addScaledVector } from "./utils";
 
 export interface TaskConfig {
   /**
@@ -81,17 +81,13 @@ export class TaskArithmetic {
 
       // ΔW = W_task - W_base
       // W_new = W_new + scale * ΔW
-      for (let i = 0; i < dim * dim; i++) {
-        const deltaW = taskMatrix[i] - baseMatrix[i];
-        newMatrix[i] += scale * deltaW;
-      }
+      addScaledVector(newMatrix, taskMatrix, scale);
+      addScaledVector(newMatrix, baseMatrix, -scale);
 
       // Δb = b_task - b_base
       // b_new = b_new + scale * Δb
-      for (let i = 0; i < dim; i++) {
-        const deltaB = taskBias[i] - baseBias[i];
-        newBias[i] += scale * deltaB;
-      }
+      addScaledVector(newBias, taskBias, scale);
+      addScaledVector(newBias, baseBias, -scale);
     }
 
     return {

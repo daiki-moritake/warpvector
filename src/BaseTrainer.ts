@@ -43,6 +43,55 @@ export abstract class AbstractAdamTrainer {
     }
     assertDimension(this.mW, sDim * tDim, "AdamState mW");
   }
+
+  /**
+   * アフィンレイヤー (matrix, bias) に対する Adam のパラメータ更新を適用します。
+   * InfoNCE や Triplet など、様々な損失関数で計算された勾配(outputGradients)を元に更新を行います。
+   */
+  protected applyAdamToAffine(
+    matrix: Float32Array,
+    bias: Float32Array,
+    mMatrix: Float32Array,
+    vMatrix: Float32Array,
+    mBias: Float32Array,
+    vBias: Float32Array,
+    input: number[] | Float32Array,
+    outputGradients: number[] | Float32Array,
+    lr: number,
+    reg: number,
+    t: number
+  ): void {
+    const tDim = bias.length;
+    const sDim = input.length;
+    const beta1 = 0.9;
+    const beta2 = 0.999;
+    const epsilon = 1e-8;
+
+    for (let i = 0; i < tDim; i++) {
+      const bGrad = outputGradients[i];
+
+      // Adam for Bias
+      mBias[i] = beta1 * mBias[i] + (1 - beta1) * bGrad;
+      vBias[i] = beta2 * vBias[i] + (1 - beta2) * (bGrad * bGrad);
+      const mHatB = mBias[i] / (1 - Math.pow(beta1, t));
+      const vHatB = vBias[i] / (1 - Math.pow(beta2, t));
+      
+      bias[i] -= lr * mHatB / (Math.sqrt(vHatB) + epsilon);
+
+      const rowOffset = i * sDim;
+      for (let j = 0; j < sDim; j++) {
+        const wIdx = rowOffset + j;
+        const wGrad = bGrad * input[j] + reg * matrix[wIdx];
+        
+        mMatrix[wIdx] = beta1 * mMatrix[wIdx] + (1 - beta1) * wGrad;
+        vMatrix[wIdx] = beta2 * vMatrix[wIdx] + (1 - beta2) * (wGrad * wGrad);
+        const mHatW = mMatrix[wIdx] / (1 - Math.pow(beta1, t));
+        const vHatW = vMatrix[wIdx] / (1 - Math.pow(beta2, t));
+
+        matrix[wIdx] -= lr * mHatW / (Math.sqrt(vHatW) + epsilon);
+      }
+    }
+  }
 }
 
 /**
@@ -254,29 +303,13 @@ export abstract class BaseTrainer<TExample, TResult> extends AbstractAdamTrainer
     const pred = new Float32Array(tDim);
     applyAffine(matrix, bias, x, pred, sDim, tDim);
 
+    const outputGradients = new Float32Array(tDim);
     for (let i = 0; i < tDim; i++) {
-      const error = pred[i] - y[i];
-
-      const bGrad = error;
-      mBias[i] = beta1 * mBias[i] + (1 - beta1) * bGrad;
-      vBias[i] = beta2 * vBias[i] + (1 - beta2) * (bGrad * bGrad);
-      const mHatB = mBias[i] / (1 - Math.pow(beta1, t));
-      const vHatB = vBias[i] / (1 - Math.pow(beta2, t));
-      
-      bias[i] -= lr * mHatB / (Math.sqrt(vHatB) + epsilon);
-
-      const rowOffset = i * sDim;
-      for (let j = 0; j < sDim; j++) {
-        const wIdx = rowOffset + j;
-        const wGrad = error * x[j] + reg * matrix[wIdx];
-        
-        mMatrix[wIdx] = beta1 * mMatrix[wIdx] + (1 - beta1) * wGrad;
-        vMatrix[wIdx] = beta2 * vMatrix[wIdx] + (1 - beta2) * (wGrad * wGrad);
-        const mHatW = mMatrix[wIdx] / (1 - Math.pow(beta1, t));
-        const vHatW = vMatrix[wIdx] / (1 - Math.pow(beta2, t));
-
-        matrix[wIdx] -= lr * mHatW / (Math.sqrt(vHatW) + epsilon);
-      }
+      outputGradients[i] = pred[i] - y[i];
     }
+
+    this.applyAdamToAffine(
+      matrix, bias, mMatrix, vMatrix, mBias, vBias, x, outputGradients, lr, reg, t
+    );
   }
 }

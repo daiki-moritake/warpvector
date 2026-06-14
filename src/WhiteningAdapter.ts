@@ -1,4 +1,4 @@
-import { assertDimension, normalize, innerProduct } from "./utils";
+import { assertDimension, normalize, innerProduct, addScaledVector } from "./utils";
 import { WarpAdapter } from "./WarpAdapter";
 import { getWasmInstance, ensureWasmMemory, writeFloat32ArrayToWasm } from "./wasm/wasm-loader";
 
@@ -128,15 +128,12 @@ export class WhiteningAdapter implements WarpAdapter {
         
         let y = innerProduct(w, x_residual);
 
-        for (let i = 0; i < this.dim; i++) {
-          w[i] += this.learningRate * y * (x_residual[i] - y * w[i]);
-        }
+        addScaledVector(w, x_residual, this.learningRate * y);
+        addScaledVector(w, w, -this.learningRate * y * y);
 
         this.components[k] = normalize(w);
 
-        for (let i = 0; i < this.dim; i++) {
-          x_residual[i] -= y * this.components[k][i];
-        }
+        addScaledVector(x_residual, this.components[k], -y);
       }
     }
   }
@@ -164,9 +161,7 @@ export class WhiteningAdapter implements WarpAdapter {
       // reject(result, w) だが、w は既に正規化済みなので計算を最適化できる
       // u・u = 1 なので、スカラー値は単なる内積 v・u
       let dot = innerProduct(result, w);
-      for (let i = 0; i < this.dim; i++) {
-        result[i] -= dot * w[i];
-      }
+      addScaledVector(result, w, -dot);
     }
 
     // 出力ベクトルは最終的に正規化して返すことが多いが、

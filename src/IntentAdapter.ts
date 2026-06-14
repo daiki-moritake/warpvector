@@ -6,6 +6,7 @@ import {
   flattenMatrix,
   assertDimension,
   applyAffine,
+  addScaledVector,
 } from "./utils";
 import { getWasmInstance, ensureWasmMemory, writeFloat32ArrayToWasm } from "./wasm/wasm-loader";
 import { WarpAdapter } from "./WarpAdapter";
@@ -164,13 +165,8 @@ export class IntentAdapter implements WarpAdapter {
         throw new Error(`Intent '${intentName}' not found during blending.`);
       }
 
-      for (let i = 0; i < dim; i++) {
-        blendedBias[i] += bias[i] * weight;
-        const rowOffset = i * dim;
-        for (let j = 0; j < dim; j++) {
-          blendedMatrix[rowOffset + j] += matrix[rowOffset + j] * weight;
-        }
-      }
+      addScaledVector(blendedBias, bias, weight);
+      addScaledVector(blendedMatrix, matrix, weight);
     }
 
     return { matrix: blendedMatrix, bias: blendedBias };
