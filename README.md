@@ -15,6 +15,7 @@
 ## 🚀 主な特徴
 
 - **動的アフィン変換 ($W \cdot x + b$):** 回転・拡大・縮小（行列 $W$）と平行移動（バイアス $b$）を組み合わせ、コンテキストに最適化されたベクトル空間を動的に生成。
+- **意図の動的合成（Blending）:** `tuneBlended` により、複数の意図（例: リスク70%、経済30%）を数学的に合成し、無限の連続的なコンテキスト空間を表現可能。
 - **バッチ処理とユーティリティ:** `tuneBatch` による複数ベクトルの高速一括変換や、`normalize`（L2正規化）などの実用的な機能を標準搭載。
 - **TypeScriptネイティブ & ゼロ依存（Zero-dependency）:** Python環境や重厚な機械学習ライブラリは一切不要。`Float32Array` をベースにした極限まで無駄を削ぎ落とした行列演算ロジック。
 - **エッジ・ローカルファースト対応:** 超軽量かつ高速に動作するため、Cloudflare Workers、Bun、Node.jsなどのモダンなサーバーレス/エッジ環境や、ローカルの膨大なデータ解析（DuckDB等との併用）に即座に組み込み可能。
@@ -74,6 +75,19 @@ const batchVectors = [
 ];
 const tunedBatch = adapter.tuneBatch(batchVectors, "riskAnalysis");
 const normalizedVector = normalize(tunedBatch[0]); // コサイン類似度計算用などにL2正規化
+
+// 6. 動的な意図の追加と意図のブレンド（合成）
+// 稼働中のアプリケーションに新しい意図を動的に追加
+adapter.addIntent("newContext", {
+  matrix: [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
+  bias: [0.1, 0.2, 0.3]
+});
+
+// 複数の意図を重み付けして合成し、ベクトルに適用
+const blendedVector = adapter.tuneBlended(baseVector, {
+  riskAnalysis: 0.7,
+  economicImpact: 0.3
+});
 ```
 
 ## 📐 数学的背景：動的アフィン変換（詳細）

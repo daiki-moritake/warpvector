@@ -130,6 +130,45 @@ describe("IntentAdapter Core Logic", () => {
       new IntentAdapter(invalidIntents);
     }).toThrow("Intent 'badIntent': Matrix column dimension mismatch at row 1. Expected 3, got 2.");
   });
+
+  test("動的にインテントの追加と削除ができること", () => {
+    const adapter = new IntentAdapter(dummyIntents);
+    adapter.addIntent("dynamicIntent", {
+      matrix: [
+        [1, 1, 1],
+        [1, 1, 1],
+        [1, 1, 1]
+      ],
+      bias: [1, 2, 3]
+    });
+
+    const result1 = adapter.tune([1, 0, 0], "dynamicIntent");
+    expect(result1[0]).toBeCloseTo(2, 5); // 1*1 + 1 = 2
+    expect(result1[1]).toBeCloseTo(3, 5); // 1*1 + 2 = 3
+    expect(result1[2]).toBeCloseTo(4, 5); // 1*1 + 3 = 4
+
+    adapter.removeIntent("dynamicIntent");
+    expect(() => {
+      adapter.tune([1, 0, 0], "dynamicIntent");
+    }).toThrow("Intent 'dynamicIntent' not found.");
+  });
+
+  test("tuneBlendedで複数のインテントをブレンドできること", () => {
+    const adapter = new IntentAdapter(dummyIntents);
+    const base = [2, 4, 8];
+    // Blend: 0.5 * identity + 0.5 * scaleAndShift
+    // identity: W*x+b = [2, 4, 8]
+    // scaleAndShift: W*x+b = [5, 11, 6]
+    // 0.5*[2, 4, 8] + 0.5*[5, 11, 6] = [3.5, 7.5, 7]
+    const result = adapter.tuneBlended(base, {
+      identity: 0.5,
+      scaleAndShift: 0.5
+    });
+
+    expect(result[0]).toBeCloseTo(3.5, 5);
+    expect(result[1]).toBeCloseTo(7.5, 5);
+    expect(result[2]).toBeCloseTo(7.0, 5);
+  });
 });
 
 describe("Utils", () => {
