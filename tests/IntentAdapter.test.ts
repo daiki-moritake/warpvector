@@ -190,3 +190,20 @@ describe("Utils", () => {
     expect(result[2]).toBe(0);
   });
 });
+
+import { slerp } from "../src/utils";
+
+describe("Advanced Math Utils", () => {
+  test("slerpが球面線形補間を正しく計算できること", () => {
+    // X軸とY軸の単位ベクトル
+    const v1 = [1, 0, 0];
+    const v2 = [0, 1, 0];
+    
+    // t=0.5 の場合、45度の方向になり、長さが1になるはず
+    const result = slerp(v1, v2, 0.5);
+    const expectedVal = Math.cos(Math.PI / 4); // ≈ 0.7071
+    expect(result[0]).toBeCloseTo(expectedVal, 4);
+    expect(result[1]).toBeCloseTo(expectedVal, 4);
+    expect(result[2]).toBeCloseTo(0, 4);
+  });
+});
