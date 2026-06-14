@@ -42,4 +42,5 @@ jobs:
 
       - name: Publish to npm
         # --provenance フラグを付けることで Trusted Publishing を有効化します
-        run: npm publish --provenance
+        # 新規パッケージの場合は --access public が必須となります
+        run: npm publish --provenance --access public
