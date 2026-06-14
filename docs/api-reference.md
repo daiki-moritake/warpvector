@@ -16,6 +16,8 @@
 - `addProjection(outputDim: number, projections?: Record<string, ProjectionWeights>): this`
 - `addMlp(layers: MlpLayer[]): this`
 - `quantize(type: QuantizationType): this`
+- `addStep(type: string, adapter: WarpAdapter): this`
+  - カスタムアダプタを直接パイプラインの末尾に追加します。
 - `init(): Promise<void>`
   - WASM等の非同期初期化が必要な組み込みアダプタを一括でセットアップします。
 - `run(vector: number[] | Float32Array, context?: RunContext): any`
