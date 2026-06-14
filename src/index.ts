@@ -1,6 +1,9 @@
 export * from "./WarpAdapter";
 export * from "./IntentAdapter";
 export * from "./LoraIntentAdapter";
+
+// Fusion Utilities
+export * from "./fusion";
 export * from "./ProjectionAdapter";
 export * from "./MlpAdapter";
 export * from "./WhiteningAdapter";
