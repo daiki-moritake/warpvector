@@ -15,21 +15,20 @@
 
 従来のベクトル検索は静的であり、事前に生成された埋め込みベクトルの距離（類似度）に依存していました。コンテキストに応じた検索の微調整を行いたい場合、これまではメタデータのフィルタリングに頼るか、重い指示チューニング型モデルを再度動かすしかなく、リアルタイム性や柔軟性に欠けていました。
 
-`warpvector` は、次世代のベクトルデータベースのミドルウェアとして機能します。ベースとなるベクトルデータはそのままに、検索の瞬間に数KBの軽量な「意図行列（Matrix）」と「バイアス（Bias）」を適用することで、ベクトル空間全体をインメモリで高速に変形（アフィン変換）させます。これにより、ファイルやデータ間の意味的類似性をユーザーの「真の意図」に極限まで近づけ、次世代の検索体験を提供します。
+`warpvector` は、次世代のベクトルデータベースのミドルウェアとして機能します。ベースとなるベクトルデータはそのままに、検索の瞬間に数KBの軽量な「意図行列（Matrix）」と「バイアス（Bias）」を適用することで、ベクトル空間全体をインメモリで高速に変形させます。これにより、ファイルやデータ間の意味的類似性をユーザーの「真の意図」に極限まで近づけ、次世代の検索体験を提供します。
 
 ---
 
 ## 🚀 主な特徴
 
 - **次世代DBミドルウェア:** 既存のベクトルDB（Pinecone, Qdrant, DuckDBなど）とフロントエンドの間に立ち、動的なコンテキストルーティングを提供。
-- **動的アフィン変換 ($W \cdot x + b$):** 回転・拡大・縮小（行列 $W$）と平行移動（バイアス $b$）を組み合わせ、コンテキストに最適化されたベクトル空間を生成。
-- **WASM/SIMDによる超高速バッチ処理:** 大量のベクトル処理にはAssemblyScriptでコンパイルされたインラインWebAssembly（WASM）バックエンドを自動的に呼び出し、計算速度を最大化します。
-- **意図の動的合成（Blending）と自動ルーティング:** `tuneBlended` による手動合成に加え、自己アテンション型の `tuneAutoBlended` を搭載。
+- **動的アフィン変換 & 非線形MLP [NEW]:** 単純な行列変換（$W \cdot x + b$）に加え、WASMを用いた超高速な多層パーセプトロン(MLP)と非線形活性化関数(ReLU, Sigmoid, Tanh)による高度な空間変形をサポート。
+- **オンライン等方化 (Whitening) [NEW]:** Oja's Rule を用いたオンラインPCAにより、OpenAI `ada-002` などが抱える「検索空間の極端な偏り（異方性）」をエッジ側でストリーミング補正し、検索精度を劇的に向上。
+- **WASM/SIMDによる超高速バッチ処理:** 大量のベクトル処理にはAssemblyScriptでコンパイルされたインラインWebAssembly（WASM）バックエンドを自動的に呼び出し、計算速度を最大化します（130万推論/秒以上）。
+- **InfoNCE & Triplet 学習エンジン (Adam Optimizer内蔵) [NEW]:** Pythonサーバー不要。ユーザーのフィードバックから Contrastive Learning (複数Negative対応の対照学習) をエッジワーカー上で直接オンライン学習。
 - **LoRA (低ランク適応) アーキテクチャ:** `LoraIntentAdapter` により、超高次元ベクトル（1536次元など）でもメモリ使用量・計算量を劇的に削減。
-- **SGD + Momentum トレーニング内蔵:** `IntentTrainer` や `MigrationTrainer` を使い、ブラウザやエッジ環境上で動的にベクトル行列を学習・最適化可能。
-- **次元圧縮・プロジェクション:** `ProjectionAdapter` を使った、1536次元から512次元などへのセマンティックな次元削減機能。
-- **TypeScriptネイティブ & ゼロ依存:** Python環境や重厚な機械学習ライブラリは一切不要。
-- **エッジ・ローカルファースト対応:** Cloudflare Workers、Bun、Node.jsなどのモダンなサーバーレス/エッジ環境に即座に組み込み可能。
+- **Prisma + pgvector ネイティブ統合拡張 [NEW]:** Prisma Client Extensionとして透過的に統合。複雑なSQLを書かずに WarpVector で推論・補正されたベクトルでのデータベース検索がメソッド1つで完結。
+- **TypeScriptネイティブ & ゼロ依存:** 外部の機械学習ライブラリは一切不要。Cloudflare Workers、Bun、Node.jsなどのモダンなサーバーレス/エッジ環境に完全対応。
 
 ---
 
@@ -58,105 +57,122 @@ const myIntents = {
       [-0.1, 1.5, 0.2],
       [0.3, -0.2, 1.1],
     ],
-    bias: [0.05, -0.1, 0.2],
-    routingVector: [1.0, 0.0, 0.0] // 自動ブレンド計算用の代表方向
+    bias: [0.05, -0.1, 0.2]
   }
 };
 
 const adapter = new IntentAdapter(myIntents);
 const baseVector = [0.15, -0.23, 0.88];
 
-// "riskAnalysis" の意図に合わせてベクトルをワープ (ReLU活性化も可能)
-const warpedVector = adapter.tune(baseVector, "riskAnalysis", "relu");
+// "riskAnalysis" の意図に合わせてベクトルをワープ
+const warpedVector = adapter.tune(baseVector, "riskAnalysis");
 ```
 
-### 2. LoRAによる高次元ベクトルの高速変換 (LoraIntentAdapter)
+### 2. 多層ニューラルネットワークの高速推論 (MlpAdapter) [✨ NEW]
 
-1536次元などの高次元モデル（例: OpenAI `text-embedding-3-small`）の変換には、LoRAを使用することでメモリ消費と計算コストを大幅に削減できます。
+WASMバックエンドにより、ブラウザやエッジ環境で重厚なフレームワークなしに多層MLPの推論が可能です。
 
 ```typescript
-import { LoraIntentAdapter } from 'warpvector';
+import { MlpAdapter } from 'warpvector';
 
-// 次元数 1536, ランク数 16 で初期化
-const loraAdapter = new LoraIntentAdapter(1536, 16);
+// 1536次元から128次元の中間層を経て2次元に出力する2層MLP
+const mlp = new MlpAdapter([
+  { inputDim: 1536, outputDim: 128, activation: "relu" },
+  { inputDim: 128, outputDim: 2, activation: "linear" }
+]);
 
-// 意図ごとの低ランク行列 (AとB) を追加
-loraAdapter.addIntent("scientific", {
-  matrixA: [...], // 16 x 1536
-  matrixB: [...], // 1536 x 16
-  bias: [...]     // 1536
-});
+mlp.setLayerWeights(0, matrix1, bias1);
+mlp.setLayerWeights(1, matrix2, bias2);
 
-const warpedVector = loraAdapter.tune(baseVector, "scientific");
+// 超高速非線形推論 (WASM)
+const output = mlp.predict(baseVector);
 ```
 
-### 3. 動的学習エンジン (Trainers)
+### 3. 検索空間の等方化 (Online Whitening) [✨ NEW]
 
-Pythonサーバーを立てることなく、ユーザーのフィードバック（クリックやいいね）をもとに、フロントエンドやエッジワーカー上で動的に行列を最適化（SGD + Momentum）できます。
+事前学習済みモデル（ada-002等）特有の「全ての類似度が高く出てしまう空間の偏り」をオンラインで自動補正します。
 
 ```typescript
-import { IntentTrainer, MigrationTrainer } from 'warpvector';
+import { WhiteningAdapter } from 'warpvector';
 
-// 学習率 0.01、モメンタム 0.9 でトレーナーを初期化
-const trainer = new IntentTrainer(1536, {
-  learningRate: 0.01,
-  momentum: 0.9,
-  batchSize: 32
-});
+// トップ1つの主成分（偏り）をストリーミング学習して除去するアダプター
+const adapter = new WhiteningAdapter(1536, { learningRate: 0.01, numComponents: 1 });
 
-// オンライン学習 (1データごとの逐次学習)
-const loss = trainer.updateOnline(
-  inputVector,        // ベースとなるベクトル
-  targetVector,       // 理想とするベクトル
-  currentWeights      // 現在の行列・バイアス
+// ベクトルを受信するたびに自動で偏りの方向を学習 (Oja's Rule)
+adapter.update(rawVector1);
+adapter.update(rawVector2);
+
+// 検索時に偏りを除去（検索の解像度が劇的に向上）
+const whitenedVector = adapter.tune(searchVector);
+```
+
+### 4. Prisma + pgvector ネイティブ統合 [✨ NEW]
+
+WarpVector を Prisma Client Extension としてアタッチすることで、ベクトル推論とデータベース検索を統合します。
+
+```typescript
+import { PrismaClient } from '@prisma/client';
+import { withWarpVector } from 'warpvector/integrations/prisma';
+import { WhiteningAdapter } from 'warpvector';
+
+const adapter = new WhiteningAdapter(1536);
+
+// Prisma Client に WarpVector 拡張をアタッチ
+const prisma = new PrismaClient().$extends(
+  withWarpVector({
+    adapter: adapter,
+    vectorField: "embedding", // DB上の pgvector 保存先カラム名
+    distanceOperator: "<=>"   // コサイン距離を使用
+  })
 );
 
-console.log(`Current Loss: ${loss}`);
+// 生のベクトルを渡すだけ！（内部でWarpVector推論とpgvector用SQL生成が自動で行われる）
+const results = await prisma.document.searchByVector({
+  vector: rawSearchVector,
+  topK: 10,
+  where: "category = 'science'" // 通常のSQL WHERE条件も併用可能
+});
 ```
 
-### 4. 次元のマイグレーション (ProjectionAdapter)
+### 5. 動的学習エンジン (Trainers with Adam) [✨ UPGRADED]
 
-古い次元数のモデル（例: 1536次元）から新しい次元数のモデル（例: 512次元）へ、セマンティクスを保持したままベクトル空間を投影（マイグレーション）します。
+Pythonサーバーを立てることなく、ユーザーのフィードバックをもとにエッジ上でベクトル空間を最適化できます。Adamオプティマイザーと InfoNCE Loss (複数Negative) に対応しました。
 
 ```typescript
-import { ProjectionAdapter } from 'warpvector';
+import { InfoNCETrainer } from 'warpvector';
 
-const projectionWeights = {
-  matrix: [...], // 512 x 1536 行列
-  bias: [...]    // 512 バイアス
-};
+const trainer = new InfoNCETrainer(1536, { learningRate: 0.001 });
 
-// 入力1536次元、出力512次元のアダプターを初期化
-const projector = new ProjectionAdapter(1536, 512, { "v1_to_v2": projectionWeights });
-const reducedVector = projector.project(highDimVector, "v1_to_v2"); // 1536 -> 512
+// 1つの正解と複数の不正解（In-batch Negatives）を同時に学習
+const loss = trainer.updateOnline(
+  anchorVector, 
+  positiveVector, 
+  [negativeVector1, negativeVector2], 
+  currentWeights
+);
 ```
 
-### 5. LangChain / LlamaIndex との統合 (Integrations)
+### 6. LangChain / LlamaIndex との統合 (Integrations)
 
 `warpvector` は、LangChain などの既存のエコシステムに「たった数行」で組み込むことができます。
-`WarpEmbeddings` クラスを使用することで、クエリ検索時のみベクトル空間を動的にワープさせ、Pinecone や Qdrant などのあらゆる VectorStore にそのまま渡すことができます。
+`WarpEmbeddings` クラスを使用することで、クエリ検索時のみベクトル空間を動的にワープさせ、そのまま VectorStore に渡すことができます。
 
 ```typescript
 import { OpenAIEmbeddings } from "@langchain/openai";
 import { IntentAdapter } from "warpvector";
 import { WarpEmbeddings } from "warpvector/integrations/langchain";
 
-// 1. 通常の Embeddings と IntentAdapter を初期化
 const baseEmbeddings = new OpenAIEmbeddings();
 const adapter = new IntentAdapter(myIntents);
 
-// 2. ラップする！
+// ベースのEmbeddingsをラップする
 const warpEmbeddings = new WarpEmbeddings({
   baseEmbeddings,
   adapter,
-  intentName: "riskAnalysis" // 動的に変更可能
+  intentName: "riskAnalysis"
 });
 
-// 3. あとは通常の LangChain のワークフローに渡すだけ
 const vectorStore = new MemoryVectorStore(warpEmbeddings);
-
-// 実行時に意図を切り替える場合
-warpEmbeddings.setIntent("economicImpact");
 const results = await vectorStore.similaritySearch("Market crash", 5);
 ```
 
@@ -170,10 +186,9 @@ $$\mathbf{x}' = \sigma(\mathbf{W}_I \mathbf{x} + \mathbf{b}_I)$$
 
 - $\mathbf{W}_I \in \mathbb{R}^{d \times d}$ ：**意図変換行列（Intent Matrix）**。空間の回転や特徴量の強調（歪み）を担当します。
 - $\mathbf{b}_I \in \mathbb{R}^d$ ：**意図バイアスベクトル（Intent Bias）**。空間全体を特定のコンテキストへ平行移動（シフト）させます。
-- $\sigma$ ：**非線形活性化関数（Activation Function）**。空間を [0, 1] や [-1, 1] などへ曲げ込み、複雑な意味の切り分けを可能にします (`relu`, `sigmoid`, `tanh`)。
+- $\sigma$ ：**非線形活性化関数（Activation Function）**。空間を曲げ込み、複雑な意味の切り分けを可能にします (`relu`, `sigmoid`, `tanh`)。
 
-この計算複雑度はわずか $\mathcal{O}(d^2)$ （LoRAの場合は $\mathcal{O}(d \cdot r)$）であり、埋め込みモデルを再実行するのに比べて圧倒的に高速です。
-WASM（WebAssembly）と `Float32Array` によるメモリアライメント最適化を活用することで、**ブラウザ上やエッジ環境でも数千〜数万件のバッチ処理を数ミリ秒で完了**させることができます。
+この計算複雑度はわずか $\mathcal{O}(d^2)$ （LoRAの場合は $\mathcal{O}(d \cdot r)$）であり、WASM（WebAssembly）と `Float32Array` によるメモリアライメント最適化を活用することで、**ブラウザ上やエッジ環境でも数千〜数万件の推論を数ミリ秒で完了**させることができます。
 
 ---
 

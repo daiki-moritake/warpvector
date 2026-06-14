@@ -7,5 +7,6 @@ export * from "./trainer";
 export * from "./TripletTrainer";
 export * from "./InfoNCETrainer";
 export * from "./migration";
+export * as integrations from "./integrations";
 export * from "./db";
 export * from "./utils";
