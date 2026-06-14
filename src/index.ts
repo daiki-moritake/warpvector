@@ -19,3 +19,5 @@ export * from "./migration";
 export * as integrations from "./integrations";
 export * from "./db";
 export * from "./utils";
+export * from "./VsaAdapter";
+export * from "./TaskArithmetic";
