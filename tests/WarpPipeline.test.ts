@@ -139,4 +139,47 @@ describe("WarpPipeline", () => {
     const result = pipeline.run([1, 2]);
     expect(Array.from(result)).toEqual([1, 2]);
   });
+
+  test("supports custom adapters via AdapterRegistry", () => {
+    // カスタムアダプタの定義
+    class MyCustomAdapter {
+      constructor(public scale: number) {}
+      
+      public tune(vector: number[] | Float32Array): Float32Array {
+        return new Float32Array(Array.from(vector).map(v => v * this.scale));
+      }
+      
+      public exportState() {
+        return { scale: this.scale };
+      }
+      
+      public static importState(state: any) {
+        return new MyCustomAdapter(state.scale);
+      }
+    }
+
+    // レジストリに登録
+    WarpPipeline.registerAdapter("MyCustomAdapter", MyCustomAdapter.importState);
+
+    // パイプラインを直接構築して状態をエクスポートする
+    // (通常は builder method を作りますが、ここでは直接 steps に push する代わりの手法として、importState で組み立てる方法をとります)
+    const state = [
+      {
+        type: "MyCustomAdapter",
+        state: { scale: 5 }
+      }
+    ];
+
+    const pipeline = WarpPipeline.importState(state);
+    
+    // カスタムアダプタが正しく実行されるか確認
+    const result = pipeline.run([1, 2, 3]);
+    expect(Array.from(result)).toEqual([5, 10, 15]);
+
+    // さらに状態を正しくエクスポートできるか確認
+    const exportedState = pipeline.exportState();
+    expect(exportedState.length).toBe(1);
+    expect(exportedState[0].type).toBe("MyCustomAdapter");
+    expect(exportedState[0].state).toEqual({ scale: 5 });
+  });
 });

@@ -13,4 +13,25 @@ export interface WarpAdapter {
    * @returns 変換後のベクトル (Float32Array, 量子化の場合は Int8Array や Uint8Array)
    */
   tune(vector: number[] | Float32Array, context?: string): Float32Array | Int8Array | Uint8Array;
+
+  /**
+   * 複数のベクトルを一括で変換します（オプション実装）
+   * WASMやSIMDを使用した最適化処理を提供します。
+   * 
+   * @param vectors 変換前のベクトルの配列
+   * @param context オプションのコンテキスト情報
+   */
+  tuneBatch?(vectors: (number[] | Float32Array)[], context?: string): any[];
+
+  /**
+   * 非同期での初期化処理（オプション実装）
+   * WASMのロードなどが必要なアダプタで実装します。
+   */
+  init?(): Promise<void>;
+
+  /**
+   * アダプタの状態（学習済み重みなど）をエクスポートします（オプション実装）
+   * importState に渡して完全に復元可能なJSON形式を返します。
+   */
+  exportState?(): any;
 }

@@ -30,6 +30,23 @@ export interface RunContext {
  */
 export class WarpPipeline {
   private steps: PipelineStep[] = [];
+  
+  /**
+   * アダプタの復元関数を保持するレジストリ。
+   * カスタムアダプタをパイプラインで利用・復元可能にするために使用します。
+   */
+  private static adapterRegistry = new Map<string, (state: any) => WarpAdapter>();
+
+  /**
+   * カスタムアダプタをパイプラインのレジストリに登録します。
+   * これにより importState でカスタムアダプタを復元可能になります。
+   * 
+   * @param type アダプタの識別子 (例: "MyCustomAdapter")
+   * @param importFn 状態オブジェクトからアダプタインスタンスを復元する関数
+   */
+  public static registerAdapter(type: string, importFn: (state: any) => WarpAdapter): void {
+    WarpPipeline.adapterRegistry.set(type, importFn);
+  }
 
   constructor(public inputDim: number) {}
 
@@ -108,8 +125,8 @@ export class WarpPipeline {
    */
   public async init(): Promise<void> {
     for (const step of this.steps) {
-      if (typeof (step.adapter as any).init === "function") {
-        await (step.adapter as any).init();
+      if (typeof step.adapter.init === "function") {
+        await step.adapter.init();
       }
     }
   }
@@ -125,13 +142,8 @@ export class WarpPipeline {
     let currentVector: any = vector;
     
     for (const step of this.steps) {
-      if (step.adapter instanceof QuantizationAdapter) {
-        // 量子化アダプタにはコンテキストは不要
-        currentVector = step.adapter.tune(currentVector as any);
-      } else {
-        // インテントを必要とするアダプタ (Intent, Projection等)
-        currentVector = step.adapter.tune(currentVector, context?.intent || "default");
-      }
+      // 全てのアダプタにコンテキストを渡す（不要なアダプタは内部で無視する）
+      currentVector = step.adapter.tune(currentVector, context?.intent || "default");
     }
 
     return currentVector;
@@ -149,22 +161,12 @@ export class WarpPipeline {
     let currentVectors: any[] = vectors;
 
     for (const step of this.steps) {
-      if (typeof (step.adapter as any).tuneBatch === "function") {
+      if (typeof step.adapter.tuneBatch === "function") {
         // tuneBatch メソッドがある場合は一括処理を委譲
-        if (step.adapter instanceof QuantizationAdapter) {
-          currentVectors = (step.adapter as any).tuneBatch(currentVectors);
-        } else {
-          currentVectors = (step.adapter as any).tuneBatch(currentVectors, context?.intent || "default");
-        }
+        currentVectors = step.adapter.tuneBatch(currentVectors, context?.intent || "default");
       } else {
         // tuneBatch がない場合は通常のループ処理へフォールバック
-        currentVectors = currentVectors.map(vec => {
-          if (step.adapter instanceof QuantizationAdapter) {
-            return step.adapter.tune(vec as any);
-          } else {
-            return step.adapter.tune(vec, context?.intent || "default");
-          }
-        });
+        currentVectors = currentVectors.map(vec => step.adapter.tune(vec, context?.intent || "default"));
       }
     }
 
@@ -208,8 +210,7 @@ export class WarpPipeline {
    */
   public exportState(): PipelineState[] {
     return this.steps.map(step => {
-      // 全てのアダプタは exportState を実装している前提
-      const state = (step.adapter as any).exportState ? (step.adapter as any).exportState() : null;
+      const state = typeof step.adapter.exportState === "function" ? step.adapter.exportState() : null;
       return {
         type: step.type,
         state
@@ -232,29 +233,12 @@ export class WarpPipeline {
     const pipeline = new WarpPipeline(0);
 
     for (const step of states) {
-      let adapter: WarpAdapter;
-      switch (step.type) {
-        case "IntentAdapter":
-          adapter = IntentAdapter.importState(step.state);
-          break;
-        case "LoraIntentAdapter":
-          adapter = LoraIntentAdapter.importState(step.state);
-          break;
-        case "WhiteningAdapter":
-          adapter = WhiteningAdapter.importState(step.state);
-          break;
-        case "ProjectionAdapter":
-          adapter = ProjectionAdapter.importState(step.state);
-          break;
-        case "MlpAdapter":
-          adapter = MlpAdapter.importState(step.state);
-          break;
-        case "QuantizationAdapter":
-          adapter = QuantizationAdapter.importState(step.state);
-          break;
-        default:
-          throw new Error(`Unknown adapter type: ${step.type}`);
+      const importFn = WarpPipeline.adapterRegistry.get(step.type);
+      if (!importFn) {
+        throw new Error(`Unknown adapter type: ${step.type}. Did you forget to register it via WarpPipeline.registerAdapter?`);
       }
+      
+      const adapter = importFn(step.state);
       pipeline.steps.push({ type: step.type, adapter });
     }
 
@@ -268,3 +252,11 @@ export class WarpPipeline {
     return pipeline;
   }
 }
+
+// 組み込みアダプタを初期登録
+WarpPipeline.registerAdapter("IntentAdapter", IntentAdapter.importState);
+WarpPipeline.registerAdapter("LoraIntentAdapter", LoraIntentAdapter.importState);
+WarpPipeline.registerAdapter("WhiteningAdapter", WhiteningAdapter.importState);
+WarpPipeline.registerAdapter("ProjectionAdapter", ProjectionAdapter.importState);
+WarpPipeline.registerAdapter("MlpAdapter", MlpAdapter.importState);
+WarpPipeline.registerAdapter("QuantizationAdapter", QuantizationAdapter.importState);
