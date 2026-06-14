@@ -9,6 +9,12 @@ export interface ProjectionWeights {
    * @type {number[][]}
    */
   matrix: number[][]; // [outDimension][inDimension]
+
+  /**
+   * オプションのバイアスベクトル
+   * @type {number[] | Float32Array}
+   */
+  bias?: number[] | Float32Array;
 }
 
 /**
@@ -19,8 +25,9 @@ export class ProjectionAdapter {
   private readonly inDimension: number;
   private readonly outDimension: number;
 
-  // フラット化された射影行列を保存
+  // フラット化された射影行列とバイアスを保存
   private readonly matrices: Map<string, Float32Array>;
+  private readonly biases: Map<string, Float32Array>;
 
   /**
    * ProjectionAdapter を初期化します。
@@ -38,6 +45,7 @@ export class ProjectionAdapter {
     this.inDimension = inDimension;
     this.outDimension = outDimension;
     this.matrices = new Map();
+    this.biases = new Map();
 
     if (projections) {
       for (const [name, weights] of Object.entries(projections)) {
@@ -74,6 +82,17 @@ export class ProjectionAdapter {
     }
 
     this.matrices.set(name, flatMatrix);
+
+    if (weights.bias) {
+      if (weights.bias.length !== this.outDimension) {
+        throw new Error(
+          `Projection '${name}': Bias must be of length ${this.outDimension}`,
+        );
+      }
+      this.biases.set(name, new Float32Array(weights.bias));
+    } else {
+      this.biases.delete(name);
+    }
   }
 
   /**
@@ -84,6 +103,7 @@ export class ProjectionAdapter {
    */
   public removeProjection(name: string): void {
     this.matrices.delete(name);
+    this.biases.delete(name);
   }
 
   /**
@@ -111,10 +131,11 @@ export class ProjectionAdapter {
     }
 
     const result = new Float32Array(this.outDimension);
+    const bias = this.biases.get(projectionName);
 
     // 行列ベクトル積: O(M * N)
     for (let i = 0; i < this.outDimension; i++) {
-      let sum = 0;
+      let sum = bias ? bias[i] : 0;
       const rowOffset = i * this.inDimension;
       for (let j = 0; j < this.inDimension; j++) {
         sum += matrix[rowOffset + j] * baseVector[j];

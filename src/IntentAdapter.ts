@@ -98,7 +98,9 @@ export class IntentAdapter {
     } else {
       const intentKeys = Object.keys(intentsOrDimension);
       if (intentKeys.length === 0) {
-        throw new Error("At least one intent or a specific dimension must be provided.");
+        throw new Error(
+          "At least one intent or a specific dimension must be provided.",
+        );
       }
 
       const firstIntent = intentsOrDimension[intentKeys[0]];
@@ -132,7 +134,7 @@ export class IntentAdapter {
     if (matrix instanceof Float32Array) {
       if (matrix.length !== this.dimension * this.dimension) {
         throw new Error(
-          `Intent '${intentName}': Flat matrix dimension mismatch. Expected ${this.dimension * this.dimension}, got ${matrix.length}.`
+          `Intent '${intentName}': Flat matrix dimension mismatch. Expected ${this.dimension * this.dimension}, got ${matrix.length}.`,
         );
       }
       flatMatrix = new Float32Array(matrix);
@@ -585,7 +587,7 @@ export class IntentAdapter {
     // dim*dim*4 bytes: matrix
     // dim*4 bytes: bias
     // [dim*4 bytes]: routingVector (optional)
-    const totalBytes = 8 + (dim * dim * 4) + (dim * 4) + (hasRouting ? dim * 4 : 0);
+    const totalBytes = 8 + dim * dim * 4 + dim * 4 + (hasRouting ? dim * 4 : 0);
     const buffer = new ArrayBuffer(totalBytes);
     const dataView = new DataView(buffer);
     const uint8View = new Uint8Array(buffer);
@@ -594,18 +596,31 @@ export class IntentAdapter {
     dataView.setUint8(4, hasRouting);
 
     let offset = 8;
-    
+
     // matrix
-    uint8View.set(new Uint8Array(matrix.buffer, matrix.byteOffset, matrix.byteLength), offset);
+    uint8View.set(
+      new Uint8Array(matrix.buffer, matrix.byteOffset, matrix.byteLength),
+      offset,
+    );
     offset += matrix.byteLength;
-    
+
     // bias
-    uint8View.set(new Uint8Array(bias.buffer, bias.byteOffset, bias.byteLength), offset);
+    uint8View.set(
+      new Uint8Array(bias.buffer, bias.byteOffset, bias.byteLength),
+      offset,
+    );
     offset += bias.byteLength;
-    
+
     // routingVector
     if (routingVector) {
-      uint8View.set(new Uint8Array(routingVector.buffer, routingVector.byteOffset, routingVector.byteLength), offset);
+      uint8View.set(
+        new Uint8Array(
+          routingVector.buffer,
+          routingVector.byteOffset,
+          routingVector.byteLength,
+        ),
+        offset,
+      );
     }
 
     return uint8View;
@@ -622,22 +637,33 @@ export class IntentAdapter {
     if (binary.length < 8) {
       throw new Error("Invalid binary format: too short.");
     }
-    const dataView = new DataView(binary.buffer, binary.byteOffset, binary.byteLength);
+    const dataView = new DataView(
+      binary.buffer,
+      binary.byteOffset,
+      binary.byteLength,
+    );
     const dim = dataView.getUint32(0, true);
     const hasRouting = dataView.getUint8(4);
 
     if (this.dimension !== undefined && dim !== this.dimension) {
-      throw new Error(`Dimension mismatch. Expected ${this.dimension}, got ${dim}.`);
+      throw new Error(
+        `Dimension mismatch. Expected ${this.dimension}, got ${dim}.`,
+      );
     }
 
-    const expectedBytes = 8 + (dim * dim * 4) + (dim * 4) + (hasRouting ? dim * 4 : 0);
+    const expectedBytes =
+      8 + dim * dim * 4 + dim * 4 + (hasRouting ? dim * 4 : 0);
     if (binary.length !== expectedBytes) {
-      throw new Error(`Invalid binary length. Expected ${expectedBytes}, got ${binary.length}.`);
+      throw new Error(
+        `Invalid binary length. Expected ${expectedBytes}, got ${binary.length}.`,
+      );
     }
 
     let offset = 8;
     const matrix = new Float32Array(dim * dim);
-    matrix.set(new Float32Array(binary.buffer, binary.byteOffset + offset, dim * dim));
+    matrix.set(
+      new Float32Array(binary.buffer, binary.byteOffset + offset, dim * dim),
+    );
     offset += dim * dim * 4;
 
     const bias = new Float32Array(dim);
@@ -647,7 +673,9 @@ export class IntentAdapter {
     let routingVector: Float32Array | undefined = undefined;
     if (hasRouting) {
       routingVector = new Float32Array(dim);
-      routingVector.set(new Float32Array(binary.buffer, binary.byteOffset + offset, dim));
+      routingVector.set(
+        new Float32Array(binary.buffer, binary.byteOffset + offset, dim),
+      );
     }
 
     this.matrices.set(intentName, matrix);

@@ -172,3 +172,43 @@ adapter.importIntentBinary("restored_intent", loadedBinary);
 const result = adapter.tune(queryVector, "restored_intent");
 ```
 この機能は、エッジ環境（Cloudflare Workers など）にユーザーのパーソナライズデータを高速で読み込ませたい場合に絶大な威力を発揮します。
+
+---
+
+## 7. MigrationTrainer による異なる埋め込みモデル間の移行
+
+AI開発において、埋め込みモデルのアップデート（例: `text-embedding-ada-002` から `text-embedding-3-small` へ移行）は、数千万件のデータをAPIに投げ直す必要があり、コストと時間の大きな壁となります。
+
+`MigrationTrainer` は、**「古いモデルの空間」から「新しいモデルの空間」への翻訳行列（プロジェクション）**を自動で学習します。共通のテキストを両方のモデルでベクトル化した少数のペアデータ（アンカー）を用意するだけで、既存のデータベースのベクトルを「新しいモデルの空間」にインメモリでワープさせることができます。
+
+### 移行行列の学習
+```typescript
+import { MigrationTrainer, ProjectionAdapter } from "warpvector";
+
+// 旧モデル(例: 1536次元) から 新モデル(例: 512次元) へのマイグレーション
+const trainer = new MigrationTrainer(1536, 512);
+
+// 少数のアンカーとなるベクトルペアを追加
+trainer.addExample({
+  source: [...], // 旧モデル (ada-002) でエンコードしたベクトル
+  target: [...]  // 新モデル (3-small) でエンコードしたベクトル
+});
+
+// Momentum-SGD で翻訳行列を学習
+const learnedWeights = trainer.train({
+  learningRate: 0.05,
+  epochs: 300
+});
+
+// ---------------------------------------------------------
+// 学習した重みを ProjectionAdapter にセットして使用
+// ---------------------------------------------------------
+const adapter = new ProjectionAdapter(1536, 512);
+adapter.addProjection("migrate_to_v3", learnedWeights);
+
+// 古いデータベースから取得したベクトルを、新しいモデルの空間へワープ変換！
+const oldVector = db.get("document_id"); 
+const newVector = adapter.project(oldVector, "migrate_to_v3");
+```
+
+この機能により、APIコストをかけることなく、即座に新しいモデルの検索精度や特性を既存システムに統合できるようになります。

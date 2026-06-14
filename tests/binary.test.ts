@@ -8,9 +8,7 @@ describe("IntentAdapter Binary Serialization", () => {
 
     // Flat Float32Array での直接追加テスト
     const flatMatrix = new Float32Array([
-      1.0, 2.0, 3.0,
-      4.0, 5.0, 6.0,
-      7.0, 8.0, 9.0
+      1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0,
     ]);
     const bias = new Float32Array([0.1, 0.2, 0.3]);
     const routing = new Float32Array([1.0, 0.0, 0.0]);
@@ -18,7 +16,7 @@ describe("IntentAdapter Binary Serialization", () => {
     adapter1.addIntent("myIntent", {
       matrix: flatMatrix,
       bias: bias,
-      routingVector: routing
+      routingVector: routing,
     });
 
     // 1. エクスポート
@@ -50,9 +48,9 @@ describe("IntentAdapter Binary Serialization", () => {
       matrix: [
         [1.0, 0.0, 0.0],
         [0.0, 1.0, 0.0],
-        [0.0, 0.0, 1.0]
+        [0.0, 0.0, 1.0],
       ],
-      bias: [0.0, 0.0, 0.0]
+      bias: [0.0, 0.0, 0.0],
     });
     const binary = adapter1.exportIntentBinary("intent1");
 
