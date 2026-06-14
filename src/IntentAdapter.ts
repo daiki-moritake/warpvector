@@ -41,24 +41,20 @@ export class IntentAdapter {
   public addIntent(intentName: string, weights: IntentWeights): void {
     const { matrix, bias } = weights;
 
-    // バイアスの次元数バリデーション
     if (bias.length !== this.dimension) {
       throw new Error(
         `Intent '${intentName}': Bias dimension mismatch. Expected ${this.dimension}, got ${bias.length}.`
       );
     }
 
-    // 行列の行数バリデーション
     if (matrix.length !== this.dimension) {
       throw new Error(
         `Intent '${intentName}': Matrix row dimension mismatch. Expected ${this.dimension}, got ${matrix.length}.`
       );
     }
 
-    // キャッシュ効率を上げるため、2次元配列をフラットな Float32Array にプリコンパイル
     const flatMatrix = new Float32Array(this.dimension * this.dimension);
     for (let i = 0; i < this.dimension; i++) {
-      // 行列の列数バリデーション
       if (matrix[i].length !== this.dimension) {
         throw new Error(
           `Intent '${intentName}': Matrix column dimension mismatch at row ${i}. Expected ${this.dimension}, got ${matrix[i].length}.`
@@ -85,6 +81,51 @@ export class IntentAdapter {
   }
 
   /**
+   * 行列とバイアスを用いてベクトルにアフィン変換を適用します。
+   */
+  private applyAffine(matrix: Float32Array, bias: Float32Array, vector: number[] | Float32Array, result: Float32Array): void {
+    const dim = this.dimension;
+    for (let i = 0; i < dim; i++) {
+      let sum = 0;
+      const rowOffset = i * dim;
+      
+      for (let j = 0; j < dim; j++) {
+        sum += matrix[rowOffset + j] * vector[j];
+      }
+      
+      result[i] = sum + bias[i];
+    }
+  }
+
+  /**
+   * 複数の意図を指定された重みでブレンドした行列とバイアスを計算します。
+   */
+  private computeBlendedWeights(blendWeights: Record<string, number>): { matrix: Float32Array; bias: Float32Array } {
+    const dim = this.dimension;
+    const blendedMatrix = new Float32Array(dim * dim);
+    const blendedBias = new Float32Array(dim);
+
+    for (const [intentName, weight] of Object.entries(blendWeights)) {
+      const matrix = this.matrices.get(intentName);
+      const bias = this.biases.get(intentName);
+
+      if (!matrix || !bias) {
+        throw new Error(`Intent '${intentName}' not found during blending.`);
+      }
+
+      for (let i = 0; i < dim; i++) {
+        blendedBias[i] += bias[i] * weight;
+        const rowOffset = i * dim;
+        for (let j = 0; j < dim; j++) {
+          blendedMatrix[rowOffset + j] += matrix[rowOffset + j] * weight;
+        }
+      }
+    }
+    
+    return { matrix: blendedMatrix, bias: blendedBias };
+  }
+
+  /**
    * 指定された意図（intent）に基づいて、ベースベクトルにアフィン変換を適用します。
    * x' = W_I * x + b_I
    *
@@ -106,22 +147,8 @@ export class IntentAdapter {
       throw new Error(`Intent '${intent}' not found.`);
     }
 
-    const dim = this.dimension;
-    const result = new Float32Array(dim);
-
-    // 行列・ベクトル積およびバイアス加算
-    // メモリアクセスの局所性を最大化するため、行→列の順にループ処理
-    for (let i = 0; i < dim; i++) {
-      let sum = 0;
-      const rowOffset = i * dim;
-      
-      for (let j = 0; j < dim; j++) {
-        sum += matrix[rowOffset + j] * baseVector[j];
-      }
-      
-      result[i] = sum + bias[i];
-    }
-
+    const result = new Float32Array(this.dimension);
+    this.applyAffine(matrix, bias, baseVector, result);
     return result;
   }
 
@@ -141,29 +168,19 @@ export class IntentAdapter {
       throw new Error(`Intent '${intent}' not found.`);
     }
 
-    const dim = this.dimension;
     const batchSize = baseVectors.length;
     const results = new Array<Float32Array>(batchSize);
 
     for (let k = 0; k < batchSize; k++) {
       const baseVector = baseVectors[k];
-      if (baseVector.length !== dim) {
+      if (baseVector.length !== this.dimension) {
         throw new Error(
-          `Vector dimension mismatch at index ${k}. Expected ${dim}, got ${baseVector.length}.`
+          `Vector dimension mismatch at index ${k}. Expected ${this.dimension}, got ${baseVector.length}.`
         );
       }
 
-      const result = new Float32Array(dim);
-      for (let i = 0; i < dim; i++) {
-        let sum = 0;
-        const rowOffset = i * dim;
-        
-        for (let j = 0; j < dim; j++) {
-          sum += matrix[rowOffset + j] * baseVector[j];
-        }
-        
-        result[i] = sum + bias[i];
-      }
+      const result = new Float32Array(this.dimension);
+      this.applyAffine(matrix, bias, baseVector, result);
       results[k] = result;
     }
 
@@ -185,42 +202,10 @@ export class IntentAdapter {
       );
     }
 
-    const dim = this.dimension;
-    const blendedMatrix = new Float32Array(dim * dim);
-    const blendedBias = new Float32Array(dim);
-
-    // ブレンド行列とバイアスの合成
-    for (const [intentName, weight] of Object.entries(blendWeights)) {
-      const matrix = this.matrices.get(intentName);
-      const bias = this.biases.get(intentName);
-
-      if (!matrix || !bias) {
-        throw new Error(`Intent '${intentName}' not found during blending.`);
-      }
-
-      for (let i = 0; i < dim; i++) {
-        blendedBias[i] += bias[i] * weight;
-        const rowOffset = i * dim;
-        for (let j = 0; j < dim; j++) {
-          blendedMatrix[rowOffset + j] += matrix[rowOffset + j] * weight;
-        }
-      }
-    }
-
-    const result = new Float32Array(dim);
-
-    // 合成された行列・ベクトル積およびバイアス加算
-    for (let i = 0; i < dim; i++) {
-      let sum = 0;
-      const rowOffset = i * dim;
-      
-      for (let j = 0; j < dim; j++) {
-        sum += blendedMatrix[rowOffset + j] * baseVector[j];
-      }
-      
-      result[i] = sum + blendedBias[i];
-    }
-
+    const { matrix, bias } = this.computeBlendedWeights(blendWeights);
+    const result = new Float32Array(this.dimension);
+    
+    this.applyAffine(matrix, bias, baseVector, result);
     return result;
   }
 
@@ -232,50 +217,20 @@ export class IntentAdapter {
    * @returns 変換後のベクトルの配列
    */
   public tuneBatchBlended(baseVectors: (number[] | Float32Array)[], blendWeights: Record<string, number>): Float32Array[] {
-    const dim = this.dimension;
-    const blendedMatrix = new Float32Array(dim * dim);
-    const blendedBias = new Float32Array(dim);
-
-    // ブレンド行列とバイアスの合成
-    for (const [intentName, weight] of Object.entries(blendWeights)) {
-      const matrix = this.matrices.get(intentName);
-      const bias = this.biases.get(intentName);
-
-      if (!matrix || !bias) {
-        throw new Error(`Intent '${intentName}' not found during blending.`);
-      }
-
-      for (let i = 0; i < dim; i++) {
-        blendedBias[i] += bias[i] * weight;
-        const rowOffset = i * dim;
-        for (let j = 0; j < dim; j++) {
-          blendedMatrix[rowOffset + j] += matrix[rowOffset + j] * weight;
-        }
-      }
-    }
-
+    const { matrix, bias } = this.computeBlendedWeights(blendWeights);
     const batchSize = baseVectors.length;
     const results = new Array<Float32Array>(batchSize);
 
     for (let k = 0; k < batchSize; k++) {
       const baseVector = baseVectors[k];
-      if (baseVector.length !== dim) {
+      if (baseVector.length !== this.dimension) {
         throw new Error(
-          `Vector dimension mismatch at index ${k}. Expected ${dim}, got ${baseVector.length}.`
+          `Vector dimension mismatch at index ${k}. Expected ${this.dimension}, got ${baseVector.length}.`
         );
       }
 
-      const result = new Float32Array(dim);
-      for (let i = 0; i < dim; i++) {
-        let sum = 0;
-        const rowOffset = i * dim;
-        
-        for (let j = 0; j < dim; j++) {
-          sum += blendedMatrix[rowOffset + j] * baseVector[j];
-        }
-        
-        result[i] = sum + blendedBias[i];
-      }
+      const result = new Float32Array(this.dimension);
+      this.applyAffine(matrix, bias, baseVector, result);
       results[k] = result;
     }
 
