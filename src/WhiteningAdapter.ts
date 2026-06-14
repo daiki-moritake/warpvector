@@ -1,5 +1,6 @@
 import { assertDimension, normalize, reject } from "./utils";
 import { WarpAdapter } from "./WarpAdapter";
+import { getWasmInstance, ensureWasmMemory, writeFloat32ArrayToWasm } from "./wasm/wasm-loader";
 
 export interface WhiteningConfig {
   /**
@@ -84,30 +85,61 @@ export class WhiteningAdapter implements WarpAdapter {
     }
 
     // 3. Sanger's Rule (Generalized Hebbian Algorithm) による複数の主成分の直交抽出
-    // 各成分ごとに、それより上位の成分の寄与を取り除きながら Oja's rule を適用する
     const x_residual = new Float32Array(x); // コピー
     
-    for (let k = 0; k < this.numComponents; k++) {
-      const w = this.components[k];
+    const instance = getWasmInstance();
+    const componentsSize = this.numComponents * this.dim * 4;
+    const xResidualSize = this.dim * 4;
+    const requiredBytes = componentsSize + xResidualSize;
+
+    if (
+      instance &&
+      instance.exports.sangerUpdateWasm &&
+      ensureWasmMemory(requiredBytes)
+    ) {
+      const memory = instance.exports.memory as WebAssembly.Memory;
       
-      // y = w^T * x_residual (射影成分)
-      let y = 0;
-      for (let i = 0; i < this.dim; i++) {
-        y += w[i] * x_residual[i];
+      const componentsPtr = 0;
+      const xResidualPtr = componentsSize;
+
+      // components配列をフラットなFloat32ArrayにしてWASMメモリに書き込む
+      const f32 = new Float32Array(memory.buffer);
+      for (let k = 0; k < this.numComponents; k++) {
+        const comp = this.components[k];
+        for (let i = 0; i < this.dim; i++) {
+          f32[(componentsPtr / 4) + k * this.dim + i] = comp[i];
+        }
       }
+      writeFloat32ArrayToWasm(memory, x_residual, xResidualPtr);
 
-      // Oja's Rule: Δw = learningRate * y * (x_residual - y * w)
-      for (let i = 0; i < this.dim; i++) {
-        w[i] += this.learningRate * y * (x_residual[i] - y * w[i]);
+      const sangerUpdateWasm = instance.exports.sangerUpdateWasm as CallableFunction;
+      sangerUpdateWasm(componentsPtr, xResidualPtr, this.dim, this.numComponents, this.learningRate);
+
+      // 更新されたcomponentsをWASMメモリから読み戻す
+      for (let k = 0; k < this.numComponents; k++) {
+        for (let i = 0; i < this.dim; i++) {
+          this.components[k][i] = f32[(componentsPtr / 4) + k * this.dim + i];
+        }
       }
+    } else {
+      // --- WASMが使えない場合のフォールバック (純粋なJS処理) ---
+      for (let k = 0; k < this.numComponents; k++) {
+        const w = this.components[k];
+        
+        let y = 0;
+        for (let i = 0; i < this.dim; i++) {
+          y += w[i] * x_residual[i];
+        }
 
-      // 安定性のために明示的に再正規化
-      this.components[k] = normalize(w);
+        for (let i = 0; i < this.dim; i++) {
+          w[i] += this.learningRate * y * (x_residual[i] - y * w[i]);
+        }
 
-      // 下位の主成分計算のために、現在の主成分(w)の寄与分を x_residual から引く (Gram-Schmidt 直交化)
-      // x_residual = x_residual - y * w
-      for (let i = 0; i < this.dim; i++) {
-        x_residual[i] -= y * this.components[k][i];
+        this.components[k] = normalize(w);
+
+        for (let i = 0; i < this.dim; i++) {
+          x_residual[i] -= y * this.components[k][i];
+        }
       }
     }
   }

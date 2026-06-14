@@ -26,8 +26,9 @@
 - **動的アフィン変換 & 非線形MLP [NEW]:** 単純な行列変換（$W \cdot x + b$）に加え、WASMを用いた超高速な多層パーセプトロン(MLP)と非線形活性化関数(ReLU, Sigmoid, Tanh)による高度な空間変形をサポート。
 - **オンライン等方化 (Whitening) [NEW]:** Oja's Rule を用いたオンラインPCAにより、OpenAI `ada-002` などが抱える「検索空間の極端な偏り（異方性）」をエッジ側でストリーミング補正し、検索精度を劇的に向上。
 - **ColBERT / Late Interaction (WASM) [✨ NEW]:** 単一ベクトルの代わりに「トークン行列」を用いて検索する最高峰の手法 (ColBERT) を WASM 化。TS環境では絶望的に遅い MaxSim 演算を爆速で処理し、RAGの検索品質を極限まで引き上げます。
+- **Vector Quantization (量子化) [✨ NEW]:** `Float32` のベクトルを `Int8` (スカラー量子化: メモリ1/4) または `Binary` (二値化: メモリ1/32) に圧縮。大規模ベクトルデータの保持コストを激減させ、ハミング距離計算で超高速検索を実現します。
 - **Hybrid Search (RRF & RSF) [✨ NEW]:** ベクトル検索（Dense）とキーワード検索（Sparse/BM25）の結果を統合するハイブリッド検索ユーティリティ（Reciprocal Rank Fusionなど）を内蔵。
-- **WASM/SIMDによる超高速バッチ処理:** 大量のベクトル処理にはAssemblyScriptでコンパイルされたインラインWebAssembly（WASM）バックエンドを自動的に呼び出し、計算速度を最大化します（130万推論/秒以上）。
+- **WASM/SIMDによる超高速処理:** 行列変換、PCA更新、ColBERT処理にはAssemblyScriptでコンパイルされたインラインWebAssembly（WASM）バックエンドを呼び出し、計算速度を最大化します。
 - **InfoNCE & Triplet 学習エンジン (Adam Optimizer内蔵) [NEW]:** Pythonサーバー不要。ユーザーのフィードバックから Contrastive Learning (複数Negative対応の対照学習) をエッジワーカー上で直接オンライン学習。
 - **LoRA (低ランク適応) アーキテクチャ:** `LoraIntentAdapter` により、超高次元ベクトル（1536次元など）でもメモリ使用量・計算量を劇的に削減。
 - **Prisma + pgvector ネイティブ統合拡張 [NEW]:** Prisma Client Extensionとして透過的に統合。複雑なSQLを書かずに WarpVector で推論・補正されたベクトルでのデータベース検索がメソッド1つで完結。
@@ -177,7 +178,25 @@ const rrfResults = rrf([denseResults, sparseResults]);
 const rsfResults = rsf([denseResults, sparseResults], [0.7, 0.3]);
 ```
 
-### 7. 動的学習エンジン (Trainers with Adam) [✨ UPGRADED]
+### 7. ベクトル量子化 (Vector Quantization) [✨ NEW]
+
+メモリ制約の厳しいエッジ環境向けに、`Float32` (32ビット) のベクトルを `Int8` (8ビットスカラー) または `Binary` (1ビット) に圧縮するアダプターを提供します。
+
+```typescript
+import { QuantizationAdapter } from 'warpvector';
+
+// Int8 量子化 (メモリを 1/4 に削減)
+const int8Adapter = new QuantizationAdapter({ type: "int8", dim: 1536 });
+const int8Vec = int8Adapter.tune(floatVector); // Int8Array
+const dot = QuantizationAdapter.int8DotProduct(int8Vec, int8Vec2);
+
+// Binary 量子化 (メモリを 1/32 に削減)
+const binaryAdapter = new QuantizationAdapter({ type: "binary", dim: 1536 });
+const binVec = binaryAdapter.tune(floatVector); // Uint8Array(192バイト)
+const dist = QuantizationAdapter.hammingDistance(binVec, binVec2); // 超高速なXORハミング距離計算
+```
+
+### 8. 動的学習エンジン (Trainers with Adam) [✨ UPGRADED]
 
 Pythonサーバーを立てることなく、ユーザーのフィードバックをもとにエッジ上でベクトル空間を最適化できます。Adamオプティマイザーと InfoNCE Loss (複数Negative) に対応しました。
 

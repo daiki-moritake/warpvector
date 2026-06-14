@@ -10,7 +10,7 @@ export interface WarpAdapter {
    * 
    * @param vector 変換前のベクトル (number[] または Float32Array)
    * @param context オプションのコンテキスト情報 (意図の名前、バージョンなど)
-   * @returns 変換後のベクトル (Float32Array)
+   * @returns 変換後のベクトル (Float32Array, 量子化の場合は Int8Array や Uint8Array)
    */
-  tune(vector: number[] | Float32Array, context?: string): Float32Array;
+  tune(vector: number[] | Float32Array, context?: string): Float32Array | Int8Array | Uint8Array;
 }
