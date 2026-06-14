@@ -196,22 +196,22 @@ export function reject(
 
 /**
  * 活性化関数の種類を定義します。
- * @typedef {"relu" | "sigmoid" | "tanh"} Activation
+ * @typedef {"linear" | "relu" | "sigmoid" | "tanh"} Activation
  */
-export type Activation = "relu" | "sigmoid" | "tanh";
+export type Activation = "linear" | "relu" | "sigmoid" | "tanh";
 
 /**
  * ベクトルに対して非線形活性化関数を適用します (In-place処理)。
  *
  * @param {Float32Array} vector - 活性化関数を適用する対象のベクトル（直接変更されます）
- * @param {Activation} [activation] - 適用する活性化関数の種類（"relu", "sigmoid", "tanh"）
+ * @param {Activation} [activation] - 適用する活性化関数の種類（"linear", "relu", "sigmoid", "tanh"）
  * @returns {void}
  */
 export function applyActivationToVector(
   vector: Float32Array,
   activation?: Activation,
 ): void {
-  if (!activation) return;
+  if (!activation || activation === "linear") return;
   const dim = vector.length;
   if (activation === "relu") {
     for (let i = 0; i < dim; i++) {
