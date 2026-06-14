@@ -1,15 +1,35 @@
-
-
+/**
+ * 低ランク適応（LoRA）の重みを定義するインターフェース
+ * @interface LoraIntentWeights
+ */
 export interface LoraIntentWeights {
+  /**
+   * 行列A: 次元数を rank から dimension に拡張する行列
+   * @type {number[][]}
+   */
   matrixA: number[][]; // [dim][rank]
+
+  /**
+   * 行列B: 次元数を dimension から rank に圧縮する行列
+   * @type {number[][]}
+   */
   matrixB: number[][]; // [rank][dim]
-  bias: number[];      // [dim]
+
+  /**
+   * バイアスベクトル
+   * @type {number[]}
+   */
+  bias: number[]; // [dim]
 }
 
+/**
+ * LoraIntentAdapter クラス
+ * 低ランク行列（A, B）を使用して高次元ベクトルのアフィン変換をメモリ効率良く行います。
+ */
 export class LoraIntentAdapter {
   private readonly dimension: number;
   private readonly rank: number;
-  
+
   // フラット化されたAとBの行列、およびバイアスを保存
   private readonly matricesA: Map<string, Float32Array>;
   private readonly matricesB: Map<string, Float32Array>;
@@ -21,11 +41,16 @@ export class LoraIntentAdapter {
    * フルマトリックスの代わりに低ランク行列（A, B）を使用することで
    * メモリ使用量と計算量を劇的に削減します。
    *
-   * @param dimension ベクトル空間の次元数（D）
-   * @param rank 低ランク適応のランク数（r）
-   * @param intents （オプション）初期化時に追加するインテント
+   * @constructor
+   * @param {number} dimension - ベクトル空間の元の次元数（D）
+   * @param {number} rank - 低ランク適応における中間ランク数（r）
+   * @param {Record<string, LoraIntentWeights>} [intents] - 初期化時に追加するインテントのマップ
    */
-  constructor(dimension: number, rank: number, intents?: Record<string, LoraIntentWeights>) {
+  constructor(
+    dimension: number,
+    rank: number,
+    intents?: Record<string, LoraIntentWeights>,
+  ) {
     this.dimension = dimension;
     this.rank = rank;
     this.matricesA = new Map();
@@ -39,17 +64,31 @@ export class LoraIntentAdapter {
     }
   }
 
+  /**
+   * 実行時に新しいLoRA意図を動的に追加または更新します。
+   *
+   * @param {string} intentName - 追加または更新する意図の名前
+   * @param {LoraIntentWeights} weights - LoRA意図の重み（行列A、行列B、バイアス）
+   * @throws {Error} 行列またはバイアスの次元数が一致しない場合にエラーをスローします。
+   * @returns {void}
+   */
   public addIntent(intentName: string, weights: LoraIntentWeights): void {
     const { matrixA, matrixB, bias } = weights;
 
     if (bias.length !== this.dimension) {
-      throw new Error(`Intent '${intentName}': Bias dimension mismatch. Expected ${this.dimension}, got ${bias.length}.`);
+      throw new Error(
+        `Intent '${intentName}': Bias dimension mismatch. Expected ${this.dimension}, got ${bias.length}.`,
+      );
     }
     if (matrixA.length !== this.dimension || matrixA[0].length !== this.rank) {
-      throw new Error(`Intent '${intentName}': Matrix A must be of size ${this.dimension}x${this.rank}`);
+      throw new Error(
+        `Intent '${intentName}': Matrix A must be of size ${this.dimension}x${this.rank}`,
+      );
     }
     if (matrixB.length !== this.rank || matrixB[0].length !== this.dimension) {
-      throw new Error(`Intent '${intentName}': Matrix B must be of size ${this.rank}x${this.dimension}`);
+      throw new Error(
+        `Intent '${intentName}': Matrix B must be of size ${this.rank}x${this.dimension}`,
+      );
     }
 
     const flatA = new Float32Array(this.dimension * this.rank);
@@ -71,6 +110,12 @@ export class LoraIntentAdapter {
     this.biases.set(intentName, new Float32Array(bias));
   }
 
+  /**
+   * 指定したLoRA意図を削除します。
+   *
+   * @param {string} intentName - 削除する意図の名前
+   * @returns {void}
+   */
   public removeIntent(intentName: string): void {
     this.matricesA.delete(intentName);
     this.matricesB.delete(intentName);
@@ -79,15 +124,21 @@ export class LoraIntentAdapter {
 
   /**
    * LoRAアプローチを用いてベクトルにアフィン変換を適用します。
-   * x' = x + A(Bx) + b
-   * 
-   * @param baseVector 変換元のベクトル
-   * @param intent 適用する意図
-   * @param gateType （オプション）非線形コンテキストゲーティングを適用する場合に指定
+   * 数式: x' = x + A(Bx) + b
+   *
+   * @param {number[] | Float32Array} baseVector - 変換元のベクトル
+   * @param {string} intent - 適用する意図の名前
+   * @returns {Float32Array} LoRA変換と残差結合が適用された新しいベクトル
+   * @throws {Error} ベクトルの次元数が一致しない、または指定された意図が存在しない場合にエラーをスローします。
    */
-  public tune(baseVector: number[] | Float32Array, intent: string): Float32Array {
+  public tune(
+    baseVector: number[] | Float32Array,
+    intent: string,
+  ): Float32Array {
     if (baseVector.length !== this.dimension) {
-      throw new Error(`Vector dimension mismatch. Expected ${this.dimension}, got ${baseVector.length}.`);
+      throw new Error(
+        `Vector dimension mismatch. Expected ${this.dimension}, got ${baseVector.length}.`,
+      );
     }
 
     const matA = this.matricesA.get(intent);
@@ -99,7 +150,7 @@ export class LoraIntentAdapter {
     }
 
     const result = new Float32Array(this.dimension);
-    
+
     // Step 1: y = B * x (サイズ: rank)
     // 複雑度: O(r * D)
     const y = new Float32Array(this.rank);

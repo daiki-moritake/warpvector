@@ -8,26 +8,26 @@ describe("IntentAdapter Core Logic", () => {
       matrix: [
         [1, 0, 0],
         [0, 1, 0],
-        [0, 0, 1]
+        [0, 0, 1],
       ],
-      bias: [0, 0, 0]
+      bias: [0, 0, 0],
     },
     scaleAndShift: {
       matrix: [
         [2, 0, 0],
         [0, 3, 0],
-        [0, 0, 0.5]
+        [0, 0, 0.5],
       ],
-      bias: [1, -1, 2]
+      bias: [1, -1, 2],
     },
     complexTransform: {
       matrix: [
         [0.5, -0.2, 0.1],
-        [0.1,  0.8, -0.3],
-        [-0.4, 0.5,  0.9]
+        [0.1, 0.8, -0.3],
+        [-0.4, 0.5, 0.9],
       ],
-      bias: [0.1, 0.2, -0.1]
-    }
+      bias: [0.1, 0.2, -0.1],
+    },
   };
 
   test("should correctly apply identity transformation", () => {
@@ -88,15 +88,17 @@ describe("IntentAdapter Core Logic", () => {
       badIntent: {
         matrix: [
           [1, 0],
-          [0, 1]
+          [0, 1],
         ],
-        bias: [0, 0, 0] // 3D bias, 2D matrix
-      }
+        bias: [0, 0, 0], // 3D bias, 2D matrix
+      },
     };
 
     expect(() => {
       new IntentAdapter(invalidIntents);
-    }).toThrow("Intent 'badIntent': Matrix row dimension mismatch. Expected 3, got 2.");
+    }).toThrow(
+      "Intent 'badIntent': Matrix row dimension mismatch. Expected 3, got 2.",
+    );
   });
 
   test("バッチ処理(tuneBatch)が正しく適用されること", () => {
@@ -120,15 +122,17 @@ describe("IntentAdapter Core Logic", () => {
         matrix: [
           [1, 0, 0],
           [0, 1], // Invalid column length
-          [0, 0, 1]
+          [0, 0, 1],
         ],
-        bias: [0, 0, 0]
-      }
+        bias: [0, 0, 0],
+      },
     };
 
     expect(() => {
       new IntentAdapter(invalidIntents);
-    }).toThrow("Intent 'badIntent': Matrix column dimension mismatch at row 1. Expected 3, got 2.");
+    }).toThrow(
+      "Intent 'badIntent': Matrix column dimension mismatch at row 1. Expected 3, got 2.",
+    );
   });
 
   test("動的にインテントの追加と削除ができること", () => {
@@ -137,9 +141,9 @@ describe("IntentAdapter Core Logic", () => {
       matrix: [
         [1, 1, 1],
         [1, 1, 1],
-        [1, 1, 1]
+        [1, 1, 1],
       ],
-      bias: [1, 2, 3]
+      bias: [1, 2, 3],
     });
 
     const result1 = adapter.tune([1, 0, 0], "dynamicIntent");
@@ -162,7 +166,7 @@ describe("IntentAdapter Core Logic", () => {
     // 0.5*[2, 4, 8] + 0.5*[5, 11, 6] = [3.5, 7.5, 7]
     const result = adapter.tuneBlended(base, {
       identity: 0.5,
-      scaleAndShift: 0.5
+      scaleAndShift: 0.5,
     });
 
     expect(result[0]).toBeCloseTo(3.5, 5);
@@ -177,7 +181,7 @@ describe("Utils", () => {
     const result = normalize(base);
     expect(result[0]).toBeCloseTo(0.6, 5);
     expect(result[1]).toBeCloseTo(0.8, 5);
-    
+
     const norm = Math.sqrt(result[0] * result[0] + result[1] * result[1]);
     expect(norm).toBeCloseTo(1.0, 5);
   });
@@ -198,7 +202,7 @@ describe("Advanced Math Utils", () => {
     // X軸とY軸の単位ベクトル
     const v1 = [1, 0, 0];
     const v2 = [0, 1, 0];
-    
+
     // t=0.5 の場合、45度の方向になり、長さが1になるはず
     const result = slerp(v1, v2, 0.5);
     const expectedVal = Math.cos(Math.PI / 4); // ≈ 0.7071

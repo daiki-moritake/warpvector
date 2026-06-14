@@ -4,28 +4,16 @@ import { LoraIntentAdapter, LoraIntentWeights } from "../src/LoraIntentAdapter";
 describe("LoraIntentAdapter Core Logic", () => {
   const dummyIntents: Record<string, LoraIntentWeights> = {
     identity: {
-      matrixA: [
-        [0],
-        [0],
-        [0]
-      ],
-      matrixB: [
-        [0, 0, 0]
-      ],
-      bias: [0, 0, 0]
+      matrixA: [[0], [0], [0]],
+      matrixB: [[0, 0, 0]],
+      bias: [0, 0, 0],
     },
     // W = A*B = [[1],[1],[1]] * [[1,1,1]] = [[1,1,1],[1,1,1],[1,1,1]]
     scaleAndShift: {
-      matrixA: [
-        [1],
-        [1],
-        [1]
-      ],
-      matrixB: [
-        [1, 1, 1]
-      ],
-      bias: [1, 2, 3]
-    }
+      matrixA: [[1], [1], [1]],
+      matrixB: [[1, 1, 1]],
+      bias: [1, 2, 3],
+    },
   };
 
   test("should correctly apply identity transformation (residual connection)", () => {
@@ -59,7 +47,7 @@ describe("LoraIntentAdapter Core Logic", () => {
     adapter.addIntent("dynamic", {
       matrixA: [[2], [0], [0]],
       matrixB: [[1, 0, 0]],
-      bias: [0, 0, 0]
+      bias: [0, 0, 0],
     });
 
     // B*x = [1,0,0]*[5,5,5]^T = 5

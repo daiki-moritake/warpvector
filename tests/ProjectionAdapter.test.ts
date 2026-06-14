@@ -7,16 +7,16 @@ describe("ProjectionAdapter Core Logic", () => {
     reduceTo2D: {
       matrix: [
         [1, 0, 0], // x軸のみ
-        [0, 1, 0]  // y軸のみ
-      ]
-    }
+        [0, 1, 0], // y軸のみ
+      ],
+    },
   };
 
   test("should correctly apply dimensionality reduction", () => {
     // 3次元 -> 2次元
     const adapter = new ProjectionAdapter(3, 2, dummyProjections);
     const base = [5, 10, 15];
-    
+
     // W * x = [[1,0,0], [0,1,0]] * [5,10,15]^T = [5, 10]^T
     const result = adapter.project(base, "reduceTo2D");
 
@@ -31,9 +31,9 @@ describe("ProjectionAdapter Core Logic", () => {
         invalid: {
           matrix: [
             [1, 0],
-            [0, 1]
-          ] // 2x2 instead of 2x3
-        }
+            [0, 1],
+          ], // 2x2 instead of 2x3
+        },
       });
     }).toThrow();
   });
@@ -41,7 +41,7 @@ describe("ProjectionAdapter Core Logic", () => {
   test("should dynamically add and remove projections", () => {
     const adapter = new ProjectionAdapter(3, 1);
     adapter.addProjection("reduceTo1D", {
-      matrix: [[1, 1, 1]] // 合計値への射影
+      matrix: [[1, 1, 1]], // 合計値への射影
     });
 
     const result = adapter.project([2, 3, 4], "reduceTo1D");

@@ -3,8 +3,8 @@
  * 長さが1になるように正規化（normalize）した新しい Float32Array を返します。
  * コサイン類似度の計算前などに使用します。
  *
- * @param vector 正規化するベクトル (number[] または Float32Array)
- * @returns 正規化された Float32Array
+ * @param {number[] | Float32Array} vector - 正規化するベクトル
+ * @returns {Float32Array} 正規化された新しい Float32Array ベクトル。ゼロベクトルの場合はゼロベクトルのまま返します。
  */
 export function normalize(vector: number[] | Float32Array): Float32Array {
   const dim = vector.length;
@@ -35,11 +35,17 @@ export function normalize(vector: number[] | Float32Array): Float32Array {
  * 高次元の埋め込み空間において、幾何学的な構造（コサイン類似度）を維持したまま
  * 2つのベクトル間を滑らかに補間します。
  *
- * @param v1 始点ベクトル
- * @param v2 終点ベクトル
- * @param t 補間係数 (0.0 〜 1.0)
+ * @param {number[] | Float32Array} v1 - 始点ベクトル
+ * @param {number[] | Float32Array} v2 - 終点ベクトル
+ * @param {number} t - 補間係数 (0.0 〜 1.0)
+ * @returns {Float32Array} 補間後の新しいベクトル
+ * @throws {Error} ベクトルの次元数が異なる場合、またはゼロベクトルが指定された場合にエラーをスローします。
  */
-export function slerp(v1: number[] | Float32Array, v2: number[] | Float32Array, t: number): Float32Array {
+export function slerp(
+  v1: number[] | Float32Array,
+  v2: number[] | Float32Array,
+  t: number,
+): Float32Array {
   const dim = v1.length;
   if (dim !== v2.length) {
     throw new Error("Vectors must have the same dimension for slerp.");
@@ -93,8 +99,16 @@ export function slerp(v1: number[] | Float32Array, v2: number[] | Float32Array, 
 /**
  * 内積 (Inner Product)
  * 2つのベクトルの内積を計算します。
+ *
+ * @param {number[] | Float32Array} v1 - 1つ目のベクトル
+ * @param {number[] | Float32Array} v2 - 2つ目のベクトル
+ * @returns {number} 2つのベクトルの内積
+ * @throws {Error} ベクトルの次元数が異なる場合にエラーをスローします。
  */
-export function innerProduct(v1: number[] | Float32Array, v2: number[] | Float32Array): number {
+export function innerProduct(
+  v1: number[] | Float32Array,
+  v2: number[] | Float32Array,
+): number {
   const dim = v1.length;
   if (dim !== v2.length) {
     throw new Error("Vectors must have the same dimension.");
@@ -109,8 +123,16 @@ export function innerProduct(v1: number[] | Float32Array, v2: number[] | Float32
 /**
  * コサイン類似度 (Cosine Similarity)
  * 2つのベクトル間のコサイン類似度 (-1.0 〜 1.0) を計算します。
+ *
+ * @param {number[] | Float32Array} v1 - 1つ目のベクトル
+ * @param {number[] | Float32Array} v2 - 2つ目のベクトル
+ * @returns {number} コサイン類似度 (-1.0 〜 1.0)。ゼロベクトルを含む場合は 0 を返します。
+ * @throws {Error} ベクトルの次元数が異なる場合にエラーをスローします。
  */
-export function cosineSimilarity(v1: number[] | Float32Array, v2: number[] | Float32Array): number {
+export function cosineSimilarity(
+  v1: number[] | Float32Array,
+  v2: number[] | Float32Array,
+): number {
   const dim = v1.length;
   if (dim !== v2.length) {
     throw new Error("Vectors must have the same dimension.");
@@ -132,9 +154,17 @@ export function cosineSimilarity(v1: number[] | Float32Array, v2: number[] | Flo
 /**
  * 直交射影による成分除去 (Orthogonal Rejection / Negative Prompting)
  * baseVector から negativeVector の方向成分を完全に除去した新しいベクトルを返します。
- * v' = v - (v・u / u・u) * u
+ * 数式: v' = v - (v・u / u・u) * u
+ *
+ * @param {number[] | Float32Array} baseVector - 元のベクトル (v)
+ * @param {number[] | Float32Array} negativeVector - 除去したい成分を持つベクトル (u)
+ * @returns {Float32Array} 成分が除去された新しいベクトル (v')
+ * @throws {Error} ベクトルの次元数が異なる場合にエラーをスローします。
  */
-export function reject(baseVector: number[] | Float32Array, negativeVector: number[] | Float32Array): Float32Array {
+export function reject(
+  baseVector: number[] | Float32Array,
+  negativeVector: number[] | Float32Array,
+): Float32Array {
   const dim = baseVector.length;
   if (dim !== negativeVector.length) {
     throw new Error("Vectors must have the same dimension.");
@@ -162,4 +192,57 @@ export function reject(baseVector: number[] | Float32Array, negativeVector: numb
   }
 
   return result;
+}
+
+/**
+ * 活性化関数の種類を定義します。
+ * @typedef {"relu" | "sigmoid" | "tanh"} Activation
+ */
+export type Activation = "relu" | "sigmoid" | "tanh";
+
+/**
+ * ベクトルに対して非線形活性化関数を適用します (In-place処理)。
+ *
+ * @param {Float32Array} vector - 活性化関数を適用する対象のベクトル（直接変更されます）
+ * @param {Activation} [activation] - 適用する活性化関数の種類（"relu", "sigmoid", "tanh"）
+ * @returns {void}
+ */
+export function applyActivationToVector(
+  vector: Float32Array,
+  activation?: Activation,
+): void {
+  if (!activation) return;
+  const dim = vector.length;
+  if (activation === "relu") {
+    for (let i = 0; i < dim; i++) {
+      if (vector[i] < 0) vector[i] = 0;
+    }
+  } else if (activation === "sigmoid") {
+    for (let i = 0; i < dim; i++) {
+      vector[i] = 1 / (1 + Math.exp(-vector[i]));
+    }
+  } else if (activation === "tanh") {
+    for (let i = 0; i < dim; i++) {
+      vector[i] = Math.tanh(vector[i]);
+    }
+  }
+}
+
+/**
+ * Softmax関数の計算
+ * 数値の配列からSoftmax確率分布を計算します（オーバーフロー防止対策済み）。
+ *
+ * @param {number[]} values - 入力となる数値の配列
+ * @returns {number[]} 確率の合計が1.0となるSoftmax関数適用後の配列
+ */
+export function softmax(values: number[]): number[] {
+  if (values.length === 0) return [];
+  const max = Math.max(...values);
+  let sum = 0;
+  const exps = values.map((v) => {
+    const e = Math.exp(v - max);
+    sum += e;
+    return e;
+  });
+  return exps.map((e) => e / sum);
 }
