@@ -48,6 +48,37 @@ export function ensureWasmMemory(requiredBytes: number): boolean {
   }
 }
 
+let globalOffset = 65536; // 最初の64KBはシステム予約領域として保護する
+
+/**
+ * 競合しないWASMメモリ領域を確保する簡易アロケータ
+ */
+export function allocateWasmMemory(bytes: number): number {
+  const ptr = globalOffset;
+  globalOffset += bytes;
+  // 4バイトアラインメント
+  if (globalOffset % 4 !== 0) {
+    globalOffset += 4 - (globalOffset % 4);
+  }
+  ensureWasmMemory(globalOffset);
+  return ptr;
+}
+
+/**
+ * アロケータのオフセットをリセットする（テスト等で使用）
+ */
+export function resetWasmAllocator(): void {
+  globalOffset = 65536;
+}
+
+export function getWasmAllocatorOffset(): number {
+  return globalOffset;
+}
+
+export function setWasmAllocatorOffset(offset: number): void {
+  globalOffset = offset;
+}
+
 /**
  * データをWASMメモリに書き込むヘルパー関数
  */

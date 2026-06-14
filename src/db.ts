@@ -16,6 +16,13 @@ export class VectorDBAdapter {
   public static toPgvector(
     vector: number[] | Float32Array | Int8Array | Uint8Array,
   ): string {
+    if (vector instanceof Uint8Array) {
+      let bitString = "";
+      for (let i = 0; i < vector.length; i++) {
+        bitString += vector[i].toString(2).padStart(8, "0");
+      }
+      return bitString;
+    }
     return `[${Array.from(vector).join(", ")}]`;
   }
 

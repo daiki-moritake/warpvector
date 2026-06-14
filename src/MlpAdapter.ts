@@ -2,6 +2,7 @@ import {
   initWasm,
   ensureWasmMemory,
   writeFloat32ArrayToWasm,
+  allocateWasmMemory,
 } from "./wasm/wasm-loader";
 import { WarpAdapter } from "./WarpAdapter";
 import { Activation, assertDimension } from "./utils";
@@ -56,6 +57,7 @@ export class MlpAdapter implements WarpAdapter {
   private layerDimsPtr = 0;
   private activationsPtr = 0;
   private bufferPtr = 0;
+  private bufBPtr = 0;
 
   constructor(layers: MlpLayer[]) {
     if (layers.length === 0) {
@@ -120,33 +122,13 @@ export class MlpAdapter implements WarpAdapter {
     this.outputDim = layerDims[layerDims.length - 1];
 
     // メモリレイアウトの計算 (各ポインタのオフセット)
-    // 1. input (inputDim * 4)
-    // 2. output (outputDim * 4)
-    // 3. layerDims ((numLayers + 1) * 4)
-    // 4. activations (numLayers * 4)
-    // 5. weights (totalWeights * 4)
-    // 6. buffer (最大層の次元 * 4 バイト を2つのバッファ用に x2 -> maxDim * 8。念の為4096足す)
-
-    // 1ページ分(65536バイト)はWASM側の静的データやアロケータの領域として避け、
-    // 安全な場所からレイアウトを開始する。
-    let offset = 65536;
-    this.inputPtr = offset;
-    offset += this.inputDim * 4;
-    this.outputPtr = offset;
-    offset += this.outputDim * 4;
-    this.layerDimsPtr = offset;
-    offset += (this.numLayers + 1) * 4;
-    this.activationsPtr = offset;
-    offset += this.numLayers * 4;
-
-    // アラインメント(Float32用)
-    if (offset % 4 !== 0) offset += 4 - (offset % 4);
-    this.weightsPtr = offset;
-    offset += totalWeights * 4;
-    this.bufferPtr = offset;
-    offset += maxDim * 8 + 8192; // +8192はWASM側でのバッファBのオフセット(4096)用
-
-    ensureWasmMemory(offset);
+    this.inputPtr = allocateWasmMemory(this.inputDim * 4);
+    this.outputPtr = allocateWasmMemory(this.outputDim * 4);
+    this.layerDimsPtr = allocateWasmMemory((this.numLayers + 1) * 4);
+    this.activationsPtr = allocateWasmMemory(this.numLayers * 4);
+    this.weightsPtr = allocateWasmMemory(totalWeights * 4);
+    this.bufferPtr = allocateWasmMemory(maxDim * 4);
+    this.bufBPtr = allocateWasmMemory(maxDim * 4);
 
     // データの書き込み
     const memoryBuffer = memory.buffer;
@@ -221,6 +203,7 @@ export class MlpAdapter implements WarpAdapter {
       this.activationsPtr,
       this.numLayers,
       this.bufferPtr,
+      this.bufBPtr,
     );
 
     // 結果の読み取り

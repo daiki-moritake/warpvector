@@ -126,7 +126,8 @@ export function sgdMomentumStepWasm(
  * @param {usize} layerDimsPtr - [入力次元, 隠れ層1次元, 隠れ層2次元, ..., 出力次元] の配列ポインタ (i32)
  * @param {usize} activationsPtr - 各層の活性化関数IDの配列ポインタ (i32) [0:Linear, 1:ReLU, 2:Sigmoid, 3:Tanh]
  * @param {i32} numLayers - レイヤー数 (重み行列の数)
- * @param {usize} bufferPtr - 中間計算用バッファのポインタ (f32) (最低でも最大層次元数 x 2 バイトが必要)
+ * @param {usize} bufferPtr - 中間計算用バッファAのポインタ (f32)
+ * @param {usize} bufBPtr - 中間計算用バッファBのポインタ (f32)
  */
 export function mlpInferenceWasm(
   inputPtr: usize,
@@ -135,11 +136,12 @@ export function mlpInferenceWasm(
   layerDimsPtr: usize,
   activationsPtr: usize,
   numLayers: i32,
-  bufferPtr: usize
+  bufferPtr: usize,
+  bufBPtr: usize
 ): void {
   // バッファを2つの領域 (bufA, bufB) に分けて、層ごとに入出力をスワップしながら計算する
   let bufA = bufferPtr;
-  let bufB = bufferPtr + 4096; // 十分なマージンを取る (最大1024次元を想定)。※TS側で十分確保すること
+  let bufB = bufBPtr;
 
   // 初回は inputPtr から bufA にコピー
   let inputDim = load<i32>(layerDimsPtr);
@@ -338,6 +340,79 @@ export function sangerUpdateWasm(
       let x_val = load<f32>(xResidualPtr + i * 4);
       let w_val = load<f32>(wOffset + i * 4);
       store<f32>(xResidualPtr + i * 4, x_val - y * w_val);
+    }
+  }
+}
+
+/**
+ * Adamオプティマイザの1ステップパラメータ更新をWASMで高速実行する。
+ * アフィン変換層の重み(matrix)とバイアス(bias)を更新します。
+ */
+export function adamUpdateWasm(
+  matrixPtr: usize,
+  biasPtr: usize,
+  mMatrixPtr: usize,
+  vMatrixPtr: usize,
+  mBiasPtr: usize,
+  vBiasPtr: usize,
+  inputPtr: usize,
+  outputGradientsPtr: usize,
+  lr: f32,
+  reg: f32,
+  beta1: f32,
+  beta2: f32,
+  epsilon: f32,
+  t: i32,
+  sDim: i32,
+  tDim: i32
+): void {
+  let beta1_t = Mathf.pow(beta1, t as f32);
+  let beta2_t = Mathf.pow(beta2, t as f32);
+  let one_minus_beta1_t = (1.0 as f32) - beta1_t;
+  let one_minus_beta2_t = (1.0 as f32) - beta2_t;
+
+  for (let i = 0; i < tDim; i++) {
+    let bGrad = load<f32>(outputGradientsPtr + i * 4);
+
+    // mBias update
+    let m_b = load<f32>(mBiasPtr + i * 4);
+    m_b = beta1 * m_b + ((1.0 as f32) - beta1) * bGrad;
+    store<f32>(mBiasPtr + i * 4, m_b);
+
+    // vBias update
+    let v_b = load<f32>(vBiasPtr + i * 4);
+    v_b = beta2 * v_b + ((1.0 as f32) - beta2) * bGrad * bGrad;
+    store<f32>(vBiasPtr + i * 4, v_b);
+
+    let mHatB = m_b / one_minus_beta1_t;
+    let vHatB = v_b / one_minus_beta2_t;
+
+    let b_val = load<f32>(biasPtr + i * 4);
+    b_val -= (lr * mHatB) / (Mathf.sqrt(vHatB) + epsilon);
+    store<f32>(biasPtr + i * 4, b_val);
+
+    let rowOffset = i * sDim;
+    for (let j = 0; j < sDim; j++) {
+      let wIdx = rowOffset + j;
+      let input_j = load<f32>(inputPtr + j * 4);
+      let w_val = load<f32>(matrixPtr + wIdx * 4);
+      let wGrad = bGrad * input_j + reg * w_val;
+
+      // mMatrix update
+      let m_w = load<f32>(mMatrixPtr + wIdx * 4);
+      m_w = beta1 * m_w + ((1.0 as f32) - beta1) * wGrad;
+      store<f32>(mMatrixPtr + wIdx * 4, m_w);
+
+      // vMatrix update
+      let v_w = load<f32>(vMatrixPtr + wIdx * 4);
+      v_w = beta2 * v_w + ((1.0 as f32) - beta2) * wGrad * wGrad;
+      store<f32>(vMatrixPtr + wIdx * 4, v_w);
+
+      let mHatW = m_w / one_minus_beta1_t;
+      let vHatW = v_w / one_minus_beta2_t;
+
+      w_val -= (lr * mHatW) / (Mathf.sqrt(vHatW) + epsilon);
+      store<f32>(matrixPtr + wIdx * 4, w_val);
     }
   }
 }

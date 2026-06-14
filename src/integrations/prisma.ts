@@ -51,23 +51,49 @@ export const withWarpVector = (config: WarpPrismaConfig) => {
           ) {
             const context = Prisma.getExtensionContext(this);
             // prismaのモデル名 -> テーブル名 (正確なマッピングには @@map も考慮されるべきだが簡易的に $name を使用)
-            const tableName = (context as any).$name;
+            const tableName = (context as any).$name || "document";
 
-            // 1. WarpVectorによる推論（リアルタイム変換）
+            // 1. テーブル名とカラム名の識別子バリデーション (英数字とアンダースコアのみ許容)
+            if (!/^[a-zA-Z0-9_]+$/.test(tableName)) {
+              throw new Error(`Invalid table name: ${tableName}`);
+            }
+            if (!/^[a-zA-Z0-9_]+$/.test(vectorField)) {
+              throw new Error(`Invalid vector field name: ${vectorField}`);
+            }
+
+            // 2. 距離演算子のバリデーション
+            if (!["<->", "<#>", "<=>"].includes(distanceOp)) {
+              throw new Error(`Invalid distance operator: ${distanceOp}`);
+            }
+
+            // 3. where 句のサニタイズ (セミコロンやコメント行などの不正なSQLを弾く)
+            let whereClause = "";
+            if (args.where) {
+              const trimmedWhere = args.where.trim();
+              if (/;|--|\/\*/.test(trimmedWhere)) {
+                throw new Error("Potential SQL injection detected in where clause.");
+              }
+              whereClause = `WHERE ${trimmedWhere}`;
+            }
+
+            // 4. limit (topK) の数値バリデーション
+            const limit = args.topK ?? 10;
+            if (typeof limit !== "number" || isNaN(limit) || limit < 0) {
+              throw new Error("Invalid topK value.");
+            }
+
+            // 5. WarpVectorによる推論（リアルタイム変換）
             const tunedVector = config.adapter.tune(args.vector);
             const pgVectorStr = VectorDBAdapter.toPgvector(tunedVector);
 
-            const limit = args.topK ?? 10;
-            const whereClause = args.where ? `WHERE ${args.where}` : "";
-
-            // 2. Prisma の $queryRawUnsafe を使って SQL を実行
+            // 6. 安全に組み立てた SQL を実行
             const sql = `
               SELECT *
               FROM "${tableName}"
               ${whereClause}
               ORDER BY "${vectorField}" ${distanceOp} '${pgVectorStr}'::vector
               LIMIT ${limit};
-            `;
+            `.trim();
 
             return (client as any).$queryRawUnsafe(sql);
           },

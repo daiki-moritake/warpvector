@@ -2,6 +2,9 @@ import {
   getWasmInstance,
   ensureWasmMemory,
   writeFloat32ArrayToWasm,
+  allocateWasmMemory,
+  getWasmAllocatorOffset,
+  setWasmAllocatorOffset,
 } from "./wasm/wasm-loader";
 
 export class ColbertAdapter {
@@ -42,23 +45,25 @@ export class ColbertAdapter {
 
     const queryBytes = queryTokens.byteLength;
     const docBytes = documentTokens.byteLength;
-    const totalBytes = queryBytes + docBytes;
 
-    ensureWasmMemory(totalBytes);
+    const initialOffset = getWasmAllocatorOffset();
+    try {
+      const queryPtr = allocateWasmMemory(queryBytes);
+      const docPtr = allocateWasmMemory(docBytes);
 
-    const queryPtr = 0;
-    const docPtr = queryBytes;
+      writeFloat32ArrayToWasm(memory, queryTokens, queryPtr);
+      writeFloat32ArrayToWasm(memory, documentTokens, docPtr);
 
-    writeFloat32ArrayToWasm(memory, queryTokens, queryPtr);
-    writeFloat32ArrayToWasm(memory, documentTokens, docPtr);
-
-    return colbertMaxSimWasm(
-      queryPtr,
-      docPtr,
-      numQueryTokens,
-      numDocTokens,
-      dim,
-    );
+      return colbertMaxSimWasm(
+        queryPtr,
+        docPtr,
+        numQueryTokens,
+        numDocTokens,
+        dim,
+      );
+    } finally {
+      setWasmAllocatorOffset(initialOffset);
+    }
   }
 
   /**
@@ -91,39 +96,40 @@ export class ColbertAdapter {
 
     const queryBytes = queryTokens.byteLength;
     const maxDocBytes = maxDocLen * Float32Array.BYTES_PER_ELEMENT;
-    const totalBytes = queryBytes + maxDocBytes;
 
-    // WASMのメモリが足りない場合は拡張
-    ensureWasmMemory(totalBytes);
+    const initialOffset = getWasmAllocatorOffset();
+    try {
+      const queryPtr = allocateWasmMemory(queryBytes);
+      const docPtr = allocateWasmMemory(maxDocBytes);
 
-    const queryPtr = 0;
-    const docPtr = queryBytes;
+      // クエリは一度だけ書き込む
+      writeFloat32ArrayToWasm(memory, queryTokens, queryPtr);
 
-    // クエリは一度だけ書き込む
-    writeFloat32ArrayToWasm(memory, queryTokens, queryPtr);
+      const results = documentTokensArray.map((doc, index) => {
+        const numDocTokens = doc.length / dim;
+        if (numDocTokens % 1 !== 0) {
+          throw new Error(`Invalid documentTokens length at index ${index}`);
+        }
 
-    const results = documentTokensArray.map((doc, index) => {
-      const numDocTokens = doc.length / dim;
-      if (numDocTokens % 1 !== 0) {
-        throw new Error(`Invalid documentTokens length at index ${index}`);
-      }
+        // ドキュメントをメモリにコピー
+        writeFloat32ArrayToWasm(memory, doc, docPtr);
 
-      // ドキュメントをメモリにコピー
-      writeFloat32ArrayToWasm(memory, doc, docPtr);
+        // MaxSimを計算 (WASM)
+        const score = colbertMaxSimWasm(
+          queryPtr,
+          docPtr,
+          numQueryTokens,
+          numDocTokens,
+          dim,
+        );
 
-      // MaxSimを計算 (WASM)
-      const score = colbertMaxSimWasm(
-        queryPtr,
-        docPtr,
-        numQueryTokens,
-        numDocTokens,
-        dim,
-      );
+        return { index, score };
+      });
 
-      return { index, score };
-    });
-
-    // スコアの降順にソート
-    return results.sort((a, b) => b.score - a.score);
+      // スコアの降順にソート
+      return results.sort((a, b) => b.score - a.score);
+    } finally {
+      setWasmAllocatorOffset(initialOffset);
+    }
   }
 }

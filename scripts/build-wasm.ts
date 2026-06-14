@@ -17,7 +17,7 @@ if (!existsSync(buildDir)) {
 console.log("Compiling AssemblyScript to WASM...");
 try {
   // AssemblyScriptのコンパイル実行 (最適化レベル3、アサーション無効)
-  execSync("bunx asc assembly/index.ts -o build/optimized.wasm -O3 --noAssert", {
+  execSync("bunx asc assembly/index.ts -o build/optimized.wasm -O3 --noAssert --enable simd", {
     cwd: projectRoot,
     stdio: "inherit",
   });

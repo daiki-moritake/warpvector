@@ -9,6 +9,8 @@ import {
   getWasmInstance,
   ensureWasmMemory,
   writeFloat32ArrayToWasm,
+  allocateWasmMemory,
+  initWasm,
 } from "./wasm/wasm-loader";
 
 export interface WhiteningConfig {
@@ -41,6 +43,21 @@ export class WhiteningAdapter implements WarpAdapter {
   private count: number = 0;
   private learningRate: number;
   private numComponents: number;
+
+  private componentsPtr = 0;
+  private xResidualPtr = 0;
+  private isWasmReady = false;
+
+  public async init(): Promise<void> {
+    const instance = await initWasm();
+    if (instance) {
+      const componentsSize = this.numComponents * this.dim * 4;
+      const xResidualSize = this.dim * 4;
+      this.componentsPtr = allocateWasmMemory(componentsSize);
+      this.xResidualPtr = allocateWasmMemory(xResidualSize);
+      this.isWasmReady = true;
+    }
+  }
 
   /**
    * 新しい WhiteningAdapter を作成します。
@@ -99,19 +116,22 @@ export class WhiteningAdapter implements WarpAdapter {
     const x_residual = new Float32Array(x); // コピー
 
     const instance = getWasmInstance();
-    const componentsSize = this.numComponents * this.dim * 4;
-    const xResidualSize = this.dim * 4;
-    const requiredBytes = componentsSize + xResidualSize;
 
     if (
       instance &&
-      instance.exports.sangerUpdateWasm &&
-      ensureWasmMemory(requiredBytes)
+      instance.exports.sangerUpdateWasm
     ) {
+      if (!this.isWasmReady) {
+        const componentsSize = this.numComponents * this.dim * 4;
+        const xResidualSize = this.dim * 4;
+        this.componentsPtr = allocateWasmMemory(componentsSize);
+        this.xResidualPtr = allocateWasmMemory(xResidualSize);
+        this.isWasmReady = true;
+      }
       const memory = instance.exports.memory as WebAssembly.Memory;
 
-      const componentsPtr = 0;
-      const xResidualPtr = componentsSize;
+      const componentsPtr = this.componentsPtr;
+      const xResidualPtr = this.xResidualPtr;
 
       // components配列をフラットなFloat32ArrayにしてWASMメモリに書き込む
       const f32 = new Float32Array(memory.buffer);

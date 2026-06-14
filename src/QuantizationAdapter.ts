@@ -13,6 +13,12 @@ export interface QuantizationConfig {
    * 量子化するベクトルの次元数
    */
   dim: number;
+  /**
+   * 動的キャリブレーション（スケール算出）を有効にするか。
+   * trueの場合、ベクトルの絶対値の最大値 max(abs(v)) を算出し、
+   * scale = 127 / max(abs(v)) を用いて量子化します。
+   */
+  dynamic?: boolean;
 }
 
 /**
@@ -22,10 +28,12 @@ export interface QuantizationConfig {
 export class QuantizationAdapter implements WarpAdapter {
   private type: QuantizationType;
   private dim: number;
+  private dynamic: boolean;
 
   constructor(config: QuantizationConfig) {
     this.type = config.type;
     this.dim = config.dim;
+    this.dynamic = config.dynamic ?? false;
 
     if (this.type === "binary" && this.dim % 8 !== 0) {
       throw new Error(
@@ -38,17 +46,41 @@ export class QuantizationAdapter implements WarpAdapter {
     assertDimension(vector, this.dim, "QuantizationAdapter.tune");
 
     if (this.type === "int8") {
-      // 8-bit Scalar Quantization ([-1.0, 1.0] -> [-127, 127])
-      const result = new Int8Array(this.dim);
-      for (let i = 0; i < this.dim; i++) {
-        // ベクトル要素が正規化されている前提で、スケーリングを行う
-        // 範囲外の値は -128 ~ 127 にクリップされる
-        let val = Math.round(vector[i] * 127);
-        if (val > 127) val = 127;
-        if (val < -128) val = -128;
-        result[i] = val;
+      if (this.dynamic) {
+        // 動的量子化: ベクトルの絶対値の最大値を求める (ゼロ除算防止のため最小閾値 1e-8)
+        let maxVal = 1e-8;
+        for (let i = 0; i < this.dim; i++) {
+          const abs = Math.abs(vector[i]);
+          if (abs > maxVal) maxVal = abs;
+        }
+
+        const scale = 127.0 / maxVal;
+        // 最後に最大値 maxVal (Float32 = 4バイト) を埋め込むため、dim + 4 バイト確保
+        const result = new Int8Array(this.dim + 4);
+        for (let i = 0; i < this.dim; i++) {
+          let val = Math.round(vector[i] * scale);
+          if (val > 127) val = 127;
+          if (val < -128) val = -128;
+          result[i] = val;
+        }
+
+        // 最後の 4 バイトに maxVal をリトルエンディアンで書き込む
+        const view = new DataView(result.buffer, result.byteOffset, result.byteLength);
+        view.setFloat32(this.dim, maxVal, true);
+        return result;
+      } else {
+        // 8-bit Scalar Quantization ([-1.0, 1.0] -> [-127, 127])
+        const result = new Int8Array(this.dim);
+        for (let i = 0; i < this.dim; i++) {
+          // ベクトル要素が正規化されている前提で、スケーリングを行う
+          // 範囲外の値は -128 ~ 127 にクリップされる
+          let val = Math.round(vector[i] * 127);
+          if (val > 127) val = 127;
+          if (val < -128) val = -128;
+          result[i] = val;
+        }
+        return result;
       }
-      return result;
     } else if (this.type === "binary") {
       // 1-bit Binary Quantization (ビットパッキング)
       const bytesLength = this.dim / 8;
@@ -88,18 +120,51 @@ export class QuantizationAdapter implements WarpAdapter {
 
   /**
    * Int8量子化された2つのベクトル間のドット積（内積）を計算します。
+   * 動的スケーリングが埋め込まれている場合はスケールを戻して計算します。
    */
   public static int8DotProduct(a: Int8Array, b: Int8Array): number {
     if (a.length !== b.length) throw new Error("Length mismatch");
-    let dot = 0;
-    for (let i = 0; i < a.length; i++) {
-      dot += a[i] * b[i];
+
+    // 動的スケーリング埋め込み（dim + 4）かどうかの自動判別
+    const hasScaleBytes = a.length > 4;
+    let isDynamic = false;
+    let maxA = 1.0;
+    let maxB = 1.0;
+
+    if (hasScaleBytes) {
+      const dim = a.length - 4;
+      try {
+        const viewA = new DataView(a.buffer, a.byteOffset, a.byteLength);
+        const viewB = new DataView(b.buffer, b.byteOffset, b.byteLength);
+        maxA = viewA.getFloat32(dim, true);
+        maxB = viewB.getFloat32(dim, true);
+        // 妥当な浮動小数点スケール値であるかの検証 (NaNを除く正数かつ現実的な範囲)
+        if (!isNaN(maxA) && !isNaN(maxB) && maxA > 0 && maxA < 1000.0 && maxB > 0 && maxB < 1000.0) {
+          isDynamic = true;
+        }
+      } catch (e) {
+        isDynamic = false;
+      }
     }
-    return dot;
+
+    if (isDynamic) {
+      const dim = a.length - 4;
+      let dot = 0;
+      for (let i = 0; i < dim; i++) {
+        dot += a[i] * b[i];
+      }
+      return dot * (maxA / 127.0) * (maxB / 127.0);
+    } else {
+      let dot = 0;
+      for (let i = 0; i < a.length; i++) {
+        dot += a[i] * b[i];
+      }
+      return dot;
+    }
   }
 
   public exportState(): string {
-    return JSON.stringify({ type: this.type, dim: this.dim });
+    return JSON.stringify({ type: this.type, dim: this.dim, dynamic: this.dynamic });
   }
 
   public static importState(stateJson: string): QuantizationAdapter {
