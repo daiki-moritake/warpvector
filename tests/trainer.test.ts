@@ -1,5 +1,5 @@
 import { expect, test, describe } from "bun:test";
-import { IntentTrainer } from "../src/trainer";
+import { IntentTrainer, TrainingExample } from "../src/trainer";
 import { IntentAdapter } from "../src/IntentAdapter";
 import { cosineSimilarity } from "../src/utils";
 
@@ -85,13 +85,15 @@ describe("IntentTrainer", () => {
     const inputVector = [1.0, 0.0];
     const targetVector = [0.0, 1.0]; // ユーザーがクリックした（求めていた）理想のベクトル
 
+    const example: TrainingExample = {
+      input: inputVector,
+      target: targetVector,
+    };
+
     // 1回のオンラインアップデート (強めの学習率で変化を確認)
     const updatedWeights1 = await trainer.updateOnline(
       initialWeights,
-      {
-        input: inputVector,
-        target: targetVector,
-      },
+      example,
       {
         learningRate: 0.5,
         regularization: 0.0,

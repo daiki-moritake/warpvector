@@ -1,5 +1,5 @@
 import { expect, test, describe } from "bun:test";
-import { InfoNCETrainer } from "../src/InfoNCETrainer";
+import { InfoNCETrainer, InfoNCEExample } from "../src/InfoNCETrainer";
 import { IntentAdapter, IntentWeights } from "../src/IntentAdapter";
 import { cosineSimilarity } from "../src/utils";
 
@@ -29,15 +29,17 @@ describe("InfoNCETrainer", () => {
       bias: [0.0, 0.0, 0.0],
     };
 
+    const example: InfoNCEExample = {
+      anchor,
+      positive,
+      negatives,
+    };
+
     // 100エポック学習
     for (let epoch = 0; epoch < 100; epoch++) {
       currentWeights = await trainer.updateOnline(
         currentWeights,
-        {
-          anchor,
-          positive,
-          negatives,
-        },
+        example,
         {
           learningRate: 0.05,
           temperature: 0.1,

@@ -1,3 +1,7 @@
+export type InputVector = number[] | Float32Array;
+export type OutputVector = Float32Array | Int8Array | Uint8Array;
+export type AdapterState = Record<string, unknown> | string;
+
 /**
  * WarpVector のすべてのベクトル変換アダプターに共通するインターフェース。
  * 外部の統合ライブラリ（Prisma, LangChainなど）は、このインターフェースを通じて
@@ -12,7 +16,7 @@ export interface WarpAdapter {
    * @param context オプションのコンテキスト情報 (意図の名前、バージョンなど)
    * @returns 変換後のベクトル (Float32Array, 量子化の場合は Int8Array や Uint8Array)
    */
-  tune(vector: number[] | Float32Array, context?: string): Float32Array | Int8Array | Uint8Array;
+  tune(vector: InputVector, context?: string): OutputVector;
 
   /**
    * 複数のベクトルを一括で変換します（オプション実装）
@@ -21,7 +25,7 @@ export interface WarpAdapter {
    * @param vectors 変換前のベクトルの配列
    * @param context オプションのコンテキスト情報
    */
-  tuneBatch?(vectors: (number[] | Float32Array)[], context?: string): any[];
+  tuneBatch?(vectors: InputVector[], context?: string): OutputVector[];
 
   /**
    * 非同期での初期化処理（オプション実装）
@@ -33,5 +37,5 @@ export interface WarpAdapter {
    * アダプタの状態（学習済み重みなど）をエクスポートします（オプション実装）
    * importState に渡して完全に復元可能なJSON形式を返します。
    */
-  exportState?(): any;
+  exportState?(): AdapterState;
 }

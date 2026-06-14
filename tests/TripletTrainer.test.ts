@@ -1,5 +1,5 @@
 import { expect, test, describe } from "bun:test";
-import { TripletTrainer } from "../src/TripletTrainer";
+import { TripletTrainer, TripletExample } from "../src/TripletTrainer";
 import { IntentAdapter, IntentWeights } from "../src/IntentAdapter";
 import { cosineSimilarity } from "../src/utils";
 
@@ -32,18 +32,20 @@ describe("TripletTrainer", () => {
       bias: [0.0, 0.0, 0.0],
     };
 
-    // 100エポック学習
+    const example: TripletExample = {
+      anchor,
+      positive,
+      negative,
+    };
+
+    // 100エポック学習 (オンライン更新をシミュレート)
     for (let epoch = 0; epoch < 100; epoch++) {
       currentWeights = await trainer.updateOnline(
         currentWeights,
+        example,
         {
-          anchor,
-          positive,
-          negative,
-        },
-        {
-          learningRate: 0.01,
-          margin: 0.2,
+          learningRate: 0.05,
+          margin: 0.1,
           regularization: 0.001
         }
       );
