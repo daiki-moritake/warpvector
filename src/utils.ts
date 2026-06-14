@@ -89,3 +89,77 @@ export function slerp(v1: number[] | Float32Array, v2: number[] | Float32Array, 
 
   return result;
 }
+
+/**
+ * 内積 (Inner Product)
+ * 2つのベクトルの内積を計算します。
+ */
+export function innerProduct(v1: number[] | Float32Array, v2: number[] | Float32Array): number {
+  const dim = v1.length;
+  if (dim !== v2.length) {
+    throw new Error("Vectors must have the same dimension.");
+  }
+  let dot = 0;
+  for (let i = 0; i < dim; i++) {
+    dot += v1[i] * v2[i];
+  }
+  return dot;
+}
+
+/**
+ * コサイン類似度 (Cosine Similarity)
+ * 2つのベクトル間のコサイン類似度 (-1.0 〜 1.0) を計算します。
+ */
+export function cosineSimilarity(v1: number[] | Float32Array, v2: number[] | Float32Array): number {
+  const dim = v1.length;
+  if (dim !== v2.length) {
+    throw new Error("Vectors must have the same dimension.");
+  }
+  let dot = 0;
+  let norm1Sq = 0;
+  let norm2Sq = 0;
+  for (let i = 0; i < dim; i++) {
+    const val1 = v1[i];
+    const val2 = v2[i];
+    dot += val1 * val2;
+    norm1Sq += val1 * val1;
+    norm2Sq += val2 * val2;
+  }
+  if (norm1Sq === 0 || norm2Sq === 0) return 0;
+  return dot / (Math.sqrt(norm1Sq) * Math.sqrt(norm2Sq));
+}
+
+/**
+ * 直交射影による成分除去 (Orthogonal Rejection / Negative Prompting)
+ * baseVector から negativeVector の方向成分を完全に除去した新しいベクトルを返します。
+ * v' = v - (v・u / u・u) * u
+ */
+export function reject(baseVector: number[] | Float32Array, negativeVector: number[] | Float32Array): Float32Array {
+  const dim = baseVector.length;
+  if (dim !== negativeVector.length) {
+    throw new Error("Vectors must have the same dimension.");
+  }
+
+  let dotVU = 0;
+  let dotUU = 0;
+  for (let i = 0; i < dim; i++) {
+    const u = negativeVector[i];
+    dotVU += baseVector[i] * u;
+    dotUU += u * u;
+  }
+
+  if (dotUU === 0) {
+    // negativeVector がゼロベクトルの場合は何も引けないのでそのまま返す
+    const result = new Float32Array(dim);
+    result.set(baseVector);
+    return result;
+  }
+
+  const scalar = dotVU / dotUU;
+  const result = new Float32Array(dim);
+  for (let i = 0; i < dim; i++) {
+    result[i] = baseVector[i] - scalar * negativeVector[i];
+  }
+
+  return result;
+}

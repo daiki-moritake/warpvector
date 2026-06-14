@@ -191,7 +191,7 @@ describe("Utils", () => {
   });
 });
 
-import { slerp } from "../src/utils";
+import { slerp, innerProduct, cosineSimilarity, reject } from "../src/utils";
 
 describe("Advanced Math Utils", () => {
   test("slerpが球面線形補間を正しく計算できること", () => {
@@ -205,5 +205,25 @@ describe("Advanced Math Utils", () => {
     expect(result[0]).toBeCloseTo(expectedVal, 4);
     expect(result[1]).toBeCloseTo(expectedVal, 4);
     expect(result[2]).toBeCloseTo(0, 4);
+  });
+
+  test("innerProductとcosineSimilarityが正しく計算できること", () => {
+    const v1 = [1, 0, 0];
+    const v2 = [0, 1, 0];
+    expect(innerProduct(v1, v2)).toBe(0);
+    expect(cosineSimilarity(v1, v2)).toBe(0);
+
+    const v3 = [2, 0, 0];
+    expect(innerProduct(v1, v3)).toBe(2);
+    expect(cosineSimilarity(v1, v3)).toBe(1);
+  });
+
+  test("rejectが直交射影による成分除去を正しく行うこと", () => {
+    const base = [1, 1, 0];
+    const negative = [1, 0, 0];
+    const result = reject(base, negative);
+    expect(result[0]).toBeCloseTo(0, 5);
+    expect(result[1]).toBeCloseTo(1, 5);
+    expect(result[2]).toBeCloseTo(0, 5);
   });
 });
