@@ -3,7 +3,8 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from "fs";
 import { join } from "path";
 
 const projectRoot = join(__dirname, "..");
-const outDir = join(projectRoot, "src", "wasm");
+const outDir = join(projectRoot, "packages", "core", "src", "wasm");
+const legacyOutDir = join(projectRoot, "src", "wasm");
 
 // 出力先ディレクトリの作成
 if (!existsSync(outDir)) {
@@ -39,4 +40,5 @@ export const wasmBase64 = "${base64Wasm}";
 `;
 
 writeFileSync(join(outDir, "wasm-binary.ts"), tsContent);
-console.log("WASM binary embedded to src/wasm/wasm-binary.ts");
+writeFileSync(join(legacyOutDir, "wasm-binary.ts"), tsContent);
+console.log("WASM binary embedded to packages/core/src/wasm/wasm-binary.ts (+ legacy src/wasm/)");

@@ -1,0 +1,53 @@
+{
+  "name": "@warpvector/prisma",
+  "version": "0.1.2",
+  "description": "Prisma Client Extension for pgvector integration with WarpVector",
+  "main": "src/index.ts",
+  "module": "src/index.ts",
+  "types": "src/index.ts",
+  "exports": {
+    ".": {
+      "bun": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "default": "./src/index.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts --clean",
+    "test": "bun test"
+  },
+  "keywords": [
+    "prisma",
+    "pgvector",
+    "vector-search"
+  ],
+  "author": "Daiki Moritake",
+  "license": "MIT",
+  "dependencies": {
+    "@warpvector/core": "workspace:*"
+  },
+  "peerDependencies": {
+    "@prisma/client": "^5.0.0 || ^6.0.0 || ^7.0.0",
+    "sql-template-tag": "^5.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@prisma/client": {
+      "optional": false
+    },
+    "sql-template-tag": {
+      "optional": false
+    }
+  },
+  "devDependencies": {
+    "@prisma/client": "^7.8.0",
+    "sql-template-tag": "^5.2.1",
+    "@types/bun": "^1.3.14",
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0"
+  }
+}
