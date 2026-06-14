@@ -2,6 +2,7 @@ export * from "./IntentAdapter";
 export * from "./LoraIntentAdapter";
 export * from "./ProjectionAdapter";
 export * from "./MlpAdapter";
+export * from "./WhiteningAdapter";
 export * from "./trainer";
 export * from "./TripletTrainer";
 export * from "./InfoNCETrainer";
