@@ -1,4 +1,9 @@
-import { assertDimension, flattenMatrix, applyAffine, addScaledVector } from "./utils";
+import {
+  assertDimension,
+  flattenMatrix,
+  applyAffine,
+  addScaledVector,
+} from "./utils";
 import { WarpAdapter } from "./WarpAdapter";
 
 /**
@@ -154,17 +159,24 @@ export class LoraIntentAdapter implements WarpAdapter {
    * 現在の LoraIntentAdapter の全状態を JSON としてエクスポートします。
    */
   public exportState(): string {
-    const intents: Record<string, { matrixA: number[], matrixB: number[], bias: number[] }> = {};
+    const intents: Record<
+      string,
+      { matrixA: number[]; matrixB: number[]; bias: number[] }
+    > = {};
     for (const [name, flatA] of this.matricesA.entries()) {
       const flatB = this.matricesB.get(name)!;
       const bias = this.biases.get(name)!;
       intents[name] = {
         matrixA: Array.from(flatA), // export as flattened for simplicity during import
         matrixB: Array.from(flatB),
-        bias: Array.from(bias)
+        bias: Array.from(bias),
       };
     }
-    return JSON.stringify({ dimension: this.dimension, rank: this.rank, intents });
+    return JSON.stringify({
+      dimension: this.dimension,
+      rank: this.rank,
+      intents,
+    });
   }
 
   /**

@@ -97,7 +97,7 @@ describe("IntentTrainer", () => {
       {
         learningRate: 0.5,
         regularization: 0.0,
-      }
+      },
     );
 
     const adapter1 = new IntentAdapter({ intent: updatedWeights1 });
@@ -120,7 +120,7 @@ describe("IntentTrainer", () => {
         {
           learningRate: 0.5,
           regularization: 0.0,
-        }
+        },
       );
     }
 

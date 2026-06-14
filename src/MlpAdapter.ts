@@ -1,4 +1,8 @@
-import { initWasm, ensureWasmMemory, writeFloat32ArrayToWasm } from "./wasm/wasm-loader";
+import {
+  initWasm,
+  ensureWasmMemory,
+  writeFloat32ArrayToWasm,
+} from "./wasm/wasm-loader";
 import { WarpAdapter } from "./WarpAdapter";
 import { Activation, assertDimension } from "./utils";
 
@@ -16,17 +20,22 @@ export interface MlpLayer {
 
 function getActivationId(activation: Activation): number {
   switch (activation) {
-    case "linear": return 0;
-    case "relu": return 1;
-    case "sigmoid": return 2;
-    case "tanh": return 3;
-    default: return 0;
+    case "linear":
+      return 0;
+    case "relu":
+      return 1;
+    case "sigmoid":
+      return 2;
+    case "tanh":
+      return 3;
+    default:
+      return 0;
   }
 }
 
 /**
  * MlpAdapter は WASM を使用して超高速に非線形な多層推論を行うラッパーです。
- * 
+ *
  * @example
  * const mlp = new MlpAdapter([{ inputDim: 1536, outputDim: 128, activation: "relu" }]);
  * const output = mlp.tune(inputVector);
@@ -34,13 +43,13 @@ function getActivationId(activation: Activation): number {
 export class MlpAdapter implements WarpAdapter {
   private layers: MlpLayer[];
   private wasmInstance: WebAssembly.Instance | null = null;
-  
+
   // WASMのポインタと設定値
   private isWasmReady = false;
   private inputDim = 0;
   private outputDim = 0;
   private numLayers = 0;
-  
+
   private inputPtr = 0;
   private outputPtr = 0;
   private weightsPtr = 0;
@@ -92,12 +101,14 @@ export class MlpAdapter implements WarpAdapter {
         sDim = cols;
         layerDims.push(sDim);
       } else if (cols !== tDim) {
-        throw new Error(`Dimension mismatch at layer ${i}: expected input dim ${tDim}, got ${cols}`);
+        throw new Error(
+          `Dimension mismatch at layer ${i}: expected input dim ${tDim}, got ${cols}`,
+        );
       }
-      
+
       tDim = rows;
       layerDims.push(tDim);
-      
+
       if (sDim > maxDim) maxDim = sDim;
       if (tDim > maxDim) maxDim = tDim;
 
@@ -115,19 +126,25 @@ export class MlpAdapter implements WarpAdapter {
     // 4. activations (numLayers * 4)
     // 5. weights (totalWeights * 4)
     // 6. buffer (最大層の次元 * 4 バイト を2つのバッファ用に x2 -> maxDim * 8。念の為4096足す)
-    
+
     // 1ページ分(65536バイト)はWASM側の静的データやアロケータの領域として避け、
     // 安全な場所からレイアウトを開始する。
     let offset = 65536;
-    this.inputPtr = offset; offset += this.inputDim * 4;
-    this.outputPtr = offset; offset += this.outputDim * 4;
-    this.layerDimsPtr = offset; offset += (this.numLayers + 1) * 4;
-    this.activationsPtr = offset; offset += this.numLayers * 4;
-    
+    this.inputPtr = offset;
+    offset += this.inputDim * 4;
+    this.outputPtr = offset;
+    offset += this.outputDim * 4;
+    this.layerDimsPtr = offset;
+    offset += (this.numLayers + 1) * 4;
+    this.activationsPtr = offset;
+    offset += this.numLayers * 4;
+
     // アラインメント(Float32用)
     if (offset % 4 !== 0) offset += 4 - (offset % 4);
-    this.weightsPtr = offset; offset += totalWeights * 4;
-    this.bufferPtr = offset; offset += maxDim * 8 + 8192; // +8192はWASM側でのバッファBのオフセット(4096)用
+    this.weightsPtr = offset;
+    offset += totalWeights * 4;
+    this.bufferPtr = offset;
+    offset += maxDim * 8 + 8192; // +8192はWASM側でのバッファBのオフセット(4096)用
 
     ensureWasmMemory(offset);
 
@@ -138,11 +155,11 @@ export class MlpAdapter implements WarpAdapter {
 
     // layerDims
     for (let i = 0; i < layerDims.length; i++) {
-      i32[(this.layerDimsPtr / 4) + i] = layerDims[i];
+      i32[this.layerDimsPtr / 4 + i] = layerDims[i];
     }
     // activations
     for (let i = 0; i < activations.length; i++) {
-      i32[(this.activationsPtr / 4) + i] = activations[i];
+      i32[this.activationsPtr / 4 + i] = activations[i];
     }
     // weights & bias
     let wIdx = this.weightsPtr / 4;
@@ -176,13 +193,15 @@ export class MlpAdapter implements WarpAdapter {
   /**
    * ニューラルネットワークの順伝播を実行し、結果を返します。
    * (WarpAdapter の実装として、predict の代わりに tune を提供します)
-   * 
+   *
    * @param input 入力ベクトル
    * @returns 推論結果ベクトル
    */
   public tune(input: number[] | Float32Array): Float32Array {
     if (!this.isWasmReady || !this.wasmInstance) {
-      throw new Error("MlpAdapter is not initialized. Call await init() first.");
+      throw new Error(
+        "MlpAdapter is not initialized. Call await init() first.",
+      );
     }
     assertDimension(input, this.inputDim, "MlpAdapter.tune");
 
@@ -192,7 +211,8 @@ export class MlpAdapter implements WarpAdapter {
     writeFloat32ArrayToWasm(memory, input, this.inputPtr);
 
     // WASMの呼び出し
-    const mlpInferenceWasm = this.wasmInstance.exports.mlpInferenceWasm as CallableFunction;
+    const mlpInferenceWasm = this.wasmInstance.exports
+      .mlpInferenceWasm as CallableFunction;
     mlpInferenceWasm(
       this.inputPtr,
       this.outputPtr,
@@ -200,7 +220,7 @@ export class MlpAdapter implements WarpAdapter {
       this.layerDimsPtr,
       this.activationsPtr,
       this.numLayers,
-      this.bufferPtr
+      this.bufferPtr,
     );
 
     // 結果の読み取り
@@ -219,7 +239,7 @@ export class MlpAdapter implements WarpAdapter {
    */
   public exportState(): string {
     return JSON.stringify({
-      layers: this.layers.map(layer => {
+      layers: this.layers.map((layer) => {
         let matrix: number[][] | number[];
         if (layer.matrix instanceof Float32Array) {
           matrix = Array.from(layer.matrix);
@@ -231,7 +251,7 @@ export class MlpAdapter implements WarpAdapter {
           bias: Array.from(layer.bias),
           activation: layer.activation,
         };
-      })
+      }),
     });
   }
 
@@ -243,7 +263,9 @@ export class MlpAdapter implements WarpAdapter {
     const data = JSON.parse(stateJson);
     const layers: MlpLayer[] = data.layers.map((l: any) => ({
       // Float32Array に戻すか、そのまま2D配列として扱う
-      matrix: Array.isArray(l.matrix[0]) ? l.matrix : new Float32Array(l.matrix),
+      matrix: Array.isArray(l.matrix[0])
+        ? l.matrix
+        : new Float32Array(l.matrix),
       bias: new Float32Array(l.bias),
       activation: l.activation,
     }));

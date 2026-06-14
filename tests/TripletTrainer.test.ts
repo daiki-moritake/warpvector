@@ -40,15 +40,11 @@ describe("TripletTrainer", () => {
 
     // 100エポック学習 (オンライン更新をシミュレート)
     for (let epoch = 0; epoch < 100; epoch++) {
-      currentWeights = await trainer.updateOnline(
-        currentWeights,
-        example,
-        {
-          learningRate: 0.05,
-          margin: 0.1,
-          regularization: 0.001
-        }
-      );
+      currentWeights = await trainer.updateOnline(currentWeights, example, {
+        learningRate: 0.05,
+        margin: 0.1,
+        regularization: 0.001,
+      });
     }
 
     const adapter = new IntentAdapter({ learnedIntent: currentWeights });
@@ -68,20 +64,24 @@ describe("TripletTrainer", () => {
 
   test("throws error if dimension mismatch", async () => {
     const trainer = new TripletTrainer(3);
-    
+
     // updateOnlineは非同期メソッドなので、rejectsをキャッチする
     await expect(
       trainer.updateOnline(
         {
-          matrix: [[1,0,0],[0,1,0],[0,0,1]],
-          bias: [0,0,0]
+          matrix: [
+            [1, 0, 0],
+            [0, 1, 0],
+            [0, 0, 1],
+          ],
+          bias: [0, 0, 0],
         },
         {
           anchor: [1, 0], // 次元が違う
           positive: [0, 1, 0],
-          negative: [0, 0, 1]
-        }
-      )
+          negative: [0, 0, 1],
+        },
+      ),
     ).rejects.toThrow();
   });
 });

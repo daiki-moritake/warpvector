@@ -1,6 +1,15 @@
-import { assertDimension, normalize, innerProduct, addScaledVector } from "./utils";
+import {
+  assertDimension,
+  normalize,
+  innerProduct,
+  addScaledVector,
+} from "./utils";
 import { WarpAdapter } from "./WarpAdapter";
-import { getWasmInstance, ensureWasmMemory, writeFloat32ArrayToWasm } from "./wasm/wasm-loader";
+import {
+  getWasmInstance,
+  ensureWasmMemory,
+  writeFloat32ArrayToWasm,
+} from "./wasm/wasm-loader";
 
 export interface WhiteningConfig {
   /**
@@ -9,7 +18,7 @@ export interface WhiteningConfig {
    * デフォルトは 0.01
    */
   learningRate?: number;
-  
+
   /**
    * 除去するトップ主成分（PC）の数。
    * 通常、事前学習モデルのコーン（偏り）問題を取り除くには、
@@ -28,7 +37,7 @@ export class WhiteningAdapter implements WarpAdapter {
   public dim: number;
   public mean: Float32Array;
   public components: Float32Array[];
-  
+
   private count: number = 0;
   private learningRate: number;
   private numComponents: number;
@@ -45,7 +54,7 @@ export class WhiteningAdapter implements WarpAdapter {
 
     this.mean = new Float32Array(dim);
     this.components = [];
-    
+
     // 主成分ベクトルをランダムに初期化（正規化済み）
     for (let k = 0; k < this.numComponents; k++) {
       const pc = new Float32Array(dim);
@@ -59,7 +68,7 @@ export class WhiteningAdapter implements WarpAdapter {
   /**
    * 入力ベクトルを用いて、平均と主成分をオンライン更新します。
    * (Oja's Rule + Generalized Hebbian Algorithm)
-   * 
+   *
    * @param vector 学習用の入力ベクトル
    */
   public update(vector: number[] | Float32Array): void {
@@ -73,7 +82,9 @@ export class WhiteningAdapter implements WarpAdapter {
       }
     } else {
       for (let i = 0; i < this.dim; i++) {
-        this.mean[i] = (1 - this.learningRate) * this.mean[i] + this.learningRate * vector[i];
+        this.mean[i] =
+          (1 - this.learningRate) * this.mean[i] +
+          this.learningRate * vector[i];
       }
     }
     this.count++;
@@ -86,7 +97,7 @@ export class WhiteningAdapter implements WarpAdapter {
 
     // 3. Sanger's Rule (Generalized Hebbian Algorithm) による複数の主成分の直交抽出
     const x_residual = new Float32Array(x); // コピー
-    
+
     const instance = getWasmInstance();
     const componentsSize = this.numComponents * this.dim * 4;
     const xResidualSize = this.dim * 4;
@@ -98,7 +109,7 @@ export class WhiteningAdapter implements WarpAdapter {
       ensureWasmMemory(requiredBytes)
     ) {
       const memory = instance.exports.memory as WebAssembly.Memory;
-      
+
       const componentsPtr = 0;
       const xResidualPtr = componentsSize;
 
@@ -107,25 +118,32 @@ export class WhiteningAdapter implements WarpAdapter {
       for (let k = 0; k < this.numComponents; k++) {
         const comp = this.components[k];
         for (let i = 0; i < this.dim; i++) {
-          f32[(componentsPtr / 4) + k * this.dim + i] = comp[i];
+          f32[componentsPtr / 4 + k * this.dim + i] = comp[i];
         }
       }
       writeFloat32ArrayToWasm(memory, x_residual, xResidualPtr);
 
-      const sangerUpdateWasm = instance.exports.sangerUpdateWasm as CallableFunction;
-      sangerUpdateWasm(componentsPtr, xResidualPtr, this.dim, this.numComponents, this.learningRate);
+      const sangerUpdateWasm = instance.exports
+        .sangerUpdateWasm as CallableFunction;
+      sangerUpdateWasm(
+        componentsPtr,
+        xResidualPtr,
+        this.dim,
+        this.numComponents,
+        this.learningRate,
+      );
 
       // 更新されたcomponentsをWASMメモリから読み戻す
       for (let k = 0; k < this.numComponents; k++) {
         for (let i = 0; i < this.dim; i++) {
-          this.components[k][i] = f32[(componentsPtr / 4) + k * this.dim + i];
+          this.components[k][i] = f32[componentsPtr / 4 + k * this.dim + i];
         }
       }
     } else {
       // --- WASMが使えない場合のフォールバック (純粋なJS処理) ---
       for (let k = 0; k < this.numComponents; k++) {
         const w = this.components[k];
-        
+
         let y = innerProduct(w, x_residual);
 
         addScaledVector(w, x_residual, this.learningRate * y);
@@ -141,7 +159,7 @@ export class WhiteningAdapter implements WarpAdapter {
   /**
    * 推論 (Whitening の適用):
    * 入力ベクトルから平均を引き、偏りの原因である上位主成分を除去します (All-but-the-Top)。
-   * 
+   *
    * @param vector 推論・補正対象のベクトル
    * @returns 等方化・ゼロセンタリングされた新しいベクトル
    */
@@ -181,7 +199,7 @@ export class WhiteningAdapter implements WarpAdapter {
       learningRate: this.learningRate,
       numComponents: this.numComponents,
       mean: Array.from(this.mean),
-      components: this.components.map(c => Array.from(c)),
+      components: this.components.map((c) => Array.from(c)),
     });
   }
 
@@ -196,7 +214,9 @@ export class WhiteningAdapter implements WarpAdapter {
     });
     adapter.count = data.count;
     adapter.mean = new Float32Array(data.mean);
-    adapter.components = data.components.map((c: number[]) => new Float32Array(c));
+    adapter.components = data.components.map(
+      (c: number[]) => new Float32Array(c),
+    );
     return adapter;
   }
 }

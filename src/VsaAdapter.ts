@@ -28,12 +28,12 @@ export class VsaAdapter {
    */
   public static bundle(
     vectors: (number[] | Float32Array)[],
-    options: VsaOptions = {}
+    options: VsaOptions = {},
   ): Float32Array {
     if (vectors.length === 0) {
       throw new Error("Cannot bundle an empty array of vectors.");
     }
-    
+
     const dim = vectors[0].length;
     const result = new Float32Array(dim);
 
@@ -64,7 +64,7 @@ export class VsaAdapter {
   public static bind(
     vec1: number[] | Float32Array,
     vec2: number[] | Float32Array,
-    options: VsaOptions = {}
+    options: VsaOptions = {},
   ): Float32Array {
     const dim = vec1.length;
     assertDimension(vec2, dim, "Vector 2");
@@ -95,7 +95,7 @@ export class VsaAdapter {
   public static unbind(
     boundVec: number[] | Float32Array,
     keyVec: number[] | Float32Array,
-    options: VsaOptions = {}
+    options: VsaOptions = {},
   ): Float32Array {
     const dim = boundVec.length;
     assertDimension(keyVec, dim, "Key Vector");
@@ -153,7 +153,10 @@ export class VsaAdapter {
    * @param keyBin 抽出に使用するキーバイナリベクトル (Uint8Array)
    * @returns アンバインドされて抽出されたバイナリベクトル (Uint8Array)
    */
-  public static unbindBinary(boundBin: Uint8Array, keyBin: Uint8Array): Uint8Array {
+  public static unbindBinary(
+    boundBin: Uint8Array,
+    keyBin: Uint8Array,
+  ): Uint8Array {
     return VsaAdapter.bindBinary(boundBin, keyBin);
   }
 
@@ -169,7 +172,7 @@ export class VsaAdapter {
     if (bins.length === 0) {
       throw new Error("Cannot bundle an empty array of binary vectors.");
     }
-    
+
     const numVectors = bins.length;
     const len = bins[0].length;
     const result = new Uint8Array(len);
@@ -180,16 +183,18 @@ export class VsaAdapter {
       for (let bit = 0; bit < 8; bit++) {
         let onesCount = 0;
         const mask = 1 << bit;
-        
+
         for (let v = 0; v < numVectors; v++) {
           if (bins[v].length !== len) {
-            throw new Error(`Binary vector at index ${v} has mismatched length.`);
+            throw new Error(
+              `Binary vector at index ${v} has mismatched length.`,
+            );
           }
           if ((bins[v][i] & mask) !== 0) {
             onesCount++;
           }
         }
-        
+
         // 多数決 (半数より多ければ 1 を立てる。同数の場合は 0 とするが、ランダムでもよい)
         if (onesCount > numVectors / 2) {
           resultByte |= mask;

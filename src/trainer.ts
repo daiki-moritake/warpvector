@@ -88,17 +88,29 @@ export class IntentTrainer extends BaseTrainer<TrainingExample, IntentWeights> {
   public async updateOnline(
     currentWeights: IntentWeights,
     example: TrainingExample,
-    options: IntentOnlineOptions = {}
+    options: IntentOnlineOptions = {},
   ): Promise<IntentWeights> {
     const learningRate = options.learningRate ?? 0.01;
     const regularization = options.regularization ?? 0.001;
     await initWasm();
 
-    assertDimension(example.input, this.dimension, "IntentTrainer.addExample input");
-    assertDimension(example.target, this.dimension, "IntentTrainer.addExample target");
+    assertDimension(
+      example.input,
+      this.dimension,
+      "IntentTrainer.addExample input",
+    );
+    assertDimension(
+      example.target,
+      this.dimension,
+      "IntentTrainer.addExample target",
+    );
 
     const dim = this.dimension;
-    const { flatMatrix, bias } = getFlatMatrixAndBias(currentWeights, dim, "updateOnline Matrix");
+    const { flatMatrix, bias } = getFlatMatrixAndBias(
+      currentWeights,
+      dim,
+      "updateOnline Matrix",
+    );
 
     // 1. Forward pass (アフィン変換のみ。活性化関数は適用前)
     const warpedInput = new Float32Array(dim);
@@ -123,7 +135,7 @@ export class IntentTrainer extends BaseTrainer<TrainingExample, IntentWeights> {
       outputGradients,
       learningRate,
       regularization,
-      this.t
+      this.t,
     );
 
     const newWeights = this.toWeights(flatMatrix, bias);

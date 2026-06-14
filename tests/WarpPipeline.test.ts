@@ -6,27 +6,27 @@ describe("WarpPipeline", () => {
     // Pipeline: Intent -> Projection(to 2 dim) -> Quantization(int8)
     const pipeline = new WarpPipeline(3)
       .addIntent({
-        "my_intent": {
+        my_intent: {
           matrix: [
             [2, 0, 0],
             [0, 2, 0],
-            [0, 0, 2]
+            [0, 0, 2],
           ],
-          bias: [1, 1, 1]
-        }
+          bias: [1, 1, 1],
+        },
       })
       .addProjection(2, {
-        "my_intent": {
+        my_intent: {
           matrix: [
             [1, 0, 0],
-            [0, 1, 0]
-          ]
-        }
+            [0, 1, 0],
+          ],
+        },
       })
       .quantize("int8");
 
     const input = [0.5, 1.0, 1.5];
-    
+
     // Step 1: Intent (tune "my_intent") -> Wx + b = [2*0.5+1, 2*1+1, 2*1.5+1] = [2, 3, 4]
     // Step 2: Projection (1st 2 elements) -> [2, 3]
     // Step 3: Quantize int8 -> clamp and int8 -> Int8Array[2, 3]
@@ -43,16 +43,21 @@ describe("WarpPipeline", () => {
   test("can export and import state completely", () => {
     const pipeline = new WarpPipeline(8)
       .addWhitening({ numComponents: 1 })
-      .addIntent({ "test": { matrix: [
-        [1,0,0,0,0,0,0,0],
-        [0,1,0,0,0,0,0,0],
-        [0,0,1,0,0,0,0,0],
-        [0,0,0,1,0,0,0,0],
-        [0,0,0,0,1,0,0,0],
-        [0,0,0,0,0,1,0,0],
-        [0,0,0,0,0,0,1,0],
-        [0,0,0,0,0,0,0,1]
-      ], bias: [0,0,0,0,0,0,0,0] }})
+      .addIntent({
+        test: {
+          matrix: [
+            [1, 0, 0, 0, 0, 0, 0, 0],
+            [0, 1, 0, 0, 0, 0, 0, 0],
+            [0, 0, 1, 0, 0, 0, 0, 0],
+            [0, 0, 0, 1, 0, 0, 0, 0],
+            [0, 0, 0, 0, 1, 0, 0, 0],
+            [0, 0, 0, 0, 0, 1, 0, 0],
+            [0, 0, 0, 0, 0, 0, 1, 0],
+            [0, 0, 0, 0, 0, 0, 0, 1],
+          ],
+          bias: [0, 0, 0, 0, 0, 0, 0, 0],
+        },
+      })
       .quantize("binary");
 
     const state = pipeline.exportState();
@@ -62,13 +67,13 @@ describe("WarpPipeline", () => {
     expect(state[2].type).toBe("QuantizationAdapter");
 
     const restoredPipeline = WarpPipeline.importState(state);
-    
+
     // Test the restored pipeline behavior
-    // 4 dim -> binary -> 1 byte (since length 4 throws mismatch? Wait, binary requires multiple of 8. 
+    // 4 dim -> binary -> 1 byte (since length 4 throws mismatch? Wait, binary requires multiple of 8.
     // Ah, binary quantization requires dim % 8 === 0.
-    // We shouldn't actually call run() with binary quantization for dim 4, 
+    // We shouldn't actually call run() with binary quantization for dim 4,
     // but we can check if it loaded successfully without throwing during import.
-    
+
     const restoredState = restoredPipeline.exportState();
     expect(restoredState.length).toBe(3);
     expect(restoredState[0].type).toBe("WhiteningAdapter");
@@ -79,23 +84,22 @@ describe("WarpPipeline", () => {
   });
 
   test("runBatch processes multiple vectors correctly", () => {
-    const pipeline = new WarpPipeline(3)
-      .addIntent({
-        "my_intent": {
-          matrix: [
-            [2, 0, 0],
-            [0, 2, 0],
-            [0, 0, 2]
-          ],
-          bias: [0, 0, 0]
-        }
-      });
-      
+    const pipeline = new WarpPipeline(3).addIntent({
+      my_intent: {
+        matrix: [
+          [2, 0, 0],
+          [0, 2, 0],
+          [0, 0, 2],
+        ],
+        bias: [0, 0, 0],
+      },
+    });
+
     const batch = [
       [1, 2, 3],
-      [4, 5, 6]
+      [4, 5, 6],
     ];
-    
+
     const result = pipeline.runBatch(batch, { intent: "my_intent" });
     expect(result.length).toBe(2);
     expect(Array.from(result[0])).toEqual([2, 4, 6]);
@@ -110,7 +114,11 @@ describe("WarpPipeline", () => {
 
   test("runAndFormat outputs to pinecone format correctly", () => {
     const pipeline = new WarpPipeline(2);
-    const result = pipeline.runAndFormat([0.1, 0.2], { format: "pinecone", topK: 5, filter: { genre: "action" } });
+    const result = pipeline.runAndFormat([0.1, 0.2], {
+      format: "pinecone",
+      topK: 5,
+      filter: { genre: "action" },
+    });
     expect(result.vector).toEqual([0.1, 0.2]);
     expect(result.topK).toBe(5);
     expect(result.filter.genre).toBe("action");
@@ -126,15 +134,19 @@ describe("WarpPipeline", () => {
 
   test("init successfully initializes async adapters", async () => {
     // Tests that init doesn't throw and successfully awaits MlpAdapter init.
-    const pipeline = new WarpPipeline(2)
-      .addMlp([{
-        matrix: [[1, 0], [0, 1]],
+    const pipeline = new WarpPipeline(2).addMlp([
+      {
+        matrix: [
+          [1, 0],
+          [0, 1],
+        ],
         bias: [0, 0],
-        activation: "linear"
-      }]);
-      
+        activation: "linear",
+      },
+    ]);
+
     await pipeline.init();
-    
+
     // Test if run works after init
     const result = pipeline.run([1, 2]);
     expect(Array.from(result)).toEqual([1, 2]);
@@ -144,27 +156,32 @@ describe("WarpPipeline", () => {
     // カスタムアダプタの定義
     class MyCustomAdapter {
       constructor(public scale: number) {}
-      
+
       public tune(vector: number[] | Float32Array): Float32Array {
-        return new Float32Array(Array.from(vector).map(v => v * this.scale));
+        return new Float32Array(Array.from(vector).map((v) => v * this.scale));
       }
-      
+
       public exportState() {
         return { scale: this.scale };
       }
-      
+
       public static importState(state: any) {
         return new MyCustomAdapter(state.scale);
       }
     }
 
     // レジストリに登録
-    WarpPipeline.registerAdapter("MyCustomAdapter", MyCustomAdapter.importState);
+    WarpPipeline.registerAdapter(
+      "MyCustomAdapter",
+      MyCustomAdapter.importState,
+    );
 
     // パイプラインを直接構築してカスタムアダプタを追加
-    const pipeline = new WarpPipeline(3)
-      .addStep("MyCustomAdapter", new MyCustomAdapter(5));
-    
+    const pipeline = new WarpPipeline(3).addStep(
+      "MyCustomAdapter",
+      new MyCustomAdapter(5),
+    );
+
     // カスタムアダプタが正しく実行されるか確認
     const result = pipeline.run([1, 2, 3]);
     expect(Array.from(result)).toEqual([5, 10, 15]);

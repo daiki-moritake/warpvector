@@ -10,7 +10,7 @@ import { RankedResult, FusionResult } from "./rrf";
  */
 export function rsf(
   resultSets: RankedResult[][],
-  weights?: number[]
+  weights?: number[],
 ): FusionResult[] {
   if (weights && weights.length !== resultSets.length) {
     throw new Error("Weights array length must match resultSets length");

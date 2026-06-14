@@ -32,7 +32,7 @@ export interface WarpLlamaIndexEmbeddingsOptions {
    * (オプション) アフィン変換後に適用する非線形活性化関数。
    */
   activation?: Activation;
-  
+
   /**
    * (オプション) 自己アテンションベースの動的意図合成（Auto-blending）を使用するかどうか。
    */
@@ -83,7 +83,7 @@ export class WarpLlamaIndexEmbeddings implements LlamaIndexBaseEmbedding {
     if (this.baseEmbeddings.getTextEmbeddings) {
       return this.baseEmbeddings.getTextEmbeddings(texts);
     }
-    return Promise.all(texts.map(t => this.getTextEmbedding(t)));
+    return Promise.all(texts.map((t) => this.getTextEmbedding(t)));
   }
 
   /**
@@ -97,7 +97,9 @@ export class WarpLlamaIndexEmbeddings implements LlamaIndexBaseEmbedding {
       warped = this.adapter.tuneAutoBlended(baseVector, this.activation);
     } else {
       if (!this.intentName) {
-        throw new Error("WarpLlamaIndexEmbeddings: intentName が設定されておらず、autoBlend も false です。");
+        throw new Error(
+          "WarpLlamaIndexEmbeddings: intentName が設定されておらず、autoBlend も false です。",
+        );
       }
       warped = this.adapter.tune(baseVector, this.intentName, this.activation);
     }

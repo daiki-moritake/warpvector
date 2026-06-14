@@ -59,7 +59,7 @@ export abstract class AbstractAdamTrainer {
     outputGradients: number[] | Float32Array,
     lr: number,
     reg: number,
-    t: number
+    t: number,
   ): void {
     const tDim = bias.length;
     const sDim = input.length;
@@ -75,20 +75,20 @@ export abstract class AbstractAdamTrainer {
       vBias[i] = beta2 * vBias[i] + (1 - beta2) * (bGrad * bGrad);
       const mHatB = mBias[i] / (1 - Math.pow(beta1, t));
       const vHatB = vBias[i] / (1 - Math.pow(beta2, t));
-      
-      bias[i] -= lr * mHatB / (Math.sqrt(vHatB) + epsilon);
+
+      bias[i] -= (lr * mHatB) / (Math.sqrt(vHatB) + epsilon);
 
       const rowOffset = i * sDim;
       for (let j = 0; j < sDim; j++) {
         const wIdx = rowOffset + j;
         const wGrad = bGrad * input[j] + reg * matrix[wIdx];
-        
+
         mMatrix[wIdx] = beta1 * mMatrix[wIdx] + (1 - beta1) * wGrad;
         vMatrix[wIdx] = beta2 * vMatrix[wIdx] + (1 - beta2) * (wGrad * wGrad);
         const mHatW = mMatrix[wIdx] / (1 - Math.pow(beta1, t));
         const vHatW = vMatrix[wIdx] / (1 - Math.pow(beta2, t));
 
-        matrix[wIdx] -= lr * mHatW / (Math.sqrt(vHatW) + epsilon);
+        matrix[wIdx] -= (lr * mHatW) / (Math.sqrt(vHatW) + epsilon);
       }
     }
   }
@@ -100,7 +100,10 @@ export abstract class AbstractAdamTrainer {
  * @template TExample 学習に用いるデータペアの型 (入力と理想の出力のペアなど)
  * @template TResult 最終的に学習結果として出力される重み (行列やバイアス) の型
  */
-export abstract class BaseTrainer<TExample, TResult> extends AbstractAdamTrainer {
+export abstract class BaseTrainer<
+  TExample,
+  TResult,
+> extends AbstractAdamTrainer {
   /** 学習用サンプルの配列 */
   protected examples: TExample[] = [];
 
@@ -138,8 +141,16 @@ export abstract class BaseTrainer<TExample, TResult> extends AbstractAdamTrainer
    */
   public addExample(example: TExample): void {
     const { source, target } = this.getInputs(example);
-    assertDimension(source, this.sourceDimension, "BaseTrainer.addExample source");
-    assertDimension(target, this.targetDimension, "BaseTrainer.addExample target");
+    assertDimension(
+      source,
+      this.sourceDimension,
+      "BaseTrainer.addExample source",
+    );
+    assertDimension(
+      target,
+      this.targetDimension,
+      "BaseTrainer.addExample target",
+    );
     this.examples.push(example);
   }
 
@@ -197,7 +208,7 @@ export abstract class BaseTrainer<TExample, TResult> extends AbstractAdamTrainer
           target,
           lr,
           reg,
-          this.t
+          this.t,
         );
       }
     }
@@ -251,7 +262,7 @@ export abstract class BaseTrainer<TExample, TResult> extends AbstractAdamTrainer
             target,
             lr,
             reg,
-            t
+            t,
           );
         }
       }
@@ -292,7 +303,7 @@ export abstract class BaseTrainer<TExample, TResult> extends AbstractAdamTrainer
     y: number[] | Float32Array,
     lr: number,
     reg: number,
-    t: number
+    t: number,
   ): void {
     const sDim = this.sourceDimension;
     const tDim = this.targetDimension;
@@ -309,7 +320,17 @@ export abstract class BaseTrainer<TExample, TResult> extends AbstractAdamTrainer
     }
 
     this.applyAdamToAffine(
-      matrix, bias, mMatrix, vMatrix, mBias, vBias, x, outputGradients, lr, reg, t
+      matrix,
+      bias,
+      mMatrix,
+      vMatrix,
+      mBias,
+      vBias,
+      x,
+      outputGradients,
+      lr,
+      reg,
+      t,
     );
   }
 }

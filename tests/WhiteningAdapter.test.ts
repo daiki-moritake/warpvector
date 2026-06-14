@@ -5,14 +5,17 @@ import { cosineSimilarity, normalize } from "../src/utils";
 describe("WhiteningAdapter", () => {
   test("Online PCA removes the primary bias direction and reduces anisotropy", () => {
     const dim = 10;
-    const adapter = new WhiteningAdapter(dim, { learningRate: 0.05, numComponents: 1 });
+    const adapter = new WhiteningAdapter(dim, {
+      learningRate: 0.05,
+      numComponents: 1,
+    });
 
     // 偏りのあるベクトルを生成する (Anisotropic distribution)
     // 特定の次元 (例えばインデックス0, 1) に巨大な分散を持たせる
     const generateBiasedVector = () => {
       const v = new Float32Array(dim);
       for (let i = 0; i < dim; i++) {
-        v[i] = (Math.random() - 0.5); 
+        v[i] = Math.random() - 0.5;
       }
       // 0番目の次元だけ分散を10倍にする
       v[0] = (Math.random() - 0.5) * 10.0;
@@ -31,7 +34,7 @@ describe("WhiteningAdapter", () => {
 
     // 2. 学習後の主成分(PC1)が分散の大きい方向 ([1, 0, 0, ...]) に近いか確認
     const pc1 = adapter.components[0];
-    
+
     // 0番目の次元が極めて大きいはず (絶対値がほぼ1)
     expect(Math.abs(pc1[0])).toBeGreaterThan(0.9);
 

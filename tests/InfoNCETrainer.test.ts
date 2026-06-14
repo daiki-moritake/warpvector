@@ -37,15 +37,11 @@ describe("InfoNCETrainer", () => {
 
     // 100エポック学習
     for (let epoch = 0; epoch < 100; epoch++) {
-      currentWeights = await trainer.updateOnline(
-        currentWeights,
-        example,
-        {
-          learningRate: 0.05,
-          temperature: 0.1,
-          regularization: 0.001
-        }
-      );
+      currentWeights = await trainer.updateOnline(currentWeights, example, {
+        learningRate: 0.05,
+        temperature: 0.1,
+        regularization: 0.001,
+      });
     }
 
     const adapter = new IntentAdapter({ learnedIntent: currentWeights });
@@ -53,7 +49,7 @@ describe("InfoNCETrainer", () => {
 
     // 学習後の状態を確認
     const finalSimPos = cosineSimilarity(warpedAnchor, positive);
-    
+
     // 正解ベクトルへの類似度が、すべてのNegativeへの類似度よりも高くなっていることを確認
     for (const neg of negatives) {
       const simNeg = cosineSimilarity(warpedAnchor, neg);
@@ -63,33 +59,44 @@ describe("InfoNCETrainer", () => {
 
   test("throws error if dimension mismatch", async () => {
     const trainer = new InfoNCETrainer(3);
-    
+
     await expect(
       trainer.updateOnline(
         {
-          matrix: [[1,0,0],[0,1,0],[0,0,1]],
-          bias: [0,0,0]
+          matrix: [
+            [1, 0, 0],
+            [0, 1, 0],
+            [0, 0, 1],
+          ],
+          bias: [0, 0, 0],
         },
         {
           anchor: [1, 0], // 次元が違う
           positive: [0, 1, 0],
-          negatives: [[0, 0, 1]]
-        }
-      )
+          negatives: [[0, 0, 1]],
+        },
+      ),
     ).rejects.toThrow();
 
     await expect(
       trainer.updateOnline(
         {
-          matrix: [[1,0,0],[0,1,0],[0,0,1]],
-          bias: [0,0,0]
+          matrix: [
+            [1, 0, 0],
+            [0, 1, 0],
+            [0, 0, 1],
+          ],
+          bias: [0, 0, 0],
         },
         {
           anchor: [1, 0, 0],
           positive: [0, 1, 0],
-          negatives: [[0, 0, 1], [1, 0]] // negativesの中に次元が違うものが混ざっている
-        }
-      )
+          negatives: [
+            [0, 0, 1],
+            [1, 0],
+          ], // negativesの中に次元が違うものが混ざっている
+        },
+      ),
     ).rejects.toThrow();
   });
 });

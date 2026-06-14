@@ -1,4 +1,9 @@
-import { WarpAdapter, InputVector, OutputVector, AdapterState } from "./WarpAdapter";
+import {
+  WarpAdapter,
+  InputVector,
+  OutputVector,
+  AdapterState,
+} from "./WarpAdapter";
 import { IntentAdapter, IntentWeights } from "./IntentAdapter";
 import { LoraIntentAdapter, LoraIntentWeights } from "./LoraIntentAdapter";
 import { WhiteningAdapter } from "./WhiteningAdapter";
@@ -37,37 +42,49 @@ export interface FormatOptions {
  */
 export class WarpPipeline {
   private steps: PipelineStep[] = [];
-  
+
   /**
    * アダプタの復元関数を保持するレジストリ。
    * カスタムアダプタをパイプラインで利用・復元可能にするために使用します。
    */
-  private static adapterRegistry = new Map<string, (state: AdapterState) => WarpAdapter>();
+  private static adapterRegistry = new Map<
+    string,
+    (state: AdapterState) => WarpAdapter
+  >();
 
   /**
    * カスタムアダプタをパイプラインのレジストリに登録します。
    * これにより importState でカスタムアダプタを復元可能になります。
-   * 
+   *
    * @param type アダプタの識別子 (例: "MyCustomAdapter")
    * @param importFn 状態オブジェクトからアダプタインスタンスを復元する関数
    */
-  public static registerAdapter(type: string, importFn: (state: AdapterState) => WarpAdapter): void {
+  public static registerAdapter(
+    type: string,
+    importFn: (state: AdapterState) => WarpAdapter,
+  ): void {
     WarpPipeline.adapterRegistry.set(type, importFn);
   }
 
   /**
    * フォーマット変換ロジックを保持するレジストリ。
    */
-  private static formatRegistry = new Map<string, (vector: OutputVector, options: FormatOptions) => unknown>();
+  private static formatRegistry = new Map<
+    string,
+    (vector: OutputVector, options: FormatOptions) => unknown
+  >();
 
   /**
    * カスタムの出力フォーマットを登録します。
    * これにより、ユーザー独自のDB形式（Milvus, Weaviateなど）への変換を動的に追加できます。
-   * 
+   *
    * @param format フォーマット名 (例: "pgvector")
    * @param formatFn 変換を行うコールバック関数
    */
-  public static registerFormat(format: string, formatFn: (vector: OutputVector, options: FormatOptions) => unknown): void {
+  public static registerFormat(
+    format: string,
+    formatFn: (vector: OutputVector, options: FormatOptions) => unknown,
+  ): void {
     WarpPipeline.formatRegistry.set(format, formatFn);
   }
 
@@ -87,7 +104,7 @@ export class WarpPipeline {
    */
   public addLoraIntent(
     rank: number,
-    intents?: Record<string, LoraIntentWeights>
+    intents?: Record<string, LoraIntentWeights>,
   ): this {
     const adapter = new LoraIntentAdapter(this.inputDim, rank, intents);
     this.steps.push({ type: "LoraIntentAdapter", adapter });
@@ -97,7 +114,9 @@ export class WarpPipeline {
   /**
    * WhiteningAdapter (PCAによる空間的偏りの除去) をパイプラインに追加します。
    */
-  public addWhitening(options?: import("./WhiteningAdapter").WhiteningConfig): this {
+  public addWhitening(
+    options?: import("./WhiteningAdapter").WhiteningConfig,
+  ): this {
     const adapter = new WhiteningAdapter(this.inputDim, options);
     this.steps.push({ type: "WhiteningAdapter", adapter });
     return this;
@@ -106,8 +125,15 @@ export class WarpPipeline {
   /**
    * ProjectionAdapter (次元圧縮) をパイプラインに追加します。
    */
-  public addProjection(outputDim: number, projections?: Record<string, ProjectionWeights>): this {
-    const adapter = new ProjectionAdapter(this.inputDim, outputDim, projections);
+  public addProjection(
+    outputDim: number,
+    projections?: Record<string, ProjectionWeights>,
+  ): this {
+    const adapter = new ProjectionAdapter(
+      this.inputDim,
+      outputDim,
+      projections,
+    );
     this.steps.push({ type: "ProjectionAdapter", adapter });
     // パイプラインの後続の入力次元を更新
     this.inputDim = outputDim;
@@ -120,7 +146,7 @@ export class WarpPipeline {
   public addMlp(layers: MlpLayer[]): this {
     const adapter = new MlpAdapter(layers);
     this.steps.push({ type: "MlpAdapter", adapter });
-    
+
     // パイプラインの後続の入力次元を更新
     const lastLayer = layers[layers.length - 1];
     if (lastLayer.matrix instanceof Float32Array) {
@@ -128,7 +154,7 @@ export class WarpPipeline {
     } else {
       this.inputDim = lastLayer.matrix.length;
     }
-    
+
     return this;
   }
 
@@ -145,7 +171,7 @@ export class WarpPipeline {
   /**
    * カスタムアダプタを直接パイプラインの末尾に追加します。
    * (ビルダーパターンで独自の拡張アダプタを組み込む際に使用します)
-   * 
+   *
    * @param type アダプタの識別子（レジストリ登録名と一致させることを推奨）
    * @param adapter WarpAdapterを実装したインスタンス
    */
@@ -175,10 +201,13 @@ export class WarpPipeline {
    */
   public run(vector: InputVector, context?: RunContext): OutputVector {
     let currentVector: OutputVector = vector as OutputVector; // Initial input is Vector, but OutputVector handles ArrayTypes
-    
+
     for (const step of this.steps) {
       // 全てのアダプタにコンテキストを渡す（不要なアダプタは内部で無視する）
-      currentVector = step.adapter.tune(currentVector as InputVector, context?.intent || "default");
+      currentVector = step.adapter.tune(
+        currentVector as InputVector,
+        context?.intent || "default",
+      );
     }
 
     return currentVector;
@@ -192,16 +221,24 @@ export class WarpPipeline {
    * @param context インテントやバージョンなどのコンテキスト情報
    * @returns 変換されたベクトルの配列
    */
-  public runBatch(vectors: InputVector[], context?: RunContext): OutputVector[] {
+  public runBatch(
+    vectors: InputVector[],
+    context?: RunContext,
+  ): OutputVector[] {
     let currentVectors: OutputVector[] = vectors as OutputVector[];
 
     for (const step of this.steps) {
       if (typeof step.adapter.tuneBatch === "function") {
         // tuneBatch メソッドがある場合は一括処理を委譲
-        currentVectors = step.adapter.tuneBatch(currentVectors as InputVector[], context?.intent || "default");
+        currentVectors = step.adapter.tuneBatch(
+          currentVectors as InputVector[],
+          context?.intent || "default",
+        );
       } else {
         // tuneBatch がない場合は通常のループ処理へフォールバック
-        currentVectors = currentVectors.map(vec => step.adapter.tune(vec as InputVector, context?.intent || "default"));
+        currentVectors = currentVectors.map((vec) =>
+          step.adapter.tune(vec as InputVector, context?.intent || "default"),
+        );
       }
     }
 
@@ -219,13 +256,15 @@ export class WarpPipeline {
   public runAndFormat(
     vector: InputVector,
     dbOptions: FormatOptions,
-    context?: RunContext
+    context?: RunContext,
   ): unknown {
     const tunedVector = this.run(vector, context);
 
     const formatFn = WarpPipeline.formatRegistry.get(dbOptions.format);
     if (!formatFn) {
-      throw new Error(`Unknown format: ${dbOptions.format}. Did you forget to register it?`);
+      throw new Error(
+        `Unknown format: ${dbOptions.format}. Did you forget to register it?`,
+      );
     }
 
     return formatFn(tunedVector, dbOptions);
@@ -236,11 +275,14 @@ export class WarpPipeline {
    * これにより、DBやRedis等への永続化が容易になります。
    */
   public exportState(): PipelineState[] {
-    return this.steps.map(step => {
-      const state = typeof step.adapter.exportState === "function" ? step.adapter.exportState() : null;
+    return this.steps.map((step) => {
+      const state =
+        typeof step.adapter.exportState === "function"
+          ? step.adapter.exportState()
+          : null;
       return {
         type: step.type,
-        state
+        state,
       };
     });
   }
@@ -262,9 +304,11 @@ export class WarpPipeline {
     for (const step of states) {
       const importFn = WarpPipeline.adapterRegistry.get(step.type);
       if (!importFn) {
-        throw new Error(`Unknown adapter type: ${step.type}. Did you forget to register it via WarpPipeline.registerAdapter?`);
+        throw new Error(
+          `Unknown adapter type: ${step.type}. Did you forget to register it via WarpPipeline.registerAdapter?`,
+        );
       }
-      
+
       const adapter = importFn(step.state as AdapterState);
       pipeline.steps.push({ type: step.type, adapter });
     }
@@ -281,14 +325,36 @@ export class WarpPipeline {
 }
 
 // 組み込みアダプタを初期登録
-WarpPipeline.registerAdapter("IntentAdapter", (state) => IntentAdapter.importState(state as string));
-WarpPipeline.registerAdapter("LoraIntentAdapter", (state) => LoraIntentAdapter.importState(state as string));
-WarpPipeline.registerAdapter("WhiteningAdapter", (state) => WhiteningAdapter.importState(state as string));
-WarpPipeline.registerAdapter("ProjectionAdapter", (state) => ProjectionAdapter.importState(state as string));
-WarpPipeline.registerAdapter("MlpAdapter", (state) => MlpAdapter.importState(state as string));
-WarpPipeline.registerAdapter("QuantizationAdapter", (state) => QuantizationAdapter.importState(state as string));
+WarpPipeline.registerAdapter("IntentAdapter", (state) =>
+  IntentAdapter.importState(state as string),
+);
+WarpPipeline.registerAdapter("LoraIntentAdapter", (state) =>
+  LoraIntentAdapter.importState(state as string),
+);
+WarpPipeline.registerAdapter("WhiteningAdapter", (state) =>
+  WhiteningAdapter.importState(state as string),
+);
+WarpPipeline.registerAdapter("ProjectionAdapter", (state) =>
+  ProjectionAdapter.importState(state as string),
+);
+WarpPipeline.registerAdapter("MlpAdapter", (state) =>
+  MlpAdapter.importState(state as string),
+);
+WarpPipeline.registerAdapter("QuantizationAdapter", (state) =>
+  QuantizationAdapter.importState(state as string),
+);
 
 // 組み込みフォーマットを初期登録
-WarpPipeline.registerFormat("pgvector", (vec, _opts) => VectorDBAdapter.toPgvector(vec));
-WarpPipeline.registerFormat("pinecone", (vec, opts) => VectorDBAdapter.toPineconeQuery(vec, opts.topK as number, opts.filter as Record<string, unknown>));
-WarpPipeline.registerFormat("redis", (vec, _opts) => VectorDBAdapter.toRedis(vec));
+WarpPipeline.registerFormat("pgvector", (vec, _opts) =>
+  VectorDBAdapter.toPgvector(vec),
+);
+WarpPipeline.registerFormat("pinecone", (vec, opts) =>
+  VectorDBAdapter.toPineconeQuery(
+    vec,
+    opts.topK as number,
+    opts.filter as Record<string, unknown>,
+  ),
+);
+WarpPipeline.registerFormat("redis", (vec, _opts) =>
+  VectorDBAdapter.toRedis(vec),
+);

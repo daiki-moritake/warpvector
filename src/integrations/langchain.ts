@@ -28,7 +28,7 @@ export interface WarpEmbeddingsOptions extends EmbeddingsParams {
    * (オプション) アフィン変換後に適用する非線形活性化関数（'relu', 'sigmoid', 'tanh'など）。
    */
   activation?: Activation;
-  
+
   /**
    * (オプション) 単一の意図を指定する代わりに、自己アテンションベースの
    * 動的意図合成（Auto-blending）を使用するかどうか。
@@ -41,26 +41,26 @@ export interface WarpEmbeddingsOptions extends EmbeddingsParams {
  * WarpEmbeddings は、LangChain の BaseEmbeddings インスタンスをラップするクラスです。
  * `embedQuery` メソッドをインターセプトし、ベースベクトルを生成した後に、
  * 現在のコンテキスト/意図に基づいて動的なアフィン変換（WarpVector）を適用します。
- * 
+ *
  * VectorStore へ正確なセマンティクスとして保存（インデックス）できるよう、
  * ドキュメントは変換されず、通常通り埋め込まれます。
  * ユーザーの「検索クエリ」に対してのみワープが適用されます。
- * 
+ *
  * @example
  * ```typescript
  * import { OpenAIEmbeddings } from "@langchain/openai";
  * import { IntentAdapter } from "warpvector";
  * import { WarpEmbeddings } from "warpvector/integrations/langchain";
- * 
+ *
  * const baseEmbeddings = new OpenAIEmbeddings();
  * const adapter = new IntentAdapter({ ... });
- * 
+ *
  * const embeddings = new WarpEmbeddings({
  *   baseEmbeddings,
  *   adapter,
  *   intentName: "riskAnalysis"
  * });
- * 
+ *
  * // このラップされた embeddings インスタンスを LangChain の VectorStore に直接渡せます！
  * const vectorStore = new MemoryVectorStore(embeddings);
  * ```
@@ -118,7 +118,9 @@ export class WarpEmbeddings extends Embeddings {
       warped = this.adapter.tuneAutoBlended(baseVector, this.activation);
     } else {
       if (!this.intentName) {
-        throw new Error("WarpEmbeddings: intentName が設定されておらず、autoBlend も false です。setIntent() を呼び出すか autoBlend を有効にしてください。");
+        throw new Error(
+          "WarpEmbeddings: intentName が設定されておらず、autoBlend も false です。setIntent() を呼び出すか autoBlend を有効にしてください。",
+        );
       }
       warped = this.adapter.tune(baseVector, this.intentName, this.activation);
     }

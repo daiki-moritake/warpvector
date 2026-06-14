@@ -26,9 +26,11 @@ export class QuantizationAdapter implements WarpAdapter {
   constructor(config: QuantizationConfig) {
     this.type = config.type;
     this.dim = config.dim;
-    
+
     if (this.type === "binary" && this.dim % 8 !== 0) {
-      throw new Error(`Binary quantization requires dimension to be a multiple of 8. Got ${this.dim}`);
+      throw new Error(
+        `Binary quantization requires dimension to be a multiple of 8. Got ${this.dim}`,
+      );
     }
   }
 
@@ -47,18 +49,17 @@ export class QuantizationAdapter implements WarpAdapter {
         result[i] = val;
       }
       return result;
-
     } else if (this.type === "binary") {
       // 1-bit Binary Quantization (ビットパッキング)
       const bytesLength = this.dim / 8;
       const result = new Uint8Array(bytesLength);
-      
+
       for (let i = 0; i < this.dim; i++) {
         // 値が 0 より大きければ 1、それ以外は 0
         if (vector[i] > 0) {
           const byteIndex = Math.floor(i / 8);
           const bitIndex = i % 8;
-          result[byteIndex] |= (1 << (7 - bitIndex));
+          result[byteIndex] |= 1 << (7 - bitIndex);
         }
       }
       return result;
@@ -79,7 +80,7 @@ export class QuantizationAdapter implements WarpAdapter {
       // ブライアン・カーニハンアルゴリズムで1のビット数を数える
       while (xor > 0) {
         distance++;
-        xor &= (xor - 1);
+        xor &= xor - 1;
       }
     }
     return distance;

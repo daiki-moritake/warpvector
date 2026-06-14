@@ -36,7 +36,7 @@ export const withWarpVector = (config: WarpPrismaConfig) => {
         $allModels: {
           /**
            * 生のベクトルを受け取り、WarpVectorで変換した後に pgvector 検索を行います。
-           * 
+           *
            * @param args.vector 生のベクトル (変換前)
            * @param args.topK 取得する最大件数 (デフォルト: 10)
            * @param args.where 追加のフィルタリング条件 (例: "category = 'science'")
@@ -47,7 +47,7 @@ export const withWarpVector = (config: WarpPrismaConfig) => {
               vector: number[] | Float32Array;
               topK?: number;
               where?: string;
-            }
+            },
           ) {
             const context = Prisma.getExtensionContext(this);
             // prismaのモデル名 -> テーブル名 (正確なマッピングには @@map も考慮されるべきだが簡易的に $name を使用)

@@ -9,9 +9,9 @@ describe("Task Arithmetic (Model Merging)", () => {
     const task1: IntentWeights = {
       matrix: [
         [2, 0],
-        [0, 2]
+        [0, 2],
       ],
-      bias: [1, 1]
+      bias: [1, 1],
     };
 
     // scale = 0.5
@@ -36,25 +36,25 @@ describe("Task Arithmetic (Model Merging)", () => {
     const base: IntentWeights = {
       matrix: [
         [1, 2],
-        [3, 4]
+        [3, 4],
       ],
-      bias: [1, -1]
+      bias: [1, -1],
     };
 
     const task1: IntentWeights = {
       matrix: [
         [2, 2],
-        [3, 5]
+        [3, 5],
       ],
-      bias: [2, 0] // db = [1, 1]
+      bias: [2, 0], // db = [1, 1]
     };
 
     const task2: IntentWeights = {
       matrix: [
         [1, 0], // dW = [0, -2]
-        [0, 4]  // dW = [-3, 0]
+        [0, 4], // dW = [-3, 0]
       ],
-      bias: [1, -3] // db = [0, -2]
+      bias: [1, -3], // db = [0, -2]
     };
 
     // scale1 = 1.0, scale2 = 0.5
@@ -65,10 +65,13 @@ describe("Task Arithmetic (Model Merging)", () => {
     //       = [1,-1] + [1,1] + [0,-1]
     //       = [2, -1]
 
-    const merged = TaskArithmetic.merge([
-      { weights: task1, scale: 1.0 },
-      { weights: task2, scale: 0.5 }
-    ], base);
+    const merged = TaskArithmetic.merge(
+      [
+        { weights: task1, scale: 1.0 },
+        { weights: task2, scale: 0.5 },
+      ],
+      base,
+    );
 
     expect(merged.matrix[0]).toBeCloseTo(2);
     expect(merged.matrix[1]).toBeCloseTo(1);

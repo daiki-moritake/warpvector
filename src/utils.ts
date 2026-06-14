@@ -132,7 +132,7 @@ export function innerProduct(
 export function addScaledVector(
   target: Float32Array | number[],
   source: Float32Array | number[],
-  scale: number = 1.0
+  scale: number = 1.0,
 ): void {
   const dim = target.length;
   if (dim !== source.length) {
@@ -351,7 +351,7 @@ export function getFlatMatrixAndBias(
 /**
  * ベクトルに対してアフィン変換 (x' = W * x + b) を適用します。
  * 次元削減/拡張 (M x N) にも対応しています。
- * 
+ *
  * @param matrix 1次元にフラット化された変換行列 (outDim x inDim)
  * @param bias バイアスベクトル (outDim)。省略可能
  * @param vector 変換元の入力ベクトル (inDim)

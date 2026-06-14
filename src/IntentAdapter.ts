@@ -8,7 +8,11 @@ import {
   applyAffine,
   addScaledVector,
 } from "./utils";
-import { getWasmInstance, ensureWasmMemory, writeFloat32ArrayToWasm } from "./wasm/wasm-loader";
+import {
+  getWasmInstance,
+  ensureWasmMemory,
+  writeFloat32ArrayToWasm,
+} from "./wasm/wasm-loader";
 import { WarpAdapter } from "./WarpAdapter";
 
 /**
@@ -248,7 +252,11 @@ export class IntentAdapter implements WarpAdapter {
 
       const vectorsPtr = ptr;
       for (let k = 0; k < batchSize; k++) {
-        writeFloat32ArrayToWasm(memory, baseVectors[k], ptr + k * this.dimension * 4);
+        writeFloat32ArrayToWasm(
+          memory,
+          baseVectors[k],
+          ptr + k * this.dimension * 4,
+        );
       }
       ptr += batchSize * this.dimension * 4;
 
@@ -268,8 +276,8 @@ export class IntentAdapter implements WarpAdapter {
       const outF32Mem = new Float32Array(memory.buffer);
       for (let k = 0; k < batchSize; k++) {
         const res = outF32Mem.slice(
-          (resultsPtr / 4) + k * this.dimension,
-          (resultsPtr / 4) + (k + 1) * this.dimension,
+          resultsPtr / 4 + k * this.dimension,
+          resultsPtr / 4 + (k + 1) * this.dimension,
         );
         applyActivationToVector(res, activation);
         results[k] = res;
@@ -356,7 +364,11 @@ export class IntentAdapter implements WarpAdapter {
 
       const vectorsPtr = ptr;
       for (let k = 0; k < batchSize; k++) {
-        writeFloat32ArrayToWasm(memory, baseVectors[k], ptr + k * this.dimension * 4);
+        writeFloat32ArrayToWasm(
+          memory,
+          baseVectors[k],
+          ptr + k * this.dimension * 4,
+        );
       }
       ptr += batchSize * this.dimension * 4;
 
@@ -376,8 +388,8 @@ export class IntentAdapter implements WarpAdapter {
       const outF32Mem = new Float32Array(memory.buffer);
       for (let k = 0; k < batchSize; k++) {
         const res = outF32Mem.slice(
-          (resultsPtr / 4) + k * this.dimension,
-          (resultsPtr / 4) + (k + 1) * this.dimension,
+          resultsPtr / 4 + k * this.dimension,
+          resultsPtr / 4 + (k + 1) * this.dimension,
         );
         applyActivationToVector(res, activation);
         results[k] = res;
@@ -566,7 +578,10 @@ export class IntentAdapter implements WarpAdapter {
    * (WarpPipeline 等の統合管理用)
    */
   public exportState(): string {
-    const intents: Record<string, { matrix: number[], bias: number[], routingVector?: number[] }> = {};
+    const intents: Record<
+      string,
+      { matrix: number[]; bias: number[]; routingVector?: number[] }
+    > = {};
     for (const [name, matrix] of this.matrices.entries()) {
       const bias = this.biases.get(name)!;
       const routing = this.routingVectors.get(name);
@@ -591,7 +606,9 @@ export class IntentAdapter implements WarpAdapter {
       adapter.addIntent(name, {
         matrix: new Float32Array(intent.matrix),
         bias: new Float32Array(intent.bias),
-        routingVector: intent.routingVector ? new Float32Array(intent.routingVector) : undefined,
+        routingVector: intent.routingVector
+          ? new Float32Array(intent.routingVector)
+          : undefined,
       });
     }
     return adapter;

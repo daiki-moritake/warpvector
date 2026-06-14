@@ -1,5 +1,10 @@
 import { IntentWeights } from "./IntentAdapter";
-import { assertDimension, getFlatMatrixAndBias, applyAffine, innerProduct } from "./utils";
+import {
+  assertDimension,
+  getFlatMatrixAndBias,
+  applyAffine,
+  innerProduct,
+} from "./utils";
 import { AbstractAdamTrainer } from "./BaseTrainer";
 
 /**
@@ -67,7 +72,7 @@ export class InfoNCETrainer extends AbstractAdamTrainer {
   public async updateOnline(
     currentWeights: IntentWeights,
     example: InfoNCEExample,
-    options: InfoNCEOnlineOptions = {}
+    options: InfoNCEOnlineOptions = {},
   ): Promise<IntentWeights> {
     const learningRate = options.learningRate ?? 0.01;
     const temperature = options.temperature ?? 0.1;
@@ -83,7 +88,11 @@ export class InfoNCETrainer extends AbstractAdamTrainer {
       assertDimension(neg, dim, "InfoNCETrainer.train negative");
     }
 
-    const { flatMatrix, bias } = getFlatMatrixAndBias(currentWeights, dim, "updateOnline Matrix");
+    const { flatMatrix, bias } = getFlatMatrixAndBias(
+      currentWeights,
+      dim,
+      "updateOnline Matrix",
+    );
 
     // 1. Forward Pass: アンカーベクトルを現在のアフィン変換でワープさせる A' = W * A + b
     const warpedAnchor = new Float32Array(dim);
@@ -133,7 +142,17 @@ export class InfoNCETrainer extends AbstractAdamTrainer {
     }
 
     this.applyAdamToAffine(
-      flatMatrix, bias, this.mW, this.vW, this.mb, this.vb, example.anchor, outputGradients, learningRate, regularization, this.t
+      flatMatrix,
+      bias,
+      this.mW,
+      this.vW,
+      this.mb,
+      this.vb,
+      example.anchor,
+      outputGradients,
+      learningRate,
+      regularization,
+      this.t,
     );
 
     const newWeights = this.toWeights(flatMatrix, bias);

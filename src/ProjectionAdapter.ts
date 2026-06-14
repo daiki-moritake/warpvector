@@ -1,5 +1,9 @@
 import { assertDimension, flattenMatrix, applyAffine } from "./utils";
-import { getWasmInstance, ensureWasmMemory, writeFloat32ArrayToWasm } from "./wasm/wasm-loader";
+import {
+  getWasmInstance,
+  ensureWasmMemory,
+  writeFloat32ArrayToWasm,
+} from "./wasm/wasm-loader";
 import { WarpAdapter } from "./WarpAdapter";
 
 /**
@@ -126,7 +130,7 @@ export class ProjectionAdapter implements WarpAdapter {
     const biasSize = bias ? this.outDimension * 4 : 0;
     const vectorSize = this.inDimension * 4;
     const outputSize = this.outDimension * 4;
-    
+
     const requiredBytes = matrixSize + biasSize + vectorSize + outputSize;
 
     if (
@@ -135,20 +139,30 @@ export class ProjectionAdapter implements WarpAdapter {
       ensureWasmMemory(requiredBytes)
     ) {
       const memory = instance.exports.memory as WebAssembly.Memory;
-      
+
       let offset = 0;
-      const matrixPtr = offset; offset += matrixSize;
-      const biasPtr = bias ? offset : 0; 
+      const matrixPtr = offset;
+      offset += matrixSize;
+      const biasPtr = bias ? offset : 0;
       if (bias) offset += biasSize;
-      const inputPtr = offset; offset += vectorSize;
-      const outputPtr = offset; offset += outputSize;
+      const inputPtr = offset;
+      offset += vectorSize;
+      const outputPtr = offset;
+      offset += outputSize;
 
       writeFloat32ArrayToWasm(memory, matrix, matrixPtr);
       if (bias) writeFloat32ArrayToWasm(memory, bias, biasPtr);
       writeFloat32ArrayToWasm(memory, vector, inputPtr);
 
       const projectWasm = instance.exports.projectWasm as CallableFunction;
-      projectWasm(matrixPtr, biasPtr, inputPtr, outputPtr, this.inDimension, this.outDimension);
+      projectWasm(
+        matrixPtr,
+        biasPtr,
+        inputPtr,
+        outputPtr,
+        this.inDimension,
+        this.outDimension,
+      );
 
       const result = new Float32Array(this.outDimension);
       const outF32 = new Float32Array(memory.buffer);
@@ -163,7 +177,14 @@ export class ProjectionAdapter implements WarpAdapter {
     const result = new Float32Array(this.outDimension);
 
     // 行列ベクトル積: O(M * N)
-    applyAffine(matrix, bias, vector, result, this.inDimension, this.outDimension);
+    applyAffine(
+      matrix,
+      bias,
+      vector,
+      result,
+      this.inDimension,
+      this.outDimension,
+    );
 
     return result;
   }
@@ -172,7 +193,8 @@ export class ProjectionAdapter implements WarpAdapter {
    * 現在の射影行列の状態をシリアライズしてエクスポートします。
    */
   public exportState(): string {
-    const projections: Record<string, { matrix: number[], bias?: number[] }> = {};
+    const projections: Record<string, { matrix: number[]; bias?: number[] }> =
+      {};
     for (const [name, matrix] of this.matrices.entries()) {
       const bias = this.biases.get(name);
       projections[name] = {

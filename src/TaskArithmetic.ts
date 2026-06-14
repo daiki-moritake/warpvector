@@ -30,7 +30,7 @@ export class TaskArithmetic {
    */
   public static merge(
     tasks: TaskConfig[],
-    baseIntent?: IntentWeights
+    baseIntent?: IntentWeights,
   ): IntentWeights {
     if (tasks.length === 0) {
       throw new Error("No tasks provided to merge.");
@@ -46,7 +46,7 @@ export class TaskArithmetic {
     if (baseIntent) {
       assertDimension(baseIntent.bias, dim, "Base bias");
       baseBias = new Float32Array(baseIntent.bias);
-      
+
       if (baseIntent.matrix instanceof Float32Array) {
         assertDimension(baseIntent.matrix, dim * dim, "Base matrix");
         baseMatrix = new Float32Array(baseIntent.matrix);
@@ -69,14 +69,19 @@ export class TaskArithmetic {
     for (let t = 0; t < tasks.length; t++) {
       const { weights, scale } = tasks[t];
       assertDimension(weights.bias, dim, `Task ${t} bias`);
-      
+
       const taskBias = new Float32Array(weights.bias);
       let taskMatrix: Float32Array;
       if (weights.matrix instanceof Float32Array) {
         assertDimension(weights.matrix, dim * dim, `Task ${t} matrix`);
         taskMatrix = weights.matrix;
       } else {
-        taskMatrix = flattenMatrix(weights.matrix, dim, dim, `Task ${t} matrix`);
+        taskMatrix = flattenMatrix(
+          weights.matrix,
+          dim,
+          dim,
+          `Task ${t} matrix`,
+        );
       }
 
       // ΔW = W_task - W_base
@@ -92,7 +97,7 @@ export class TaskArithmetic {
 
     return {
       matrix: newMatrix,
-      bias: newBias
+      bias: newBias,
     };
   }
 }

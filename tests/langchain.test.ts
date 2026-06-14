@@ -17,7 +17,7 @@ class MockBaseEmbeddings extends Embeddings {
 describe("WarpEmbeddings (LangChain Integration)", () => {
   test("embedQuery applies intent transformation", async () => {
     const base = new MockBaseEmbeddings({});
-    
+
     // x, y を入れ替える行列を定義
     const intentWeights = {
       matrix: [
@@ -45,7 +45,7 @@ describe("WarpEmbeddings (LangChain Integration)", () => {
 
   test("embedDocuments passes through without transformation", async () => {
     const base = new MockBaseEmbeddings({});
-    
+
     const intentWeights = {
       matrix: [
         [0, 1, 0],
@@ -72,7 +72,7 @@ describe("WarpEmbeddings (LangChain Integration)", () => {
 
   test("can dynamically switch intent", async () => {
     const base = new MockBaseEmbeddings({});
-    
+
     const intent1 = {
       matrix: [
         [0, 1, 0],

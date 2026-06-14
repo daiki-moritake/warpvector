@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { IntentAdapter } from "../src/IntentAdapter";
-import { WarpLlamaIndexEmbeddings, LlamaIndexBaseEmbedding } from "../src/integrations/llama-index";
+import {
+  WarpLlamaIndexEmbeddings,
+  LlamaIndexBaseEmbedding,
+} from "../src/integrations/llama-index";
 
 // Mock BaseEmbedding for testing
 class MockLlamaEmbeddings implements LlamaIndexBaseEmbedding {
@@ -20,7 +23,7 @@ describe("WarpLlamaIndexEmbeddings (LlamaIndex Integration)", () => {
     const warpEmbeddings = new WarpLlamaIndexEmbeddings({
       baseEmbeddings: mockBase,
       adapter,
-      intentName: "test"
+      intentName: "test",
     });
 
     const result = await warpEmbeddings.getTextEmbedding("hello");
@@ -33,21 +36,21 @@ describe("WarpLlamaIndexEmbeddings (LlamaIndex Integration)", () => {
       matrix: [
         [2, 0, 0],
         [0, 2, 0],
-        [0, 0, 2]
+        [0, 0, 2],
       ],
-      bias: [1, 1, 1]
+      bias: [1, 1, 1],
     });
 
     const warpEmbeddings = new WarpLlamaIndexEmbeddings({
       baseEmbeddings: mockBase,
       adapter,
-      intentName: "test"
+      intentName: "test",
     });
 
     // base is [0.1, 0.2, 0.3]
     // tune -> [0.1*2 + 1, 0.2*2 + 1, 0.3*2 + 1] = [1.2, 1.4, 1.6]
     const result = await warpEmbeddings.getQueryEmbedding("query");
-    
+
     expect(result[0]).toBeCloseTo(1.2);
     expect(result[1]).toBeCloseTo(1.4);
     expect(result[2]).toBeCloseTo(1.6);

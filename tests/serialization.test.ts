@@ -5,17 +5,20 @@ import { MlpAdapter } from "../src/MlpAdapter";
 
 describe("Universal Serialization", () => {
   test("WhiteningAdapter serialization", () => {
-    const adapter = new WhiteningAdapter(4, { learningRate: 0.05, numComponents: 2 });
-    
+    const adapter = new WhiteningAdapter(4, {
+      learningRate: 0.05,
+      numComponents: 2,
+    });
+
     // Simulate some learning
     adapter.update([1.0, 2.0, 3.0, 4.0]);
     adapter.update([-1.0, -2.0, -3.0, -4.0]);
-    
+
     const state = adapter.exportState();
     expect(typeof state).toBe("string");
-    
+
     const restored = WhiteningAdapter.importState(state);
-    
+
     // Verify properties
     expect(restored.dim).toBe(4);
     expect(restored["learningRate"]).toBe(0.05); // Access private for test check
@@ -23,7 +26,7 @@ describe("Universal Serialization", () => {
     expect(restored.mean).toEqual(adapter.mean);
     expect(restored.components.length).toBe(2);
     expect(restored.components[0]).toEqual(adapter.components[0]);
-    
+
     // Verify output consistency
     const input = [1, 1, 1, 1];
     const originalOutput = adapter.tune(input);
@@ -34,8 +37,11 @@ describe("Universal Serialization", () => {
   test("ProjectionAdapter serialization", () => {
     const adapter = new ProjectionAdapter(3, 2);
     adapter.addProjection("test", {
-      matrix: [[1, 2, 3], [4, 5, 6]],
-      bias: [0.1, 0.2]
+      matrix: [
+        [1, 2, 3],
+        [4, 5, 6],
+      ],
+      bias: [0.1, 0.2],
     });
 
     const state = adapter.exportState();
@@ -50,10 +56,13 @@ describe("Universal Serialization", () => {
   test("MlpAdapter serialization", async () => {
     const adapter = new MlpAdapter([
       {
-        matrix: [[1, 2], [3, 4]],
+        matrix: [
+          [1, 2],
+          [3, 4],
+        ],
         bias: [0.1, 0.2],
-        activation: "relu"
-      }
+        activation: "relu",
+      },
     ]);
     await adapter.init();
 

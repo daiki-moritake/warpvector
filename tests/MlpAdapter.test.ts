@@ -15,19 +15,19 @@ describe("MlpAdapter", () => {
           [1, 0, -1],
           [0, 1, 0],
           [-1, 0, 1],
-          [0.5, 0.5, 0.5]
+          [0.5, 0.5, 0.5],
         ],
         bias: [0, -1, 0, 0],
-        activation: "relu"
+        activation: "relu",
       },
       {
         matrix: [
           [1, 1, 1, 1],
-          [1, -1, 0, 0]
+          [1, -1, 0, 0],
         ],
         bias: [-1, 0],
-        activation: "sigmoid"
-      }
+        activation: "sigmoid",
+      },
     ];
 
     const adapter = new MlpAdapter(layers);
@@ -47,11 +47,8 @@ describe("MlpAdapter", () => {
     // Layer 2
     // [1, 1, 1, 1] * [0, 1, 2, 3] - 1 = 6 - 1 = 5 => Sigmoid(5)
     // [1, -1, 0, 0] * [0, 1, 2, 3] + 0 = -1 => Sigmoid(-1)
-    
-    const expectedOut = [
-      1.0 / (1.0 + Math.exp(-5)),
-      1.0 / (1.0 + Math.exp(1))
-    ];
+
+    const expectedOut = [1.0 / (1.0 + Math.exp(-5)), 1.0 / (1.0 + Math.exp(1))];
 
     expect(outWasm.length).toBe(2);
     expect(outWasm[0]).toBeCloseTo(expectedOut[0], 5);
@@ -63,11 +60,11 @@ describe("MlpAdapter", () => {
       {
         matrix: [
           [2, 0],
-          [0, 3]
+          [0, 3],
         ],
         bias: [1, -1],
-        activation: "linear"
-      }
+        activation: "linear",
+      },
     ];
 
     const adapter = new MlpAdapter(layers);
@@ -85,11 +82,11 @@ describe("MlpAdapter", () => {
       {
         matrix: [
           [1, 0],
-          [0, 1]
+          [0, 1],
         ],
         bias: [0, 0],
-        activation: "linear"
-      }
+        activation: "linear",
+      },
     ];
 
     const adapter = new MlpAdapter(layers);

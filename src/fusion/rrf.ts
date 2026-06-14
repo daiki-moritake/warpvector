@@ -21,7 +21,7 @@ export interface FusionResult {
  */
 export function rrf(
   resultSets: RankedResult[][],
-  k: number = 60
+  k: number = 60,
 ): FusionResult[] {
   const scoreMap = new Map<string | number, FusionResult>();
 

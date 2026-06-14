@@ -106,7 +106,7 @@ describe("Vector Symbolic Architecture (VSA) Adapter", () => {
       // Tie at LSB, should resolve to 1
       const v1 = new Uint8Array([1]);
       const v2 = new Uint8Array([0]);
-      
+
       const bundled = VsaAdapter.bundleBinary([v1, v2]);
       expect(bundled[0]).toBe(1);
     });

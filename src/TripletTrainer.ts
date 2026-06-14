@@ -1,5 +1,10 @@
 import { IntentWeights } from "./IntentAdapter";
-import { assertDimension, getFlatMatrixAndBias, applyAffine, innerProduct } from "./utils";
+import {
+  assertDimension,
+  getFlatMatrixAndBias,
+  applyAffine,
+  innerProduct,
+} from "./utils";
 import { AbstractAdamTrainer } from "./BaseTrainer";
 
 /**
@@ -30,7 +35,7 @@ export interface TripletOnlineOptions {
 /**
  * Contrastive Learning (トリプレットロス) を用いて、相対的な距離感から
  * IntentWeights (行列W と バイアスb) を学習するトレーナークラス。
- * 
+ *
  * "Anchor" を変換したベクトル A' が、"Negative" よりも "Positive" に
  * 設定されたマージン(Margin)分だけ確実により近づくように重みを更新します。
  */
@@ -69,17 +74,33 @@ export class TripletTrainer extends AbstractAdamTrainer {
   public async updateOnline(
     currentWeights: IntentWeights,
     example: TripletExample,
-    options: TripletOnlineOptions = {}
+    options: TripletOnlineOptions = {},
   ): Promise<IntentWeights> {
     const learningRate = options.learningRate ?? 0.01;
     const margin = options.margin ?? 0.1;
     const regularization = options.regularization ?? 0.001;
-    assertDimension(example.anchor, this.dimension, "TripletTrainer.train anchor");
-    assertDimension(example.positive, this.dimension, "TripletTrainer.train positive");
-    assertDimension(example.negative, this.dimension, "TripletTrainer.train negative");
+    assertDimension(
+      example.anchor,
+      this.dimension,
+      "TripletTrainer.train anchor",
+    );
+    assertDimension(
+      example.positive,
+      this.dimension,
+      "TripletTrainer.train positive",
+    );
+    assertDimension(
+      example.negative,
+      this.dimension,
+      "TripletTrainer.train negative",
+    );
 
     const dim = this.dimension;
-    const { flatMatrix, bias } = getFlatMatrixAndBias(currentWeights, dim, "updateOnline Matrix");
+    const { flatMatrix, bias } = getFlatMatrixAndBias(
+      currentWeights,
+      dim,
+      "updateOnline Matrix",
+    );
 
     // 1. Forward Pass: アンカーベクトルを現在のアフィン変換でワープさせる A' = W * A + b
     const warpedAnchor = new Float32Array(dim);
@@ -103,7 +124,17 @@ export class TripletTrainer extends AbstractAdamTrainer {
       }
 
       this.applyAdamToAffine(
-        flatMatrix, bias, this.mW, this.vW, this.mb, this.vb, example.anchor, outputGradients, learningRate, regularization, this.t
+        flatMatrix,
+        bias,
+        this.mW,
+        this.vW,
+        this.mb,
+        this.vb,
+        example.anchor,
+        outputGradients,
+        learningRate,
+        regularization,
+        this.t,
       );
     }
 
