@@ -13,7 +13,7 @@ export class VectorDBAdapter {
    * @param {number[] | Float32Array} vector ワープ変換後のベクトル
    * @returns {string} `'[0.1, 0.2, 0.3]'` のような文字列表現
    */
-  public static toPgvector(vector: number[] | Float32Array): string {
+  public static toPgvector(vector: number[] | Float32Array | Int8Array | Uint8Array): string {
     return `[${Array.from(vector).join(", ")}]`;
   }
 
@@ -31,10 +31,10 @@ export class VectorDBAdapter {
    * @returns {Record<string, any>} Pineconeのqueryメソッド用オブジェクト
    */
   public static toPineconeQuery(
-    vector: number[] | Float32Array,
+    vector: number[] | Float32Array | Int8Array | Uint8Array,
     topK: number = 10,
-    filter?: Record<string, any>,
-  ): Record<string, any> {
+    filter?: Record<string, unknown>,
+  ): Record<string, unknown> {
     return {
       vector: Array.from(vector),
       topK,
@@ -54,9 +54,9 @@ export class VectorDBAdapter {
    * @param {number[] | Float32Array} vector ワープ変換後のベクトル
    * @returns {Uint8Array} バイナリデータ (Float32のバイト表現)
    */
-  public static toRedis(vector: number[] | Float32Array): Uint8Array {
+  public static toRedis(vector: number[] | Float32Array | Int8Array | Uint8Array): Uint8Array {
     const f32Array =
-      vector instanceof Float32Array ? vector : new Float32Array(vector);
+      vector instanceof Float32Array ? vector : new Float32Array(Array.from(vector));
     // 新しいバッファのコピーを返すことで副作用を防ぐ
     return new Uint8Array(
       f32Array.buffer.slice(

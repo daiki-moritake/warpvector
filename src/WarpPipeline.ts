@@ -58,7 +58,7 @@ export class WarpPipeline {
   /**
    * フォーマット変換ロジックを保持するレジストリ。
    */
-  private static formatRegistry = new Map<string, (vector: InputVector, options: Record<string, unknown>) => unknown>();
+  private static formatRegistry = new Map<string, (vector: OutputVector, options: FormatOptions) => unknown>();
 
   /**
    * カスタムの出力フォーマットを登録します。
@@ -67,7 +67,7 @@ export class WarpPipeline {
    * @param format フォーマット名 (例: "pgvector")
    * @param formatFn 変換を行うコールバック関数
    */
-  public static registerFormat(format: string, formatFn: (vector: InputVector, options: Record<string, unknown>) => unknown): void {
+  public static registerFormat(format: string, formatFn: (vector: OutputVector, options: FormatOptions) => unknown): void {
     WarpPipeline.formatRegistry.set(format, formatFn);
   }
 
@@ -228,7 +228,7 @@ export class WarpPipeline {
       throw new Error(`Unknown format: ${dbOptions.format}. Did you forget to register it?`);
     }
 
-    return formatFn(tunedVector as InputVector, dbOptions);
+    return formatFn(tunedVector, dbOptions);
   }
 
   /**
