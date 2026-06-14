@@ -104,4 +104,94 @@ export class VsaAdapter {
 
     return result;
   }
+
+  /**
+   * ---------------------------------------------------------
+   * Binary VSA (バイナリベクトル・シンボリック・アーキテクチャ)
+   * ---------------------------------------------------------
+   * QuantizationAdapter で 1-bit (Binary) 量子化された Uint8Array ベクトルに
+   * 対する超次元計算を行います。XOR 演算により、超高速・極小メモリでの処理が可能です。
+   */
+
+  /**
+   * バイナリベクトルのバインディング (Binary Binding / XOR)
+   * XOR (排他的論理和) を用いて2つのバイナリベクトルを結合します。
+   * Binary VSA において、XOR は情報を結合するための標準的な演算です。
+   *
+   * @param bin1 バインドするバイナリベクトル1 (Uint8Array)
+   * @param bin2 バインドするバイナリベクトル2 (Uint8Array)
+   * @returns バインドされた新しいバイナリベクトル (Uint8Array)
+   */
+  public static bindBinary(bin1: Uint8Array, bin2: Uint8Array): Uint8Array {
+    if (bin1.length !== bin2.length) {
+      throw new Error("Binary vectors must have the same length in bytes.");
+    }
+    const len = bin1.length;
+    const result = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+      result[i] = bin1[i] ^ bin2[i]; // XOR演算
+    }
+    return result;
+  }
+
+  /**
+   * バイナリベクトルのアンバインディング (Binary Unbinding / XOR)
+   * XOR の自己逆性 (A ^ B ^ B = A) を利用して、キーを用いて元の値を抽出します。
+   * 内部的には bindBinary と全く同じ処理です。
+   *
+   * @param boundBin バインド済みのバイナリベクトル (Uint8Array)
+   * @param keyBin 抽出に使用するキーバイナリベクトル (Uint8Array)
+   * @returns アンバインドされて抽出されたバイナリベクトル (Uint8Array)
+   */
+  public static unbindBinary(boundBin: Uint8Array, keyBin: Uint8Array): Uint8Array {
+    return VsaAdapter.bindBinary(boundBin, keyBin);
+  }
+
+  /**
+   * バイナリベクトルのバンドリング (Binary Bundling / Majority Vote)
+   * 複数のバイナリベクトルを重ね合わせます。各ビット位置で 1 と 0 の出現回数をカウントし、
+   * 多数決 (Majority Vote) で最終的なビットを決定します。
+   *
+   * @param bins 束ねるバイナリベクトルの配列 (Uint8Arrayの配列)
+   * @returns 束ねられた新しいバイナリベクトル (Uint8Array)
+   */
+  public static bundleBinary(bins: Uint8Array[]): Uint8Array {
+    if (bins.length === 0) {
+      throw new Error("Cannot bundle an empty array of binary vectors.");
+    }
+    
+    const numVectors = bins.length;
+    const len = bins[0].length;
+    const result = new Uint8Array(len);
+
+    for (let i = 0; i < len; i++) {
+      let resultByte = 0;
+      // 各バイトの 8 つのビット(0~7)について多数決をとる
+      for (let bit = 0; bit < 8; bit++) {
+        let onesCount = 0;
+        const mask = 1 << bit;
+        
+        for (let v = 0; v < numVectors; v++) {
+          if (bins[v].length !== len) {
+            throw new Error(`Binary vector at index ${v} has mismatched length.`);
+          }
+          if ((bins[v][i] & mask) !== 0) {
+            onesCount++;
+          }
+        }
+        
+        // 多数決 (半数より多ければ 1 を立てる。同数の場合は 0 とするが、ランダムでもよい)
+        if (onesCount > numVectors / 2) {
+          resultByte |= mask;
+        } else if (onesCount === numVectors / 2) {
+          // タイブレーク: 最適化のため、単に 0 または 1 に固定する(ここでは1とする)
+          // 完全なランダムタイブレークを実装することも可能だが、パフォーマンス優先で固定する。
+          resultByte |= mask;
+        }
+      }
+      result[i] = resultByte;
+    }
+
+    return result;
+  }
 }
