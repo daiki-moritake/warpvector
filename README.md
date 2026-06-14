@@ -1,4 +1,9 @@
-# warpvector
+# warpvector 🌌
+
+[![npm version](https://badge.fury.io/js/warpvector.svg)](https://badge.fury.io/js/warpvector)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Edge Ready](https://img.shields.io/badge/Edge-Ready-success.svg)](#)
+[![Zero Dependency](https://img.shields.io/badge/Dependencies-0-brightgreen.svg)](#)
 
 `warpvector` は、AIモデルの再学習や重い再推論を行うことなく、検索クエリやコンテキスト（意図）に応じてベクトル空間を動的に変形させる、TypeScriptネイティブの軽量ミドルウェア・ユーティリティです。
 
@@ -14,40 +19,17 @@
 
 ---
 
-## 📖 公式ドキュメント
-
-より詳しい使い方や API の詳細については、以下のドキュメントをご参照ください。
-
-- [🔰 Getting Started (はじめに)](./docs/getting-started.md): インストール方法と基本的な使い方
-- [⚙️ Advanced Usage (高度な使い方)](./docs/advanced-usage.md): 非線形活性化関数、自動ブレンド、WASMバッチ処理、LoRAなどの応用
-- [📚 API Reference](./docs/api-reference.md): クラス・メソッド・ユーティリティ関数の完全なリファレンス
-
----
-
 ## 🚀 主な特徴
 
 - **次世代DBミドルウェア:** 既存のベクトルDB（Pinecone, Qdrant, DuckDBなど）とフロントエンドの間に立ち、動的なコンテキストルーティングを提供。
-- **動的アフィン変換 ($W \cdot x + b$):** 回転・拡大・縮小（行列 $W$）と平行移動（バイアス $b$）を組み合わせ、コンテキストに最適化されたベクトル空間を動的に生成。
-- **WASM/SIMDによる超高速バッチ処理:** 大量のベクトル処理にはAssemblyScriptでコンパイルされたインラインWebAssembly（WASM）バックエンドを自動的にフォールバックなしで呼び出し、計算速度を最大化します。外部依存（Zero-dependency）の哲学を維持しています。
-- **意図の動的合成（Blending）と自動ルーティング:** `tuneBlended` による手動合成に加え、自己アテンション型の `tuneAutoBlended` を搭載。クエリベクトル自体から適切な意図をSoftmax関数を用いて自動で推論・合成します。
-- **非線形空間のサポート:** 空間をさらに複雑に歪める非線形活性化関数 (`relu`, `sigmoid`, `tanh`) をネイティブサポート。
-- **LoRA (低ランク適応) アーキテクチャ:** `LoraIntentAdapter` により、超高次元ベクトル（1536次元など）でもメモリ使用量・計算量を劇的に削減。数百万件のベクトルデータに対しても瞬時にワープ可能。
-- **最先端の幾何学アプローチ:** 空間の幾何学構造（コサイン類似度）を破壊せずにベクトルを補間する球面線形補間（`slerp`）を標準搭載。
-- **TypeScriptネイティブ & ゼロ依存（Zero-dependency）:** Python環境や重厚な機械学習ライブラリは一切不要。`Float32Array` をベースにした極限まで無駄を削ぎ落とした行列演算ロジック。
-- **エッジ・ローカルファースト対応:** 超軽量かつ高速に動作するため、Cloudflare Workers、Bun、Node.jsなどのモダンなサーバーレス/エッジ環境に即座に組み込み可能。
-
-## 🎯 なぜ「新しいベクトルDB」ではなく「ミドルウェア」なのか？
-
-ベクトル検索の体験を根本から変えるにあたり、`warpvector` はあえて「データベース（ストレージやインデックス機能）そのもの」を作ることを避けました。これにはオープンソースとしての強力な戦略と明確な理由があります。
-
-1. **既存の強固なDBエコシステムへの「タダ乗り」（ベンダーロックインの排除）**
-   Pinecone、Qdrant、Supabase (pgvector)、DuckDB など、すでに世界中で使われている非常に優秀なベクトルDBが存在します。`warpvector` が自前のDBを持たないことで、**「ユーザーは今使っているお気に入りのDBをそのまま使いながら、検索クエリの際に warpvector を挟むだけで次世代の動的ルーティング体験へとアップグレードできる」**という、導入ハードルの極めて低い立ち位置を実現しています。
-
-2. **UNIX哲学に基づく極限の集中（超軽量・高速化）**
-   データの永続化や近似最近傍探索（HNSW等）の重厚な処理を既存のDBに丸投げすることで、本プロジェクトは**「ユーザーの意図に応じたインメモリでの超高速なベクトルワープ」という一点に極限まで集中**できました。その結果、Pythonや重い機械学習ライブラリに依存しない、純粋な `Float32Array` および WASM ロジックのみで完結しています。
-
-3. **究極のポータビリティ（エッジ＆ローカルファースト）**
-   ストレージ管理の責務を持たないため、`warpvector` は非常に身軽です。Cloudflare Workers などのエッジ環境や、ユーザーのスマホのブラウザ上、サーバーレス環境など、どこにでも瞬時にデプロイ可能です。これにより、「重いベクトル検索自体はクラウドのDBで行い、コンテキスト空間のワープはユーザーの手元のエッジで行う」といった次世代のアーキテクチャが可能になります。
+- **動的アフィン変換 ($W \cdot x + b$):** 回転・拡大・縮小（行列 $W$）と平行移動（バイアス $b$）を組み合わせ、コンテキストに最適化されたベクトル空間を生成。
+- **WASM/SIMDによる超高速バッチ処理:** 大量のベクトル処理にはAssemblyScriptでコンパイルされたインラインWebAssembly（WASM）バックエンドを自動的に呼び出し、計算速度を最大化します。
+- **意図の動的合成（Blending）と自動ルーティング:** `tuneBlended` による手動合成に加え、自己アテンション型の `tuneAutoBlended` を搭載。
+- **LoRA (低ランク適応) アーキテクチャ:** `LoraIntentAdapter` により、超高次元ベクトル（1536次元など）でもメモリ使用量・計算量を劇的に削減。
+- **SGD + Momentum トレーニング内蔵:** `IntentTrainer` や `MigrationTrainer` を使い、ブラウザやエッジ環境上で動的にベクトル行列を学習・最適化可能。
+- **次元圧縮・プロジェクション:** `ProjectionAdapter` を使った、1536次元から512次元などへのセマンティックな次元削減機能。
+- **TypeScriptネイティブ & ゼロ依存:** Python環境や重厚な機械学習ライブラリは一切不要。
+- **エッジ・ローカルファースト対応:** Cloudflare Workers、Bun、Node.jsなどのモダンなサーバーレス/エッジ環境に即座に組み込み可能。
 
 ---
 
@@ -57,15 +39,19 @@
 npm install warpvector
 # または
 bun add warpvector
-
 ```
 
-🛠 クイックスタートTypeScript
-```ts
-import { IntentAdapter, LoraIntentAdapter, normalize, slerp } from 'warpvector';
+---
 
-// 1. 意図（インテント）ごとの変換行列とバイアス、代表ベクトル(ルーティング用)を定義
-const myIntents: Record<string, IntentWeights> = {
+## 🛠 クイックスタート
+
+### 1. 基本的なアフィン変換 (IntentAdapter)
+
+```typescript
+import { IntentAdapter } from 'warpvector';
+
+// 意図ごとの変換行列とバイアスを定義
+const myIntents = {
   riskAnalysis: {
     matrix: [
       [1.2, 0.1, -0.4],
@@ -74,107 +60,97 @@ const myIntents: Record<string, IntentWeights> = {
     ],
     bias: [0.05, -0.1, 0.2],
     routingVector: [1.0, 0.0, 0.0] // 自動ブレンド計算用の代表方向
-  },
-  economicImpact: {
-    matrix: [
-      [0.5, 0.8, 0.1],
-      [0.2, 0.6, -0.3],
-      [-0.1, 0.1, 1.4],
-    ],
-    bias: [-0.2, 0.4, 0.0],
-    routingVector: [0.0, 1.0, 0.0]
-  },
+  }
 };
 
-// 2. アダプターの初期化
-// ※初期化時にWASMエンジンが自動的にマウントされます
 const adapter = new IntentAdapter(myIntents);
-
-// 3. AIモデルから生成された標準のベースベクトル
 const baseVector = [0.15, -0.23, 0.88];
 
-// 4. ユーザーの意図に合わせて、インメモリで高速にベクトルを調律（ワープ）
-// 必要に応じて非線形活性化関数('relu', 'sigmoid', 'tanh')を指定可能
-const tunedVectorForRisk = adapter.tune(baseVector, "riskAnalysis", "relu");
-
-console.log(tunedVectorForRisk);
-// 出力: Float32Array [ 0.211, 0, 1.259 ] (アフィン変換 + ReLU適用後のベクトル)
-
-// 5. 自己アテンション型動的ブレンド (Auto-blending)
-// クエリベクトルの中身を分析し、最適なインテント比率を自動で推論・合成して適用します
-const autoBlendedVector = adapter.tuneAutoBlended(baseVector);
-
-// 6. WASM/SIMDによる複数ベクトルの超高速バッチ変換
-const batchVectors = [
-  [0.15, -0.23, 0.88],
-  [0.44, 0.11, -0.05]
-];
-// 行列の数が多い場合、内部で自動的にWASMメモリへ転送され高速に処理されます
-const tunedBatch = adapter.tuneBatch(batchVectors, "riskAnalysis");
-const normalizedVector = normalize(tunedBatch[0]); // コサイン類似度計算用などにL2正規化
-
-// 7. LoRA (低ランク適応) による超高次元ベクトルの高速変換
-const loraAdapter = new LoraIntentAdapter(1536, 16); // 次元=1536, ランク=16
-// ... LoraIntentWeights { matrixA, matrixB, bias } を addIntent する
-const warpedVector = loraAdapter.tune(baseVector, "newContext");
-
-// 8. 球面線形補間 (Slerp) で空間構造（コサイン類似度）を維持したベクトル補間
-const interpolated = slerp(baseVector, normalizedVector, 0.5);
+// "riskAnalysis" の意図に合わせてベクトルをワープ (ReLU活性化も可能)
+const warpedVector = adapter.tune(baseVector, "riskAnalysis", "relu");
 ```
+
+### 2. LoRAによる高次元ベクトルの高速変換 (LoraIntentAdapter)
+
+1536次元などの高次元モデル（例: OpenAI `text-embedding-3-small`）の変換には、LoRAを使用することでメモリ消費と計算コストを大幅に削減できます。
+
+```typescript
+import { LoraIntentAdapter } from 'warpvector';
+
+// 次元数 1536, ランク数 16 で初期化
+const loraAdapter = new LoraIntentAdapter(1536, 16);
+
+// 意図ごとの低ランク行列 (AとB) を追加
+loraAdapter.addIntent("scientific", {
+  matrixA: [...], // 16 x 1536
+  matrixB: [...], // 1536 x 16
+  bias: [...]     // 1536
+});
+
+const warpedVector = loraAdapter.tune(baseVector, "scientific");
+```
+
+### 3. 動的学習エンジン (Trainers)
+
+Pythonサーバーを立てることなく、ユーザーのフィードバック（クリックやいいね）をもとに、フロントエンドやエッジワーカー上で動的に行列を最適化（SGD + Momentum）できます。
+
+```typescript
+import { IntentTrainer, MigrationTrainer } from 'warpvector';
+
+// 学習率 0.01、モメンタム 0.9 でトレーナーを初期化
+const trainer = new IntentTrainer(1536, {
+  learningRate: 0.01,
+  momentum: 0.9,
+  batchSize: 32
+});
+
+// オンライン学習 (1データごとの逐次学習)
+const loss = trainer.updateOnline(
+  inputVector,        // ベースとなるベクトル
+  targetVector,       // 理想とするベクトル
+  currentWeights      // 現在の行列・バイアス
+);
+
+console.log(`Current Loss: ${loss}`);
+```
+
+### 4. 次元のマイグレーション (ProjectionAdapter)
+
+古い次元数のモデル（例: 1536次元）から新しい次元数のモデル（例: 512次元）へ、セマンティクスを保持したままベクトル空間を投影（マイグレーション）します。
+
+```typescript
+import { ProjectionAdapter } from 'warpvector';
+
+const projectionWeights = {
+  matrix: [...], // 512 x 1536 行列
+  bias: [...]    // 512 バイアス
+};
+
+const projector = new ProjectionAdapter(projectionWeights);
+const reducedVector = projector.project(highDimVector); // 1536 -> 512
+```
+
+---
 
 ## 📐 数学的背景：動的アフィン変換と非線形性
 
-`warpvector` の核心は、高次元ベクトル空間において**「データの意味的構造を破壊せずに、コンテキスト（意図）に応じて空間を幾何学的に変形させる」**ことにあります。
-
-このセクションでは、なぜ単純な行列乗算ではなく、バイアスを加えた「アフィン変換」が必要なのか、そしてそれがベクトル検索（コサイン類似度など）にどのような数学的影響を与えるのかを詳細に解説します。
-
----
-
-### 1. 基本数式モデル
-
-入力となる標準的なベースベクトル（例：埋め込みモデルから出力された直後の固定ベクトル）を $\mathbf{x} \in \mathbb{R}^d$ とします。
-
-ユーザーが指定した意図 $I$ に対し、`warpvector` は以下の**アフィン写像（Affine Map）**を適用し、調律された新しいベクトル $\mathbf{x}' \in \mathbb{R}^d$ を生成します。
+入力となる標準的なベースベクトル $\mathbf{x} \in \mathbb{R}^d$ に対し、`warpvector` は以下の**アフィン写像（Affine Map）**を適用し、調律された新しいベクトル $\mathbf{x}' \in \mathbb{R}^d$ を生成します。
 
 $$\mathbf{x}' = \sigma(\mathbf{W}_I \mathbf{x} + \mathbf{b}_I)$$
 
-ここで、それぞれのパラメータは以下の役割を持っています。
+- $\mathbf{W}_I \in \mathbb{R}^{d \times d}$ ：**意図変換行列（Intent Matrix）**。空間の回転や特徴量の強調（歪み）を担当します。
+- $\mathbf{b}_I \in \mathbb{R}^d$ ：**意図バイアスベクトル（Intent Bias）**。空間全体を特定のコンテキストへ平行移動（シフト）させます。
+- $\sigma$ ：**非線形活性化関数（Activation Function）**。空間を [0, 1] や [-1, 1] などへ曲げ込み、複雑な意味の切り分けを可能にします (`relu`, `sigmoid`, `tanh`)。
 
-- $\mathbf{W}_I \in \mathbb{R}^{d \times d}$ ：**意図変換行列（Intent Matrix）**
-- $\mathbf{b}_I \in \mathbb{R}^d$ ：**意図バイアスベクトル（Intent Bias）**
-- $\sigma$ ：**非線形活性化関数（Activation Function, オプション）**
-
----
-
-### 2. 幾何学的な意味とシステムへの作用
-
-高次元空間におけるアフィン変換は、線形変換（行列乗算）と平行移動（バイアス加算）の組み合わせです。これが検索システムにおいて強力な表現力を持つ理由は、空間を「回転・拡大縮小」させた後に「シフト」できる点にあります。
-
-#### ① 変換行列 $\mathbf{W}_I$ による「空間の歪み（Warping）」
-
-行列 $\mathbf{W}_I$ をベクトルに乗算することは、特定の次元（特徴量）の軸を縮めたり、別の軸を伸ばしたり、あるいは空間全体を回転させることを意味します。
-
-- **特徴量の重み付け:** ユーザーが「リスク分析」という意図を選択した場合、行列 $\mathbf{W}_I$ は「異常」「遅延」「脆弱性」といった概念に対応する次元のスケールを拡大（強調）し、それ以外のノイズとなる次元を縮小させます。
-- **相関の結合:** 本来は独立していた2つの特徴軸（例：「気象の数値」と「テキストのネガティブ度」）を、行列の回転作用によって同じ方向へ傾け、データ間の潜在的な相関関係を強制的に浮かび上がらせます。
-
-#### ② バイアスベクトル $\mathbf{b}_I$ による「前提知識の付与（Shifting）」
-
-行列乗算だけ（ $\mathbf{W}_I \mathbf{x}$ ）の場合、原点（ゼロベクトル $\mathbf{0}$ ）はどのように変換しても原点のまま（ $\mathbf{W}_I \mathbf{0} = \mathbf{0}$ ）となり、空間のトポロジーに強い制約が残ります。バイアス $\mathbf{b}_I$ は、空間全体を特定の方向へ一律に平行移動させます。
-
-- **コンテキストの強制結合:** 「宇宙デブリ」という共通のバイアス $\mathbf{b}_I$ を加えることで、全く異なる初期ベクトルを持つデータ群（軌道数値データと、地上のニューステキスト）のベースラインを同じ領域へと強制的にシフトさせます。これにより、次の類似度計算において、両者が「宇宙デブリ」という共通の文脈の上で比較されるようになります。
-
-#### ③ 活性化関数 $\sigma$ による「非線形ドメインマッピング」
-
-新しい機能として導入された非線形関数 (`relu`, `sigmoid`, `tanh`) を通すことで、負の次元をゼロに切り捨てたり、空間を [0, 1] や [-1, 1] の立方体空間へと曲げ込むことが可能になります。これにより、単純なアフィン変換を超えた複雑な概念の切り分けが可能になります。
+この計算複雑度はわずか $\mathcal{O}(d^2)$ （LoRAの場合は $\mathcal{O}(d \cdot r)$）であり、埋め込みモデルを再実行するのに比べて圧倒的に高速です。
+WASM（WebAssembly）と `Float32Array` によるメモリアライメント最適化を活用することで、**ブラウザ上やエッジ環境でも数千〜数万件のバッチ処理を数ミリ秒で完了**させることができます。
 
 ---
 
-### 3. 軽量性とスケーラビリティのトレードオフ
+## 🤝 貢献 (Contributing)
 
-本アーキテクチャの最大の数学的メリットは、**「計算のオフロード」**が可能な点にあります。
+本プロジェクトはオープンソースです。新機能の追加、VectorDB用の最適化アダプターの提供、パフォーマンス改善のプルリクエストを歓迎します！
 
-もし、検索クエリ $\mathbf{q}$ に対して毎回巨大なLLMを動かして意図を埋め込もうとすると、数億回のパラメータ推論（レイヤごとの非線形変換）が必要になります。
+## 📄 ライセンス
 
-しかし、`warpvector` のアフィン変換は実行時の計算複雑度がわずか $\mathcal{O}(d^2)$ です。さらに、WASM（WebAssembly）とFloat32Arrayによるメモリアライメント最適化を活用することで、**ブラウザ上やエッジワーカー上でも10,000件規模のバッチベクトルを数ミリ秒で変換できます。**
-
-300TBのような巨大なローカルデータレイクを運用する際、データ側（ $\mathbf{x}$ ）を毎回変換して書き換えるのではなく、**「ユーザーのクエリ $\mathbf{q}$ 側だけを $\mathbf{q}' = \mathbf{W}_I \mathbf{q} + \mathbf{b}_I$ と変換して、DB（DuckDBなど）の検索に投げる」**という運用が数学的に等価になります。これにより、ディスクリートなインフラコストを最小限に抑えたまま、リアルタイムな意図適応検索が達成されます。
+MIT License
