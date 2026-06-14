@@ -137,3 +137,38 @@ const updatedWeights = trainer.updateOnline(
 adapter.addIntent("user_personalized_intent", updatedWeights);
 ```
 これにより、システムを使えば使うほど、個人の意図（コンテキスト）に寄り添って検索空間が賢くなる体験を提供できます。
+
+---
+
+## 6. バイナリ・シリアライズ (超軽量保存と復元)
+
+学習した巨大な意図行列をJSONとして保存するとファイルサイズが膨大になり、パース処理（`JSON.parse`）でメモリと時間を大量に消費します。`warpvector` は超軽量の **バイナリフォーマット (Uint8Array)** による高速なシリアライズをサポートしています。
+
+### エクスポート (保存)
+```typescript
+// 学習済み、または定義済みの意図をバイナリとして抽出
+const binaryData: Uint8Array = adapter.exportIntentBinary("user_personalized_intent");
+
+// (Node.js/Bun 環境の場合、ファイルシステムへ保存)
+import * as fs from "fs";
+fs.writeFileSync("user_intent.wrpv", binaryData);
+```
+
+### インポート (復元)
+```typescript
+import { IntentAdapter } from "warpvector";
+
+// (Node.js/Bun 環境の場合、ファイルから読み込み)
+import * as fs from "fs";
+const loadedBinary = fs.readFileSync("user_intent.wrpv");
+
+// 次元数だけを指定して空の Adapter を作成
+const adapter = new IntentAdapter(1536);
+
+// バイナリデータをロードし、新しい意図として登録（JSONパース不要で超高速）
+adapter.importIntentBinary("restored_intent", loadedBinary);
+
+// すぐに推論に使用可能
+const result = adapter.tune(queryVector, "restored_intent");
+```
+この機能は、エッジ環境（Cloudflare Workers など）にユーザーのパーソナライズデータを高速で読み込ませたい場合に絶大な威力を発揮します。

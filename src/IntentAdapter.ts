@@ -13,21 +13,22 @@ import { wasmBase64 } from "./wasm/wasm-binary";
 export interface IntentWeights {
   /**
    * 空間を歪めるための変換行列 (W)
-   * @type {number[][]}
+   * 内部処理と互換性のため、number[][] と 1次元にフラット化された Float32Array の両方をサポートします。
+   * @type {number[][] | Float32Array}
    */
-  matrix: number[][];
+  matrix: number[][] | Float32Array;
 
   /**
    * 空間を特定の方向へシフトさせるバイアスベクトル (b)
-   * @type {number[]}
+   * @type {number[] | Float32Array}
    */
-  bias: number[];
+  bias: number[] | Float32Array;
 
   /**
    * 自己アテンション型ブレンド（自動ルーティング）用の代表ベクトル (オプション)
-   * @type {number[] | undefined}
+   * @type {number[] | Float32Array | undefined}
    */
-  routingVector?: number[];
+  routingVector?: number[] | Float32Array;
 }
 
 /**
@@ -84,25 +85,28 @@ export class IntentAdapter {
    * 行列とバイアスを Float32Array にコンパイルし、キャッシュ局所性と計算速度を最適化します。
    *
    * @constructor
-   * @param {Record<string, IntentWeights>} intents - 各インテント名と IntentWeights (行列・バイアス・ルーティングベクトル) のマッピング
-   * @throws {Error} インテントが一つも提供されていない場合にエラーをスローします。
+   * @param {Record<string, IntentWeights> | number} intentsOrDimension - 各インテント名と IntentWeights のマッピング、または次元数（空から始める場合）
+   * @throws {Error} インテントが一つも提供されておらず、次元数も不明な場合にエラーをスローします。
    */
-  constructor(intents: Record<string, IntentWeights>) {
+  constructor(intentsOrDimension: Record<string, IntentWeights> | number) {
     this.matrices = new Map();
     this.biases = new Map();
     this.routingVectors = new Map();
 
-    const intentKeys = Object.keys(intents);
-    if (intentKeys.length === 0) {
-      throw new Error("At least one intent must be provided.");
-    }
+    if (typeof intentsOrDimension === "number") {
+      this.dimension = intentsOrDimension;
+    } else {
+      const intentKeys = Object.keys(intentsOrDimension);
+      if (intentKeys.length === 0) {
+        throw new Error("At least one intent or a specific dimension must be provided.");
+      }
 
-    // 最初のインテントのバイアス長からベクトル空間の次元数を自動決定
-    const firstIntent = intents[intentKeys[0]];
-    this.dimension = firstIntent.bias.length;
+      const firstIntent = intentsOrDimension[intentKeys[0]];
+      this.dimension = firstIntent.bias.length;
 
-    for (const [intentName, weights] of Object.entries(intents)) {
-      this.addIntent(intentName, weights);
+      for (const [intentName, weights] of Object.entries(intentsOrDimension)) {
+        this.addIntent(intentName, weights);
+      }
     }
   }
 
@@ -124,22 +128,30 @@ export class IntentAdapter {
       );
     }
 
-    if (matrix.length !== this.dimension) {
-      throw new Error(
-        `Intent '${intentName}': Matrix row dimension mismatch. Expected ${this.dimension}, got ${matrix.length}.`,
-      );
-    }
-
-    // 行列をフラットなFloat32Arrayに変換（メモリの連続アクセスで高速化するため）
-    const flatMatrix = new Float32Array(this.dimension * this.dimension);
-    for (let i = 0; i < this.dimension; i++) {
-      if (matrix[i].length !== this.dimension) {
+    let flatMatrix: Float32Array;
+    if (matrix instanceof Float32Array) {
+      if (matrix.length !== this.dimension * this.dimension) {
         throw new Error(
-          `Intent '${intentName}': Matrix column dimension mismatch at row ${i}. Expected ${this.dimension}, got ${matrix[i].length}.`,
+          `Intent '${intentName}': Flat matrix dimension mismatch. Expected ${this.dimension * this.dimension}, got ${matrix.length}.`
         );
       }
-      for (let j = 0; j < this.dimension; j++) {
-        flatMatrix[i * this.dimension + j] = matrix[i][j];
+      flatMatrix = new Float32Array(matrix);
+    } else {
+      if (matrix.length !== this.dimension) {
+        throw new Error(
+          `Intent '${intentName}': Matrix row dimension mismatch. Expected ${this.dimension}, got ${matrix.length}.`,
+        );
+      }
+      flatMatrix = new Float32Array(this.dimension * this.dimension);
+      for (let i = 0; i < this.dimension; i++) {
+        if (matrix[i].length !== this.dimension) {
+          throw new Error(
+            `Intent '${intentName}': Matrix column dimension mismatch at row ${i}. Expected ${this.dimension}, got ${matrix[i].length}.`,
+          );
+        }
+        for (let j = 0; j < this.dimension; j++) {
+          flatMatrix[i * this.dimension + j] = matrix[i][j];
+        }
       }
     }
 
@@ -547,5 +559,101 @@ export class IntentAdapter {
 
     // 計算した動的なウェイトを用いてブレンド処理を実行
     return this.tuneBlended(baseVector, blendWeights, activation);
+  }
+
+  /**
+   * 学習済みの意図（IntentWeights）を軽量なバイナリ（Uint8Array）としてシリアライズします。
+   * これにより、JSONに比べてファイルサイズが劇的に小さくなり、ロードも高速になります。
+   *
+   * @param {string} intentName - エクスポートする意図の名前
+   * @returns {Uint8Array} シリアライズされたバイナリデータ
+   */
+  public exportIntentBinary(intentName: string): Uint8Array {
+    const matrix = this.matrices.get(intentName);
+    const bias = this.biases.get(intentName);
+    const routingVector = this.routingVectors.get(intentName);
+
+    if (!matrix || !bias) {
+      throw new Error(`Intent '${intentName}' not found.`);
+    }
+
+    const dim = this.dimension;
+    const hasRouting = routingVector ? 1 : 0;
+
+    // 4 bytes: dimension (Uint32)
+    // 1 byte: hasRouting (Uint8)
+    // dim*dim*4 bytes: matrix
+    // dim*4 bytes: bias
+    // [dim*4 bytes]: routingVector (optional)
+    const totalBytes = 8 + (dim * dim * 4) + (dim * 4) + (hasRouting ? dim * 4 : 0);
+    const buffer = new ArrayBuffer(totalBytes);
+    const dataView = new DataView(buffer);
+    const uint8View = new Uint8Array(buffer);
+
+    dataView.setUint32(0, dim, true);
+    dataView.setUint8(4, hasRouting);
+
+    let offset = 8;
+    
+    // matrix
+    uint8View.set(new Uint8Array(matrix.buffer, matrix.byteOffset, matrix.byteLength), offset);
+    offset += matrix.byteLength;
+    
+    // bias
+    uint8View.set(new Uint8Array(bias.buffer, bias.byteOffset, bias.byteLength), offset);
+    offset += bias.byteLength;
+    
+    // routingVector
+    if (routingVector) {
+      uint8View.set(new Uint8Array(routingVector.buffer, routingVector.byteOffset, routingVector.byteLength), offset);
+    }
+
+    return uint8View;
+  }
+
+  /**
+   * バイナリデータ（Uint8Array）から IntentWeights を復元し、
+   * そのままアダプターに新しい意図として追加します。
+   *
+   * @param {string} intentName - 追加する意図の名前
+   * @param {Uint8Array} binary - exportIntentBinary で生成されたバイナリデータ
+   */
+  public importIntentBinary(intentName: string, binary: Uint8Array): void {
+    if (binary.length < 8) {
+      throw new Error("Invalid binary format: too short.");
+    }
+    const dataView = new DataView(binary.buffer, binary.byteOffset, binary.byteLength);
+    const dim = dataView.getUint32(0, true);
+    const hasRouting = dataView.getUint8(4);
+
+    if (this.dimension !== undefined && dim !== this.dimension) {
+      throw new Error(`Dimension mismatch. Expected ${this.dimension}, got ${dim}.`);
+    }
+
+    const expectedBytes = 8 + (dim * dim * 4) + (dim * 4) + (hasRouting ? dim * 4 : 0);
+    if (binary.length !== expectedBytes) {
+      throw new Error(`Invalid binary length. Expected ${expectedBytes}, got ${binary.length}.`);
+    }
+
+    let offset = 8;
+    const matrix = new Float32Array(dim * dim);
+    matrix.set(new Float32Array(binary.buffer, binary.byteOffset + offset, dim * dim));
+    offset += dim * dim * 4;
+
+    const bias = new Float32Array(dim);
+    bias.set(new Float32Array(binary.buffer, binary.byteOffset + offset, dim));
+    offset += dim * 4;
+
+    let routingVector: Float32Array | undefined = undefined;
+    if (hasRouting) {
+      routingVector = new Float32Array(dim);
+      routingVector.set(new Float32Array(binary.buffer, binary.byteOffset + offset, dim));
+    }
+
+    this.matrices.set(intentName, matrix);
+    this.biases.set(intentName, bias);
+    if (routingVector) {
+      this.routingVectors.set(intentName, routingVector);
+    }
   }
 }
