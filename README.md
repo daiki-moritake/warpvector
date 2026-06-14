@@ -131,6 +131,35 @@ const projector = new ProjectionAdapter(1536, 512, { "v1_to_v2": projectionWeigh
 const reducedVector = projector.project(highDimVector, "v1_to_v2"); // 1536 -> 512
 ```
 
+### 5. LangChain / LlamaIndex との統合 (Integrations)
+
+`warpvector` は、LangChain などの既存のエコシステムに「たった数行」で組み込むことができます。
+`WarpEmbeddings` クラスを使用することで、クエリ検索時のみベクトル空間を動的にワープさせ、Pinecone や Qdrant などのあらゆる VectorStore にそのまま渡すことができます。
+
+```typescript
+import { OpenAIEmbeddings } from "@langchain/openai";
+import { IntentAdapter } from "warpvector";
+import { WarpEmbeddings } from "warpvector/integrations/langchain";
+
+// 1. 通常の Embeddings と IntentAdapter を初期化
+const baseEmbeddings = new OpenAIEmbeddings();
+const adapter = new IntentAdapter(myIntents);
+
+// 2. ラップする！
+const warpEmbeddings = new WarpEmbeddings({
+  baseEmbeddings,
+  adapter,
+  intentName: "riskAnalysis" // 動的に変更可能
+});
+
+// 3. あとは通常の LangChain のワークフローに渡すだけ
+const vectorStore = new MemoryVectorStore(warpEmbeddings);
+
+// 実行時に意図を切り替える場合
+warpEmbeddings.setIntent("economicImpact");
+const results = await vectorStore.similaritySearch("Market crash", 5);
+```
+
 ---
 
 ## 📐 数学的背景：動的アフィン変換と非線形性
