@@ -88,8 +88,10 @@ describe("IntentTrainer", () => {
     // 1回のオンラインアップデート (強めの学習率で変化を確認)
     const updatedWeights1 = await trainer.updateOnline(
       initialWeights,
-      inputVector,
-      targetVector,
+      {
+        input: inputVector,
+        target: targetVector,
+      },
       {
         learningRate: 0.5,
         regularization: 0.0,
@@ -109,8 +111,10 @@ describe("IntentTrainer", () => {
     for (let i = 0; i < 5; i++) {
       currentWeights = await trainer.updateOnline(
         currentWeights,
-        inputVector,
-        targetVector,
+        {
+          input: inputVector,
+          target: targetVector,
+        },
         {
           learningRate: 0.5,
           regularization: 0.0,

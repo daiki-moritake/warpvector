@@ -33,9 +33,11 @@ describe("InfoNCETrainer", () => {
     for (let epoch = 0; epoch < 100; epoch++) {
       currentWeights = await trainer.updateOnline(
         currentWeights,
-        anchor,
-        positive,
-        negatives,
+        {
+          anchor,
+          positive,
+          negatives,
+        },
         {
           learningRate: 0.05,
           temperature: 0.1,
@@ -66,9 +68,11 @@ describe("InfoNCETrainer", () => {
           matrix: [[1,0,0],[0,1,0],[0,0,1]],
           bias: [0,0,0]
         },
-        [1, 0], // 次元が違う
-        [0, 1, 0],
-        [[0, 0, 1]]
+        {
+          anchor: [1, 0], // 次元が違う
+          positive: [0, 1, 0],
+          negatives: [[0, 0, 1]]
+        }
       )
     ).rejects.toThrow();
 
@@ -78,9 +82,11 @@ describe("InfoNCETrainer", () => {
           matrix: [[1,0,0],[0,1,0],[0,0,1]],
           bias: [0,0,0]
         },
-        [1, 0, 0],
-        [0, 1, 0],
-        [[0, 0, 1], [1, 0]] // negativesの中に次元が違うものが混ざっている
+        {
+          anchor: [1, 0, 0],
+          positive: [0, 1, 0],
+          negatives: [[0, 0, 1], [1, 0]] // negativesの中に次元が違うものが混ざっている
+        }
       )
     ).rejects.toThrow();
   });

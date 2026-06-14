@@ -81,42 +81,46 @@ export class IntentTrainer extends BaseTrainer<TrainingExample, IntentWeights> {
    * ユーザーのクリックなどの 1 回のフィードバックからリアルタイムに重みを微調整します。
    *
    * @param {IntentWeights} currentWeights - 現在の重み
-   * @param {number[] | Float32Array} input - 検索されたクエリベクトル
-   * @param {number[] | Float32Array} target - クリックされた(理想の)ドキュメントのベクトル
+   * @param {TrainingExample} example - アンカー、正解を含む学習データ
    * @param {IntentOnlineOptions} [options={}] - 学習オプション
    * @returns {IntentWeights} 微調整された新しい重み
    */
   public async updateOnline(
     currentWeights: IntentWeights,
-    input: number[] | Float32Array,
-    target: number[] | Float32Array,
+    example: TrainingExample,
     options: IntentOnlineOptions = {}
   ): Promise<IntentWeights> {
     const learningRate = options.learningRate ?? 0.01;
     const regularization = options.regularization ?? 0.001;
     await initWasm();
 
-    assertDimension(input, this.dimension, "IntentTrainer.addExample input");
-    assertDimension(target, this.dimension, "IntentTrainer.addExample target");
+    assertDimension(example.input, this.dimension, "IntentTrainer.addExample input");
+    assertDimension(example.target, this.dimension, "IntentTrainer.addExample target");
 
     const dim = this.dimension;
     const { flatMatrix, bias } = getFlatMatrixAndBias(currentWeights, dim, "updateOnline Matrix");
 
     // 1. Forward pass (アフィン変換のみ。活性化関数は適用前)
     const warpedInput = new Float32Array(dim);
-    applyAffine(flatMatrix, bias, input, warpedInput, dim);
+    applyAffine(flatMatrix, bias, example.input, warpedInput, dim);
+
+    // 誤差の計算 (dL/dY = Y - T)
+    const outputGradients = new Float32Array(dim);
+    for (let i = 0; i < dim; i++) {
+      outputGradients[i] = warpedInput[i] - example.target[i];
+    }
 
     // オンライン更新では内部の Adam ステートを使用する
     this.t++;
-    this.adamStep(
+    this.applyAdamToAffine(
       flatMatrix,
       bias,
       this.mW,
       this.vW,
       this.mb,
       this.vb,
-      input,
-      target,
+      example.input,
+      outputGradients,
       learningRate,
       regularization,
       this.t

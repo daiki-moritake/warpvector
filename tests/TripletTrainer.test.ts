@@ -36,9 +36,11 @@ describe("TripletTrainer", () => {
     for (let epoch = 0; epoch < 100; epoch++) {
       currentWeights = await trainer.updateOnline(
         currentWeights,
-        anchor,
-        positive,
-        negative,
+        {
+          anchor,
+          positive,
+          negative,
+        },
         {
           learningRate: 0.01,
           margin: 0.2,
@@ -72,9 +74,11 @@ describe("TripletTrainer", () => {
           matrix: [[1,0,0],[0,1,0],[0,0,1]],
           bias: [0,0,0]
         },
-        [1, 0], // 次元が違う
-        [0, 1, 0],
-        [0, 0, 1]
+        {
+          anchor: [1, 0], // 次元が違う
+          positive: [0, 1, 0],
+          negative: [0, 0, 1]
+        }
       )
     ).rejects.toThrow();
   });

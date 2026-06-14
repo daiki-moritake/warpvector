@@ -62,37 +62,32 @@ export class TripletTrainer extends AbstractAdamTrainer {
    * 1つのトリプレットデータからリアルタイムに重みを微調整します。
    *
    * @param {IntentWeights} currentWeights - 現在の重み
-   * @param {number[] | Float32Array} anchor - 検索されたクエリベクトル
-   * @param {number[] | Float32Array} positive - 正解（近づけたい）ベクトル
-   * @param {number[] | Float32Array} negative - 不正解（遠ざけたい）ベクトル
+   * @param {TripletExample} example - アンカー、正解、不正解を含むトリプレットデータ
    * @param {TripletOnlineOptions} [options={}] - 学習オプション
    * @returns {Promise<IntentWeights>} 微調整された新しい重み
    */
   public async updateOnline(
     currentWeights: IntentWeights,
-    anchor: number[] | Float32Array,
-    positive: number[] | Float32Array,
-    negative: number[] | Float32Array,
+    example: TripletExample,
     options: TripletOnlineOptions = {}
   ): Promise<IntentWeights> {
     const learningRate = options.learningRate ?? 0.01;
     const margin = options.margin ?? 0.1;
     const regularization = options.regularization ?? 0.001;
-    assertDimension(anchor, this.dimension, "TripletTrainer.train anchor");
-    assertDimension(positive, this.dimension, "TripletTrainer.train positive");
-    assertDimension(negative, this.dimension, "TripletTrainer.train negative");
+    assertDimension(example.anchor, this.dimension, "TripletTrainer.train anchor");
+    assertDimension(example.positive, this.dimension, "TripletTrainer.train positive");
+    assertDimension(example.negative, this.dimension, "TripletTrainer.train negative");
 
     const dim = this.dimension;
     const { flatMatrix, bias } = getFlatMatrixAndBias(currentWeights, dim, "updateOnline Matrix");
 
     // 1. Forward Pass: アンカーベクトルを現在のアフィン変換でワープさせる A' = W * A + b
     const warpedAnchor = new Float32Array(dim);
-    applyAffine(flatMatrix, bias, anchor, warpedAnchor, dim);
+    applyAffine(flatMatrix, bias, example.anchor, warpedAnchor, dim);
 
-    // 2. Compute Loss: L = max(0, margin + (A' * N) - (A' * P))
-    // ※内積が大きいほど「近い（類似度が高い）」とみなします。
-    const posScore = innerProduct(warpedAnchor, positive);
-    const negScore = innerProduct(warpedAnchor, negative);
+    // 2. マージンロスの計算
+    const posScore = innerProduct(warpedAnchor, example.positive);
+    const negScore = innerProduct(warpedAnchor, example.negative);
 
     const loss = margin + negScore - posScore;
 
@@ -100,13 +95,15 @@ export class TripletTrainer extends AbstractAdamTrainer {
     if (loss > 0) {
       this.t += 1;
 
+      // 誤差逆伝播 (dL/dA')
       const outputGradients = new Float32Array(dim);
       for (let i = 0; i < dim; i++) {
-        outputGradients[i] = negative[i] - positive[i];
+        // dL/dA'_i = N_i - P_i
+        outputGradients[i] = example.negative[i] - example.positive[i];
       }
 
       this.applyAdamToAffine(
-        flatMatrix, bias, this.mW, this.vW, this.mb, this.vb, anchor, outputGradients, learningRate, regularization, this.t
+        flatMatrix, bias, this.mW, this.vW, this.mb, this.vb, example.anchor, outputGradients, learningRate, regularization, this.t
       );
     }
 

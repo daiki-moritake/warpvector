@@ -60,17 +60,13 @@ export class InfoNCETrainer extends AbstractAdamTrainer {
    * 1つのクエリ(Anchor)、1つのクリック(Positive)、複数のスルー(Negatives)から重みを微調整します。
    *
    * @param {IntentWeights} currentWeights - 現在の重み
-   * @param {number[] | Float32Array} anchor - 検索されたクエリベクトル
-   * @param {number[] | Float32Array} positive - 正解（近づけたい）ベクトル
-   * @param {(number[] | Float32Array)[]} negatives - 不正解（遠ざけたい）ベクトルの配列
+   * @param {InfoNCEExample} example - アンカー、正解、複数の不正解を含むデータ
    * @param {InfoNCEOnlineOptions} [options={}] - 学習オプション
    * @returns {Promise<IntentWeights>} 微調整された新しい重み
    */
   public async updateOnline(
     currentWeights: IntentWeights,
-    anchor: number[] | Float32Array,
-    positive: number[] | Float32Array,
-    negatives: (number[] | Float32Array)[],
+    example: InfoNCEExample,
     options: InfoNCEOnlineOptions = {}
   ): Promise<IntentWeights> {
     const learningRate = options.learningRate ?? 0.01;
@@ -78,46 +74,49 @@ export class InfoNCETrainer extends AbstractAdamTrainer {
     const regularization = options.regularization ?? 0.001;
     const dim = this.dimension;
 
-    assertDimension(anchor, dim, "InfoNCETrainer.train anchor");
-    assertDimension(positive, dim, "InfoNCETrainer.train positive");
-    for (let i = 0; i < negatives.length; i++) {
-      assertDimension(negatives[i], dim, `InfoNCETrainer.train negative[${i}]`);
+    assertDimension(example.anchor, dim, "InfoNCETrainer.train anchor");
+    assertDimension(example.positive, dim, "InfoNCETrainer.train positive");
+    if (example.negatives.length === 0) {
+      throw new Error("InfoNCETrainer requires at least one negative example.");
+    }
+    for (const neg of example.negatives) {
+      assertDimension(neg, dim, "InfoNCETrainer.train negative");
     }
 
     const { flatMatrix, bias } = getFlatMatrixAndBias(currentWeights, dim, "updateOnline Matrix");
 
     // 1. Forward Pass: アンカーベクトルを現在のアフィン変換でワープさせる A' = W * A + b
     const warpedAnchor = new Float32Array(dim);
-    applyAffine(flatMatrix, bias, anchor, warpedAnchor, dim);
+    applyAffine(flatMatrix, bias, example.anchor, warpedAnchor, dim);
 
     // 2. スコア計算: s(A', X) = A' \cdot X
-    const posScore = innerProduct(warpedAnchor, positive);
+    const posScore = innerProduct(warpedAnchor, example.positive);
 
-    const negScores = new Float32Array(negatives.length);
-    for (let n = 0; n < negatives.length; n++) {
-      negScores[n] = innerProduct(warpedAnchor, negatives[n]);
+    const negScores = new Float32Array(example.negatives.length);
+    for (let n = 0; n < example.negatives.length; n++) {
+      negScores[n] = innerProduct(warpedAnchor, example.negatives[n]);
     }
 
     // 3. Softmax 確率の計算 (数値的安定性のために max を引く)
     let maxScore = posScore / temperature;
-    for (let n = 0; n < negatives.length; n++) {
+    for (let n = 0; n < example.negatives.length; n++) {
       const s = negScores[n] / temperature;
       if (s > maxScore) maxScore = s;
     }
 
     const expPos = Math.exp(posScore / temperature - maxScore);
-    const expNegs = new Float32Array(negatives.length);
+    const expNegs = new Float32Array(example.negatives.length);
     let sumExp = expPos;
 
-    for (let n = 0; n < negatives.length; n++) {
+    for (let n = 0; n < example.negatives.length; n++) {
       const expN = Math.exp(negScores[n] / temperature - maxScore);
       expNegs[n] = expN;
       sumExp += expN;
     }
 
     const pPos = expPos / sumExp; // 正解の予測確率
-    const pNegs = new Float32Array(negatives.length);
-    for (let n = 0; n < negatives.length; n++) {
+    const pNegs = new Float32Array(example.negatives.length);
+    for (let n = 0; n < example.negatives.length; n++) {
       pNegs[n] = expNegs[n] / sumExp; // 各不正解の予測確率
     }
 
@@ -126,15 +125,15 @@ export class InfoNCETrainer extends AbstractAdamTrainer {
     // dL/dA'_i = (1 / tau) * [ (pPos - 1) * P_i + sum_k (pNegs_k * N_ki) ]
     const outputGradients = new Float32Array(dim);
     for (let i = 0; i < dim; i++) {
-      let gradA_i = (pPos - 1.0) * positive[i];
-      for (let n = 0; n < negatives.length; n++) {
-        gradA_i += pNegs[n] * negatives[n][i];
+      let gradA_i = (pPos - 1.0) * example.positive[i];
+      for (let n = 0; n < example.negatives.length; n++) {
+        gradA_i += pNegs[n] * example.negatives[n][i];
       }
       outputGradients[i] = gradA_i / temperature;
     }
 
     this.applyAdamToAffine(
-      flatMatrix, bias, this.mW, this.vW, this.mb, this.vb, anchor, outputGradients, learningRate, regularization, this.t
+      flatMatrix, bias, this.mW, this.vW, this.mb, this.vb, example.anchor, outputGradients, learningRate, regularization, this.t
     );
 
     const newWeights = this.toWeights(flatMatrix, bias);
