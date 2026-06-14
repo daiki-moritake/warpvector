@@ -587,4 +587,40 @@ export class IntentAdapter implements WarpAdapter {
       this.routingVectors.set(intentName, routingVector);
     }
   }
+
+  /**
+   * 現在の IntentAdapter の全状態（全インテント）を JSON としてシリアライズしてエクスポートします。
+   * (WarpPipeline 等の統合管理用)
+   */
+  public exportState(): string {
+    const intents: Record<string, { matrix: number[], bias: number[], routingVector?: number[] }> = {};
+    for (const [name, matrix] of this.matrices.entries()) {
+      const bias = this.biases.get(name)!;
+      const routing = this.routingVectors.get(name);
+      intents[name] = {
+        matrix: Array.from(matrix),
+        bias: Array.from(bias),
+        routingVector: routing ? Array.from(routing) : undefined,
+      };
+    }
+    return JSON.stringify({ dimension: this.dimension, intents });
+  }
+
+  /**
+   * エクスポートされた JSON 状態から IntentAdapter を復元します。
+   */
+  public static importState(stateJson: string): IntentAdapter {
+    const data = JSON.parse(stateJson);
+    const adapter = new IntentAdapter(data.dimension);
+    for (const [name, intent] of Object.entries(data.intents) as any) {
+      // 内部表現(1D Array)として復元するか、addIntent で再計算させるか。
+      // パフォーマンスと汎用性の観点から、addIntentを利用する（matrixはflatなFloat32Arrayとして渡す）
+      adapter.addIntent(name, {
+        matrix: new Float32Array(intent.matrix),
+        bias: new Float32Array(intent.bias),
+        routingVector: intent.routingVector ? new Float32Array(intent.routingVector) : undefined,
+      });
+    }
+    return adapter;
+  }
 }

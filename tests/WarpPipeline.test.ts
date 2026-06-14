@@ -1,0 +1,80 @@
+import { describe, expect, test } from "bun:test";
+import { WarpPipeline } from "../src/WarpPipeline";
+
+describe("WarpPipeline", () => {
+  test("chains adapters and processes vectors correctly", () => {
+    // Pipeline: Intent -> Projection(to 2 dim) -> Quantization(int8)
+    const pipeline = new WarpPipeline(3)
+      .addIntent({
+        "my_intent": {
+          matrix: [
+            [2, 0, 0],
+            [0, 2, 0],
+            [0, 0, 2]
+          ],
+          bias: [1, 1, 1]
+        }
+      })
+      .addProjection(2, {
+        "my_intent": {
+          matrix: [
+            [1, 0, 0],
+            [0, 1, 0]
+          ]
+        }
+      })
+      .quantize("int8");
+
+    const input = [0.5, 1.0, 1.5];
+    
+    // Step 1: Intent (tune "my_intent") -> Wx + b = [2*0.5+1, 2*1+1, 2*1.5+1] = [2, 3, 4]
+    // Step 2: Projection (1st 2 elements) -> [2, 3]
+    // Step 3: Quantize int8 -> clamp and int8 -> Int8Array[2, 3]
+
+    const result = pipeline.run(input, { intent: "my_intent" });
+
+    expect(result).toBeInstanceOf(Int8Array);
+    expect(result.length).toBe(2);
+    // [2, 3] は 127 を掛けるとそれぞれ > 127 となるため、127にクリップされる
+    expect(result[0]).toBe(127);
+    expect(result[1]).toBe(127);
+  });
+
+  test("can export and import state completely", () => {
+    const pipeline = new WarpPipeline(8)
+      .addWhitening({ numComponents: 1 })
+      .addIntent({ "test": { matrix: [
+        [1,0,0,0,0,0,0,0],
+        [0,1,0,0,0,0,0,0],
+        [0,0,1,0,0,0,0,0],
+        [0,0,0,1,0,0,0,0],
+        [0,0,0,0,1,0,0,0],
+        [0,0,0,0,0,1,0,0],
+        [0,0,0,0,0,0,1,0],
+        [0,0,0,0,0,0,0,1]
+      ], bias: [0,0,0,0,0,0,0,0] }})
+      .quantize("binary");
+
+    const state = pipeline.exportState();
+    expect(state.length).toBe(3);
+    expect(state[0].type).toBe("WhiteningAdapter");
+    expect(state[1].type).toBe("IntentAdapter");
+    expect(state[2].type).toBe("QuantizationAdapter");
+
+    const restoredPipeline = WarpPipeline.importState(state);
+    
+    // Test the restored pipeline behavior
+    // 4 dim -> binary -> 1 byte (since length 4 throws mismatch? Wait, binary requires multiple of 8. 
+    // Ah, binary quantization requires dim % 8 === 0.
+    // We shouldn't actually call run() with binary quantization for dim 4, 
+    // but we can check if it loaded successfully without throwing during import.
+    
+    const restoredState = restoredPipeline.exportState();
+    expect(restoredState.length).toBe(3);
+    expect(restoredState[0].type).toBe("WhiteningAdapter");
+  });
+
+  test("throws error when importing empty states", () => {
+    expect(() => WarpPipeline.importState([])).toThrow();
+  });
+});

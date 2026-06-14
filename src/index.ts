@@ -21,3 +21,4 @@ export * from "./db";
 export * from "./utils";
 export * from "./VsaAdapter";
 export * from "./TaskArithmetic";
+export * from "./WarpPipeline";

@@ -36,7 +36,29 @@
 
 ---
 
-## 📚 詳細ドキュメント (Documentation)
+## 基本的な使い方 (WarpPipeline)
+
+新しく導入された `WarpPipeline` を使うと、複雑なベクトル変換（空間偏りの除去、インテント変換、次元圧縮、量子化）を数行のチェーンメソッドで直感的に記述できます。
+
+```typescript
+import { WarpPipeline } from 'warpvector';
+
+// 1. パイプラインの構築
+const pipeline = new WarpPipeline(1536)
+  .addWhitening({ numComponents: 1 })         // 空間の偏りを除去
+  .addIntent({ "domain_x": intentWeights })   // ユーザーごとに空間を歪める
+  .addProjection(256, projectionWeights)      // 次元を256に圧縮
+  .quantize("int8");                          // 最後に Int8 に量子化
+
+// 2. ベクトルの変換 (1回の呼び出しで全ステップを適用)
+const finalVector = pipeline.run(rawVector, { intent: "domain_x" });
+
+// 3. パイプライン丸ごとの永続化と復元
+const stateJson = pipeline.exportState(); 
+const restoredPipeline = WarpPipeline.importState(stateJson);
+```
+
+## 各機能のドキュメント (Documentation)
 
 各機能のより詳細な仕組み、コードスニペット、ユースケースについては以下の個別ドキュメントをご参照ください。
 

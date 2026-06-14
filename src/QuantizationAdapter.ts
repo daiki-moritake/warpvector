@@ -96,4 +96,13 @@ export class QuantizationAdapter implements WarpAdapter {
     }
     return dot;
   }
+
+  public exportState(): string {
+    return JSON.stringify({ type: this.type, dim: this.dim });
+  }
+
+  public static importState(stateJson: string): QuantizationAdapter {
+    const config = JSON.parse(stateJson);
+    return new QuantizationAdapter(config);
+  }
 }

@@ -161,4 +161,35 @@ export class LoraIntentAdapter implements WarpAdapter {
 
     return result;
   }
+
+  /**
+   * 現在の LoraIntentAdapter の全状態を JSON としてエクスポートします。
+   */
+  public exportState(): string {
+    const intents: Record<string, { matrixA: number[], matrixB: number[], bias: number[] }> = {};
+    for (const [name, flatA] of this.matricesA.entries()) {
+      const flatB = this.matricesB.get(name)!;
+      const bias = this.biases.get(name)!;
+      intents[name] = {
+        matrixA: Array.from(flatA), // export as flattened for simplicity during import
+        matrixB: Array.from(flatB),
+        bias: Array.from(bias)
+      };
+    }
+    return JSON.stringify({ dimension: this.dimension, rank: this.rank, intents });
+  }
+
+  /**
+   * エクスポートされた JSON 状態から LoraIntentAdapter を復元します。
+   */
+  public static importState(stateJson: string): LoraIntentAdapter {
+    const data = JSON.parse(stateJson);
+    const adapter = new LoraIntentAdapter(data.dimension, data.rank);
+    for (const [name, intent] of Object.entries(data.intents) as any) {
+      adapter.matricesA.set(name, new Float32Array(intent.matrixA));
+      adapter.matricesB.set(name, new Float32Array(intent.matrixB));
+      adapter.biases.set(name, new Float32Array(intent.bias));
+    }
+    return adapter;
+  }
 }
