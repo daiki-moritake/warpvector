@@ -4,7 +4,7 @@ import {
   getWasmMemory,
   ensureWasmMemory,
 } from "./wasm/wasm-loader";
-import { assertDimension } from "./utils";
+import { assertDimension, applyAffine } from "./utils";
 
 /**
  * 基本的な学習オプションを定義するインターフェース。
@@ -211,12 +211,8 @@ export abstract class BaseTrainer<TExample, TResult> extends AbstractAdamTrainer
       for (const example of this.examples) {
         const { source, target } = this.getInputs(example);
         const pred = new Float32Array(tDim);
+        applyAffine(flatMatrix, bias, source, pred, sDim, tDim);
         for (let i = 0; i < tDim; i++) {
-          let sum = 0;
-          for (let j = 0; j < sDim; j++) {
-            sum += flatMatrix[i * sDim + j] * source[j];
-          }
-          pred[i] = sum + bias[i];
           const diff = pred[i] - target[i];
           currentLoss += diff * diff;
         }
@@ -256,15 +252,7 @@ export abstract class BaseTrainer<TExample, TResult> extends AbstractAdamTrainer
     const epsilon = 1e-8;
 
     const pred = new Float32Array(tDim);
-
-    for (let i = 0; i < tDim; i++) {
-      let sum = 0;
-      const rowOffset = i * sDim;
-      for (let j = 0; j < sDim; j++) {
-        sum += matrix[rowOffset + j] * x[j];
-      }
-      pred[i] = sum + bias[i];
-    }
+    applyAffine(matrix, bias, x, pred, sDim, tDim);
 
     for (let i = 0; i < tDim; i++) {
       const error = pred[i] - y[i];

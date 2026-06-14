@@ -327,24 +327,27 @@ export function getFlatMatrixAndBias(
 
 /**
  * ベクトルに対してアフィン変換 (x' = W * x + b) を適用します。
+ * 次元削減/拡張 (M x N) にも対応しています。
  * 
- * @param matrix 1次元にフラット化された変換行列 (dim x dim)
- * @param bias バイアスベクトル (dim)
- * @param vector 変換元の入力ベクトル
- * @param result 計算結果を格納する配列 (出力先)
- * @param dim 次元数
+ * @param matrix 1次元にフラット化された変換行列 (outDim x inDim)
+ * @param bias バイアスベクトル (outDim)。省略可能
+ * @param vector 変換元の入力ベクトル (inDim)
+ * @param result 計算結果を格納する配列 (出力先, outDim)
+ * @param inDim 入力ベクトルの次元数
+ * @param outDim 出力ベクトルの次元数 (省略時は inDim と同じ)
  */
 export function applyAffine(
   matrix: Float32Array,
-  bias: Float32Array,
+  bias: Float32Array | undefined | null,
   vector: number[] | Float32Array,
   result: Float32Array,
-  dim: number,
+  inDim: number,
+  outDim: number = inDim,
 ): void {
-  for (let i = 0; i < dim; i++) {
-    let sum = bias[i];
-    const rowOffset = i * dim;
-    for (let j = 0; j < dim; j++) {
+  for (let i = 0; i < outDim; i++) {
+    let sum = bias ? bias[i] : 0;
+    const rowOffset = i * inDim;
+    for (let j = 0; j < inDim; j++) {
       sum += matrix[rowOffset + j] * vector[j];
     }
     result[i] = sum;

@@ -1,5 +1,5 @@
 import { IntentWeights } from "./IntentAdapter";
-import { assertDimension, getFlatMatrixAndBias, applyAffine } from "./utils";
+import { assertDimension, getFlatMatrixAndBias, applyAffine, innerProduct } from "./utils";
 import { AbstractAdamTrainer } from "./BaseTrainer";
 
 /**
@@ -80,14 +80,10 @@ export class TripletTrainer extends AbstractAdamTrainer {
 
     // 2. Compute Loss: L = max(0, margin + (A' * N) - (A' * P))
     // ※内積が大きいほど「近い（類似度が高い）」とみなします。
-    let posDot = 0;
-    let negDot = 0;
-    for (let i = 0; i < dim; i++) {
-      posDot += warpedAnchor[i] * positive[i];
-      negDot += warpedAnchor[i] * negative[i];
-    }
+    const posScore = innerProduct(warpedAnchor, positive);
+    const negScore = innerProduct(warpedAnchor, negative);
 
-    const loss = margin + negDot - posDot;
+    const loss = margin + negScore - posScore;
 
     // 3. Backward Pass: ロスが0より大きい（マージンを満たしていない）場合のみ重みを更新
     if (loss > 0) {

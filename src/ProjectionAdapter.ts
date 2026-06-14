@@ -1,4 +1,4 @@
-import { assertDimension, flattenMatrix } from "./utils";
+import { assertDimension, flattenMatrix, applyAffine } from "./utils";
 import { getWasmInstance, ensureWasmMemory, writeFloat32ArrayToWasm } from "./wasm/wasm-loader";
 import { WarpAdapter } from "./WarpAdapter";
 
@@ -163,14 +163,7 @@ export class ProjectionAdapter implements WarpAdapter {
     const result = new Float32Array(this.outDimension);
 
     // 行列ベクトル積: O(M * N)
-    for (let i = 0; i < this.outDimension; i++) {
-      let sum = bias ? bias[i] : 0;
-      const rowOffset = i * this.inDimension;
-      for (let j = 0; j < this.inDimension; j++) {
-        sum += matrix[rowOffset + j] * vector[j];
-      }
-      result[i] = sum;
-    }
+    applyAffine(matrix, bias, vector, result, this.inDimension, this.outDimension);
 
     return result;
   }

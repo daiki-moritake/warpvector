@@ -1,5 +1,5 @@
 import { IntentWeights } from "./IntentAdapter";
-import { assertDimension, getFlatMatrixAndBias, applyAffine } from "./utils";
+import { assertDimension, getFlatMatrixAndBias, applyAffine, innerProduct } from "./utils";
 import { AbstractAdamTrainer } from "./BaseTrainer";
 
 /**
@@ -80,18 +80,11 @@ export class InfoNCETrainer extends AbstractAdamTrainer {
     applyAffine(flatMatrix, bias, anchor, warpedAnchor, dim);
 
     // 2. スコア計算: s(A', X) = A' \cdot X
-    let posScore = 0;
-    for (let i = 0; i < dim; i++) {
-      posScore += warpedAnchor[i] * positive[i];
-    }
+    const posScore = innerProduct(warpedAnchor, positive);
 
     const negScores = new Float32Array(negatives.length);
     for (let n = 0; n < negatives.length; n++) {
-      let score = 0;
-      for (let i = 0; i < dim; i++) {
-        score += warpedAnchor[i] * negatives[n][i];
-      }
-      negScores[n] = score;
+      negScores[n] = innerProduct(warpedAnchor, negatives[n]);
     }
 
     // 3. Softmax 確率の計算 (数値的安定性のために max を引く)
