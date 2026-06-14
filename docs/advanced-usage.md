@@ -88,3 +88,52 @@ loraAdapter.addIntent("myContext", {
 const tuned = loraAdapter.tune(baseVector, "myContext");
 ```
 大規模言語モデル（LLM）のファインチューニングで使われる手法を、そのままインメモリのベクトル検索空間に応用しています。
+
+---
+
+## 5. IntentTrainer による意図行列の自動学習 (Auto-training)
+
+巨大な変換行列を手動で定義することは困難です。`IntentTrainer` を使えば、「この入力ベクトルには、この結果ベクトルを返してほしい」という少量のサンプルデータから、**最適な意図行列（IntentWeights）を自動的に学習**することができます。
+
+```typescript
+import { IntentTrainer } from 'warpvector';
+
+// 1. 次元数を指定してトレーナーを初期化
+const trainer = new IntentTrainer(1536);
+
+// 2. 学習データ（正例）を追加
+trainer.addExample({
+  input: [...],  // 検索クエリのベクトル
+  target: [...]  // 理想的なドキュメントのベクトル
+});
+
+// 3. 確率的勾配降下法(SGD)で最適な行列(W)とバイアス(b)を学習
+const learnedWeights = trainer.train({
+  learningRate: 0.05,
+  epochs: 200,
+  regularization: 0.001
+});
+
+// 4. 学習した行列をアダプターに組み込む
+adapter.addIntent("user_personalized_intent", learnedWeights);
+```
+
+### オンライン学習 (フィードバックループ)
+ユーザーが検索結果をクリックするたびに、リアルタイムで行列を微調整（学習）することも可能です。
+
+```typescript
+// ユーザーがクリックした結果のベクトル (理想のベクトル)
+const clickedVector = [...];
+
+// 現在の意図行列を1ステップだけ更新（微調整）
+const updatedWeights = trainer.updateOnline(
+  currentWeights, // 現在の IntentWeights
+  queryVector,    // 入力したクエリ
+  clickedVector,  // クリックした対象
+  0.01            // 学習率 (小さめに設定)
+);
+
+// 更新された意図を適用
+adapter.addIntent("user_personalized_intent", updatedWeights);
+```
+これにより、システムを使えば使うほど、個人の意図（コンテキスト）に寄り添って検索空間が賢くなる体験を提供できます。
