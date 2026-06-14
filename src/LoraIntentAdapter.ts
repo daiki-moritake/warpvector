@@ -1,3 +1,5 @@
+import { assertDimension, flattenMatrix } from "./utils";
+
 /**
  * 低ランク適応（LoRA）の重みを定義するインターフェース
  * @interface LoraIntentWeights
@@ -75,35 +77,20 @@ export class LoraIntentAdapter {
   public addIntent(intentName: string, weights: LoraIntentWeights): void {
     const { matrixA, matrixB, bias } = weights;
 
-    if (bias.length !== this.dimension) {
-      throw new Error(
-        `Intent '${intentName}': Bias dimension mismatch. Expected ${this.dimension}, got ${bias.length}.`,
-      );
-    }
-    if (matrixA.length !== this.dimension || matrixA[0].length !== this.rank) {
-      throw new Error(
-        `Intent '${intentName}': Matrix A must be of size ${this.dimension}x${this.rank}`,
-      );
-    }
-    if (matrixB.length !== this.rank || matrixB[0].length !== this.dimension) {
-      throw new Error(
-        `Intent '${intentName}': Matrix B must be of size ${this.rank}x${this.dimension}`,
-      );
-    }
+    assertDimension(bias, this.dimension, `Intent '${intentName}' Bias`);
 
-    const flatA = new Float32Array(this.dimension * this.rank);
-    for (let i = 0; i < this.dimension; i++) {
-      for (let j = 0; j < this.rank; j++) {
-        flatA[i * this.rank + j] = matrixA[i][j];
-      }
-    }
-
-    const flatB = new Float32Array(this.rank * this.dimension);
-    for (let i = 0; i < this.rank; i++) {
-      for (let j = 0; j < this.dimension; j++) {
-        flatB[i * this.dimension + j] = matrixB[i][j];
-      }
-    }
+    const flatA = flattenMatrix(
+      matrixA,
+      this.dimension,
+      this.rank,
+      `Intent '${intentName}' Matrix A`,
+    );
+    const flatB = flattenMatrix(
+      matrixB,
+      this.rank,
+      this.dimension,
+      `Intent '${intentName}' Matrix B`,
+    );
 
     this.matricesA.set(intentName, flatA);
     this.matricesB.set(intentName, flatB);
@@ -135,11 +122,7 @@ export class LoraIntentAdapter {
     baseVector: number[] | Float32Array,
     intent: string,
   ): Float32Array {
-    if (baseVector.length !== this.dimension) {
-      throw new Error(
-        `Vector dimension mismatch. Expected ${this.dimension}, got ${baseVector.length}.`,
-      );
-    }
+    assertDimension(baseVector, this.dimension, "Base vector");
 
     const matA = this.matricesA.get(intent);
     const matB = this.matricesB.get(intent);

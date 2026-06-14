@@ -4,7 +4,7 @@ import { ProjectionAdapter } from "../src/ProjectionAdapter";
 import { cosineSimilarity } from "../src/utils";
 
 describe("MigrationTrainer", () => {
-  test("trains a mapping from 4D to 2D", () => {
+  test("trains a mapping from 4D to 2D", async () => {
     // 古いモデル(4D) から 新しいモデル(2D) へのマイグレーションを学習する
     const trainer = new MigrationTrainer(4, 2);
 
@@ -25,7 +25,7 @@ describe("MigrationTrainer", () => {
       target: [-0.5, -0.5],
     });
 
-    const learnedWeights = trainer.train({
+    const learnedWeights = await trainer.train({
       learningRate: 0.1,
       epochs: 300,
       regularization: 0.001,
@@ -43,7 +43,7 @@ describe("MigrationTrainer", () => {
     expect(cosineSimilarity(res2, [-0.5, 0.5])).toBeGreaterThan(0.95);
   });
 
-  test("trains a mapping from 2D to 3D (Expansion)", () => {
+  test("trains a mapping from 2D to 3D (Expansion)", async () => {
     // 逆のパターン: 次元拡張
     const trainer = new MigrationTrainer(2, 3);
 
@@ -56,7 +56,7 @@ describe("MigrationTrainer", () => {
       target: [0.0, 0.5, 0.5],
     });
 
-    const learnedWeights = trainer.train({
+    const learnedWeights = await trainer.train({
       learningRate: 0.1,
       epochs: 300,
     });

@@ -4,7 +4,7 @@ import { IntentAdapter } from "../src/IntentAdapter";
 import { cosineSimilarity } from "../src/utils";
 
 describe("IntentTrainer", () => {
-  test("trains W and b to map input to target (batch training)", () => {
+  test("trains W and b to map input to target (batch training)", async () => {
     const dimension = 3;
     const trainer = new IntentTrainer(dimension);
 
@@ -24,7 +24,7 @@ describe("IntentTrainer", () => {
     });
 
     // 十分なエポック数で学習 (少し高めの学習率で早く収束させる)
-    const learnedWeights = trainer.train({
+    const learnedWeights = await trainer.train({
       learningRate: 0.05,
       epochs: 300,
       regularization: 0.001,
@@ -45,7 +45,31 @@ describe("IntentTrainer", () => {
     expect(sim2).toBeGreaterThan(0.99);
   });
 
-  test("updateOnline adapts weights iteratively", () => {
+  test("trains W and b with autoTune enabled", async () => {
+    const dimension = 3;
+    const trainer = new IntentTrainer(dimension);
+
+    trainer.addExample({
+      input: [1.0, 0.0, 0.0],
+      target: [0.5, 0.5, 0.5],
+    });
+    trainer.addExample({
+      input: [0.0, 1.0, 0.0],
+      target: [0.1, 0.9, 0.1],
+    });
+
+    const learnedWeights = await trainer.train({
+      epochs: 300,
+      autoTune: true, // 自動チューニングを有効化
+    });
+
+    const adapter = new IntentAdapter({ learnedIntent: learnedWeights });
+    const result1 = adapter.tune([1.0, 0.0, 0.0], "learnedIntent");
+    const sim1 = cosineSimilarity(result1, [0.5, 0.5, 0.5]);
+    expect(sim1).toBeGreaterThan(0.9); // チューニングにより正しく学習されること
+  });
+
+  test("updateOnline adapts weights iteratively", async () => {
     const dimension = 2;
     const trainer = new IntentTrainer(dimension);
 
@@ -62,7 +86,7 @@ describe("IntentTrainer", () => {
     const targetVector = [0.0, 1.0]; // ユーザーがクリックした（求めていた）理想のベクトル
 
     // 1回のオンラインアップデート (強めの学習率で変化を確認)
-    const updatedWeights1 = trainer.updateOnline(
+    const updatedWeights1 = await trainer.updateOnline(
       initialWeights,
       inputVector,
       targetVector,
@@ -81,7 +105,7 @@ describe("IntentTrainer", () => {
     // さらに何回かアップデートすると、どんどん近づいていく
     let currentWeights = updatedWeights1;
     for (let i = 0; i < 5; i++) {
-      currentWeights = trainer.updateOnline(
+      currentWeights = await trainer.updateOnline(
         currentWeights,
         inputVector,
         targetVector,

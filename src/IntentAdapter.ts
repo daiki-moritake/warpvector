@@ -3,8 +3,15 @@ import {
   applyActivationToVector,
   softmax,
   cosineSimilarity,
+  flattenMatrix,
+  assertDimension,
 } from "./utils";
-import { wasmBase64 } from "./wasm/wasm-binary";
+import {
+  initWasm,
+  getWasmInstance,
+  getWasmMemory,
+  ensureWasmMemory,
+} from "./wasm/wasm-loader";
 
 /**
  * 意図（コンテキスト）ごとの変換情報を定義するインターフェース
@@ -29,44 +36,6 @@ export interface IntentWeights {
    * @type {number[] | Float32Array | undefined}
    */
   routingVector?: number[] | Float32Array;
-}
-
-/**
- * WASMモジュールのシングルトンインスタンス
- * @type {WebAssembly.Instance | null}
- */
-let wasmInstance: WebAssembly.Instance | null = null;
-
-/**
- * WASMとJSで共有されるメモリ
- * @type {WebAssembly.Memory | null}
- */
-let wasmMemory: WebAssembly.Memory | null = null;
-
-/**
- * WASMモジュールを初期化し、インスタンスを取得するヘルパー関数
- * 初期化に失敗した場合はnullを返し、自動的に純粋なJS実行にフォールバックします
- *
- * @returns {WebAssembly.Instance | null} 初期化済みのWASMインスタンス、またはエラー時はnull
- */
-function getWasmInstance(): WebAssembly.Instance | null {
-  if (wasmInstance) return wasmInstance;
-  try {
-    // Base64エンコードされたWASMバイナリをデコード
-    const bytes = Uint8Array.from(atob(wasmBase64), (c) => c.charCodeAt(0));
-    const module = new WebAssembly.Module(bytes);
-    // モジュールのインスタンス化 (同期実行可能なくらい小さなWASMであることを前提)
-    wasmInstance = new WebAssembly.Instance(module);
-    // WASM側でエクスポートされたメモリ領域への参照を取得
-    wasmMemory = wasmInstance.exports.memory as WebAssembly.Memory;
-    return wasmInstance;
-  } catch (e) {
-    console.warn(
-      "Failed to initialize WASM module, falling back to JS implementation.",
-      e,
-    );
-    return null;
-  }
 }
 
 /**
@@ -124,37 +93,23 @@ export class IntentAdapter {
     const { matrix, bias, routingVector } = weights;
 
     // 次元数の整合性チェック
-    if (bias.length !== this.dimension) {
-      throw new Error(
-        `Intent '${intentName}': Bias dimension mismatch. Expected ${this.dimension}, got ${bias.length}.`,
-      );
-    }
+    assertDimension(bias, this.dimension, `Intent '${intentName}' Bias`);
 
     let flatMatrix: Float32Array;
     if (matrix instanceof Float32Array) {
-      if (matrix.length !== this.dimension * this.dimension) {
-        throw new Error(
-          `Intent '${intentName}': Flat matrix dimension mismatch. Expected ${this.dimension * this.dimension}, got ${matrix.length}.`,
-        );
-      }
+      assertDimension(
+        matrix,
+        this.dimension * this.dimension,
+        `Intent '${intentName}' Flat matrix`,
+      );
       flatMatrix = new Float32Array(matrix);
     } else {
-      if (matrix.length !== this.dimension) {
-        throw new Error(
-          `Intent '${intentName}': Matrix row dimension mismatch. Expected ${this.dimension}, got ${matrix.length}.`,
-        );
-      }
-      flatMatrix = new Float32Array(this.dimension * this.dimension);
-      for (let i = 0; i < this.dimension; i++) {
-        if (matrix[i].length !== this.dimension) {
-          throw new Error(
-            `Intent '${intentName}': Matrix column dimension mismatch at row ${i}. Expected ${this.dimension}, got ${matrix[i].length}.`,
-          );
-        }
-        for (let j = 0; j < this.dimension; j++) {
-          flatMatrix[i * this.dimension + j] = matrix[i][j];
-        }
-      }
+      flatMatrix = flattenMatrix(
+        matrix,
+        this.dimension,
+        this.dimension,
+        `Intent '${intentName}' Matrix`,
+      );
     }
 
     this.matrices.set(intentName, flatMatrix);
@@ -162,11 +117,11 @@ export class IntentAdapter {
 
     // オプションのルーティングベクトルが提供されていれば保存
     if (routingVector) {
-      if (routingVector.length !== this.dimension) {
-        throw new Error(
-          `Intent '${intentName}': Routing vector dimension mismatch. Expected ${this.dimension}, got ${routingVector.length}.`,
-        );
-      }
+      assertDimension(
+        routingVector,
+        this.dimension,
+        `Intent '${intentName}' Routing vector`,
+      );
       this.routingVectors.set(intentName, new Float32Array(routingVector));
     }
   }
@@ -260,11 +215,7 @@ export class IntentAdapter {
     intent: string,
     activation?: Activation,
   ): Float32Array {
-    if (baseVector.length !== this.dimension) {
-      throw new Error(
-        `Vector dimension mismatch. Expected ${this.dimension}, got ${baseVector.length}.`,
-      );
-    }
+    assertDimension(baseVector, this.dimension, "Base vector");
 
     const matrix = this.matrices.get(intent);
     const bias = this.biases.get(intent);
@@ -310,80 +261,62 @@ export class IntentAdapter {
         batchSize * this.dimension * 2) *
       4;
 
-    // WASMモジュールが利用可能で、共有メモリにアクセスできる場合
-    if (instance && wasmMemory) {
-      // 必要な場合はメモリサイズを拡張(1ページ = 64KB)
-      if (requiredBytes > wasmMemory.buffer.byteLength) {
-        const currentPages = wasmMemory.buffer.byteLength / 65536;
-        const requiredPages = Math.ceil(requiredBytes / 65536);
-        try {
-          wasmMemory.grow(requiredPages - currentPages);
-        } catch (e) {
-          // メモリ拡張に失敗した場合はエラーを握りつぶして後続のJSフォールバックに任せる
-        }
+    // WASMモジュールが利用可能で、共有メモリにアクセス・拡張できる場合
+    if (instance && ensureWasmMemory(requiredBytes)) {
+      const wasmMem = getWasmMemory()!;
+      const f32Mem = new Float32Array(wasmMem.buffer);
+      let ptr = 0;
+
+      // メモリ空間に変換行列をコピー
+      const matrixPtr = ptr;
+      f32Mem.set(matrix, ptr);
+      ptr += this.dimension * this.dimension;
+
+      // メモリ空間にバイアスをコピー
+      const biasPtr = ptr;
+      f32Mem.set(bias, ptr);
+      ptr += this.dimension;
+
+      // メモリ空間に入力ベクトルのバッチを連続してコピー
+      const vectorsPtr = ptr;
+      for (let k = 0; k < batchSize; k++) {
+        f32Mem.set(baseVectors[k], ptr + k * this.dimension);
       }
+      ptr += batchSize * this.dimension;
 
-      // WASMのメモリ容量が十分であればWASMで処理を実行
-      if (requiredBytes <= wasmMemory.buffer.byteLength) {
-        const f32Mem = new Float32Array(wasmMemory.buffer);
-        let ptr = 0;
+      // 出力結果を書き込むためのメモリポインタ
+      const resultsPtr = ptr;
 
-        // メモリ空間に変換行列をコピー
-        const matrixPtr = ptr;
-        f32Mem.set(matrix, ptr);
-        ptr += this.dimension * this.dimension;
+      // AssemblyScriptのコア関数を呼び出し
+      const tuneBatchWasm = instance.exports.tuneBatchWasm as CallableFunction;
+      // バイト単位のポインタ（Float32のインデックス * 4）を渡す
+      tuneBatchWasm(
+        matrixPtr * 4,
+        biasPtr * 4,
+        vectorsPtr * 4,
+        resultsPtr * 4,
+        this.dimension,
+        batchSize,
+      );
 
-        // メモリ空間にバイアスをコピー
-        const biasPtr = ptr;
-        f32Mem.set(bias, ptr);
-        ptr += this.dimension;
-
-        // メモリ空間に入力ベクトルのバッチを連続してコピー
-        const vectorsPtr = ptr;
-        for (let k = 0; k < batchSize; k++) {
-          f32Mem.set(baseVectors[k], ptr + k * this.dimension);
-        }
-        ptr += batchSize * this.dimension;
-
-        // 出力結果を書き込むためのメモリポインタ
-        const resultsPtr = ptr;
-
-        // AssemblyScriptのコア関数を呼び出し
-        const tuneBatchWasm = instance.exports
-          .tuneBatchWasm as CallableFunction;
-        // バイト単位のポインタ（Float32のインデックス * 4）を渡す
-        tuneBatchWasm(
-          matrixPtr * 4,
-          biasPtr * 4,
-          vectorsPtr * 4,
-          resultsPtr * 4,
-          this.dimension,
-          batchSize,
+      // WASMメモリから計算結果を読み取り、必要に応じて活性化関数を適用
+      const results = new Array<Float32Array>(batchSize);
+      for (let k = 0; k < batchSize; k++) {
+        const res = f32Mem.slice(
+          resultsPtr + k * this.dimension,
+          resultsPtr + (k + 1) * this.dimension,
         );
-
-        // WASMメモリから計算結果を読み取り、必要に応じて活性化関数を適用
-        const results = new Array<Float32Array>(batchSize);
-        for (let k = 0; k < batchSize; k++) {
-          const res = f32Mem.slice(
-            resultsPtr + k * this.dimension,
-            resultsPtr + (k + 1) * this.dimension,
-          );
-          applyActivationToVector(res, activation);
-          results[k] = res;
-        }
-        return results;
+        applyActivationToVector(res, activation);
+        results[k] = res;
       }
+      return results;
     }
 
     // --- WASMが使えない場合のフォールバック (純粋なJS処理) ---
     const results = new Array<Float32Array>(batchSize);
     for (let k = 0; k < batchSize; k++) {
       const baseVector = baseVectors[k];
-      if (baseVector.length !== this.dimension) {
-        throw new Error(
-          `Vector dimension mismatch at index ${k}. Expected ${this.dimension}, got ${baseVector.length}.`,
-        );
-      }
+      assertDimension(baseVector, this.dimension, `Base vector at index ${k}`);
       const result = new Float32Array(this.dimension);
       this.applyAffine(matrix, bias, baseVector, result);
       applyActivationToVector(result, activation);
@@ -407,11 +340,7 @@ export class IntentAdapter {
     blendWeights: Record<string, number>,
     activation?: Activation,
   ): Float32Array {
-    if (baseVector.length !== this.dimension) {
-      throw new Error(
-        `Vector dimension mismatch. Expected ${this.dimension}, got ${baseVector.length}.`,
-      );
-    }
+    assertDimension(baseVector, this.dimension, "Base vector");
 
     // ブレンドされた合成行列とバイアスを一時的に計算
     const { matrix, bias } = this.computeBlendedWeights(blendWeights);
@@ -448,68 +377,54 @@ export class IntentAdapter {
         batchSize * this.dimension * 2) *
       4;
 
-    if (instance && wasmMemory) {
-      if (requiredBytes > wasmMemory.buffer.byteLength) {
-        const currentPages = wasmMemory.buffer.byteLength / 65536;
-        const requiredPages = Math.ceil(requiredBytes / 65536);
-        try {
-          wasmMemory.grow(requiredPages - currentPages);
-        } catch (e) {}
+    if (instance && ensureWasmMemory(requiredBytes)) {
+      const wasmMem = getWasmMemory()!;
+      const f32Mem = new Float32Array(wasmMem.buffer);
+      let ptr = 0;
+
+      const matrixPtr = ptr;
+      f32Mem.set(matrix, ptr);
+      ptr += this.dimension * this.dimension;
+
+      const biasPtr = ptr;
+      f32Mem.set(bias, ptr);
+      ptr += this.dimension;
+
+      const vectorsPtr = ptr;
+      for (let k = 0; k < batchSize; k++) {
+        f32Mem.set(baseVectors[k], ptr + k * this.dimension);
       }
+      ptr += batchSize * this.dimension;
 
-      if (requiredBytes <= wasmMemory.buffer.byteLength) {
-        const f32Mem = new Float32Array(wasmMemory.buffer);
-        let ptr = 0;
+      const resultsPtr = ptr;
 
-        const matrixPtr = ptr;
-        f32Mem.set(matrix, ptr);
-        ptr += this.dimension * this.dimension;
+      const tuneBatchWasm = instance.exports.tuneBatchWasm as CallableFunction;
+      tuneBatchWasm(
+        matrixPtr * 4,
+        biasPtr * 4,
+        vectorsPtr * 4,
+        resultsPtr * 4,
+        this.dimension,
+        batchSize,
+      );
 
-        const biasPtr = ptr;
-        f32Mem.set(bias, ptr);
-        ptr += this.dimension;
-
-        const vectorsPtr = ptr;
-        for (let k = 0; k < batchSize; k++) {
-          f32Mem.set(baseVectors[k], ptr + k * this.dimension);
-        }
-        ptr += batchSize * this.dimension;
-
-        const resultsPtr = ptr;
-
-        const tuneBatchWasm = instance.exports
-          .tuneBatchWasm as CallableFunction;
-        tuneBatchWasm(
-          matrixPtr * 4,
-          biasPtr * 4,
-          vectorsPtr * 4,
-          resultsPtr * 4,
-          this.dimension,
-          batchSize,
+      const results = new Array<Float32Array>(batchSize);
+      for (let k = 0; k < batchSize; k++) {
+        const res = f32Mem.slice(
+          resultsPtr + k * this.dimension,
+          resultsPtr + (k + 1) * this.dimension,
         );
-
-        const results = new Array<Float32Array>(batchSize);
-        for (let k = 0; k < batchSize; k++) {
-          const res = f32Mem.slice(
-            resultsPtr + k * this.dimension,
-            resultsPtr + (k + 1) * this.dimension,
-          );
-          applyActivationToVector(res, activation);
-          results[k] = res;
-        }
-        return results;
+        applyActivationToVector(res, activation);
+        results[k] = res;
       }
+      return results;
     }
 
     // --- WASMフォールバック (JS) ---
     const results = new Array<Float32Array>(batchSize);
     for (let k = 0; k < batchSize; k++) {
       const baseVector = baseVectors[k];
-      if (baseVector.length !== this.dimension) {
-        throw new Error(
-          `Vector dimension mismatch at index ${k}. Expected ${this.dimension}, got ${baseVector.length}.`,
-        );
-      }
+      assertDimension(baseVector, this.dimension, `Base vector at index ${k}`);
       const result = new Float32Array(this.dimension);
       this.applyAffine(matrix, bias, baseVector, result);
       applyActivationToVector(result, activation);
@@ -533,11 +448,7 @@ export class IntentAdapter {
     baseVector: number[] | Float32Array,
     activation?: Activation,
   ): Float32Array {
-    if (baseVector.length !== this.dimension) {
-      throw new Error(
-        `Vector dimension mismatch. Expected ${this.dimension}, got ${baseVector.length}.`,
-      );
-    }
+    assertDimension(baseVector, this.dimension, "Base vector");
 
     const intentNames: string[] = [];
     const scores: number[] = [];

@@ -246,3 +246,58 @@ export function softmax(values: number[]): number[] {
   });
   return exps.map((e) => e / sum);
 }
+
+/**
+ * 2次元配列（行列）を指定した次元数で1次元のFloat32Arrayにフラット化します。
+ *
+ * @param {number[][]} matrix - 2次元配列の行列
+ * @param {number} rows - 期待される行数
+ * @param {number} cols - 期待される列数
+ * @param {string} contextName - エラーメッセージ用のコンテキスト名
+ * @returns {Float32Array} フラット化された1次元配列
+ * @throws {Error} 次元数が一致しない場合にエラーをスローします。
+ */
+export function flattenMatrix(
+  matrix: number[][],
+  rows: number,
+  cols: number,
+  contextName: string = "Matrix",
+): Float32Array {
+  if (matrix.length !== rows) {
+    throw new Error(
+      `${contextName}: Row dimension mismatch. Expected ${rows}, got ${matrix.length}.`,
+    );
+  }
+  const flat = new Float32Array(rows * cols);
+  for (let i = 0; i < rows; i++) {
+    if (matrix[i].length !== cols) {
+      throw new Error(
+        `${contextName}: Column dimension mismatch at row ${i}. Expected ${cols}, got ${matrix[i].length}.`,
+      );
+    }
+    for (let j = 0; j < cols; j++) {
+      flat[i * cols + j] = matrix[i][j];
+    }
+  }
+  return flat;
+}
+
+/**
+ * ベクトルの次元数を検証します。
+ *
+ * @param {number[] | Float32Array} vector - 検証するベクトル
+ * @param {number} expectedDimension - 期待される次元数
+ * @param {string} contextName - エラーメッセージ用のコンテキスト名
+ * @throws {Error} 次元数が一致しない場合にエラーをスローします。
+ */
+export function assertDimension(
+  vector: number[] | Float32Array,
+  expectedDimension: number,
+  contextName: string = "Vector",
+): void {
+  if (vector.length !== expectedDimension) {
+    throw new Error(
+      `${contextName} dimension mismatch. Expected ${expectedDimension}, got ${vector.length}.`,
+    );
+  }
+}

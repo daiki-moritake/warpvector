@@ -1,3 +1,5 @@
+import { assertDimension, flattenMatrix } from "./utils";
+
 /**
  * 次元削減/拡張のための射影行列の重みを定義するインターフェース
  * @interface ProjectionWeights
@@ -65,30 +67,20 @@ export class ProjectionAdapter {
   public addProjection(name: string, weights: ProjectionWeights): void {
     const { matrix } = weights;
 
-    if (
-      matrix.length !== this.outDimension ||
-      matrix[0].length !== this.inDimension
-    ) {
-      throw new Error(
-        `Projection '${name}': Matrix must be of size ${this.outDimension}x${this.inDimension}`,
-      );
-    }
-
-    const flatMatrix = new Float32Array(this.outDimension * this.inDimension);
-    for (let i = 0; i < this.outDimension; i++) {
-      for (let j = 0; j < this.inDimension; j++) {
-        flatMatrix[i * this.inDimension + j] = matrix[i][j];
-      }
-    }
-
+    const flatMatrix = flattenMatrix(
+      matrix,
+      this.outDimension,
+      this.inDimension,
+      `Projection '${name}' Matrix`,
+    );
     this.matrices.set(name, flatMatrix);
 
     if (weights.bias) {
-      if (weights.bias.length !== this.outDimension) {
-        throw new Error(
-          `Projection '${name}': Bias must be of length ${this.outDimension}`,
-        );
-      }
+      assertDimension(
+        weights.bias,
+        this.outDimension,
+        `Projection '${name}' Bias`,
+      );
       this.biases.set(name, new Float32Array(weights.bias));
     } else {
       this.biases.delete(name);
@@ -119,11 +111,7 @@ export class ProjectionAdapter {
     baseVector: number[] | Float32Array,
     projectionName: string,
   ): Float32Array {
-    if (baseVector.length !== this.inDimension) {
-      throw new Error(
-        `Vector dimension mismatch. Expected ${this.inDimension}, got ${baseVector.length}.`,
-      );
-    }
+    assertDimension(baseVector, this.inDimension, "Base vector");
 
     const matrix = this.matrices.get(projectionName);
     if (!matrix) {
