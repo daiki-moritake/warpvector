@@ -1,4 +1,4 @@
-import { getWasmInstance } from "./wasm/wasm-loader";
+import { getWasmInstance, ensureWasmMemory, writeFloat32ArrayToWasm } from "./wasm/wasm-loader";
 
 export class ColbertAdapter {
   private wasm: any;
@@ -36,17 +36,13 @@ export class ColbertAdapter {
     const docBytes = documentTokens.byteLength;
     const totalBytes = queryBytes + docBytes;
 
-    if (memory.buffer.byteLength < totalBytes) {
-      const pagesNeeded = Math.ceil((totalBytes - memory.buffer.byteLength) / 65536);
-      memory.grow(pagesNeeded);
-    }
+    ensureWasmMemory(totalBytes);
 
     const queryPtr = 0;
     const docPtr = queryBytes;
 
-    const memFloat32 = new Float32Array(memory.buffer);
-    memFloat32.set(queryTokens, queryPtr / 4);
-    memFloat32.set(documentTokens, docPtr / 4);
+    writeFloat32ArrayToWasm(memory, queryTokens, queryPtr);
+    writeFloat32ArrayToWasm(memory, documentTokens, docPtr);
 
     return colbertMaxSimWasm(queryPtr, docPtr, numQueryTokens, numDocTokens, dim);
   }
@@ -82,17 +78,13 @@ export class ColbertAdapter {
     const totalBytes = queryBytes + maxDocBytes;
 
     // WASMのメモリが足りない場合は拡張
-    if (memory.buffer.byteLength < totalBytes) {
-      const pagesNeeded = Math.ceil((totalBytes - memory.buffer.byteLength) / 65536);
-      memory.grow(pagesNeeded);
-    }
+    ensureWasmMemory(totalBytes);
 
     const queryPtr = 0;
     const docPtr = queryBytes;
 
-    const memFloat32 = new Float32Array(memory.buffer);
     // クエリは一度だけ書き込む
-    memFloat32.set(queryTokens, queryPtr / 4);
+    writeFloat32ArrayToWasm(memory, queryTokens, queryPtr);
 
     const results = documentTokensArray.map((doc, index) => {
       const numDocTokens = doc.length / dim;
@@ -101,7 +93,7 @@ export class ColbertAdapter {
       }
 
       // ドキュメントをメモリにコピー
-      memFloat32.set(doc, docPtr / 4);
+      writeFloat32ArrayToWasm(memory, doc, docPtr);
 
       // MaxSimを計算 (WASM)
       const score = colbertMaxSimWasm(queryPtr, docPtr, numQueryTokens, numDocTokens, dim);

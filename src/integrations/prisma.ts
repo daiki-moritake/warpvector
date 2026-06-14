@@ -1,9 +1,6 @@
 import { Prisma } from "@prisma/client/extension";
 import { VectorDBAdapter } from "../db";
-
-export interface WarpAdapter {
-  tune(vector: number[] | Float32Array): Float32Array;
-}
+import { WarpAdapter } from "../WarpAdapter";
 
 export interface WarpPrismaConfig {
   /**

@@ -21,6 +21,7 @@
 
 ## 🚀 主な特徴
 
+- **統一された `WarpAdapter` インターフェース [✨ NEW]:** 全てのアダプターが同一の `tune()` メソッドを備えたインターフェースを実装。設計の共通化により、Prisma拡張やLangChain拡張にどのアダプターでもシームレスに組み込めます。
 - **次世代DBミドルウェア:** 既存のベクトルDB（Pinecone, Qdrant, DuckDBなど）とフロントエンドの間に立ち、動的なコンテキストルーティングを提供。
 - **動的アフィン変換 & 非線形MLP [NEW]:** 単純な行列変換（$W \cdot x + b$）に加え、WASMを用いた超高速な多層パーセプトロン(MLP)と非線形活性化関数(ReLU, Sigmoid, Tanh)による高度な空間変形をサポート。
 - **オンライン等方化 (Whitening) [NEW]:** Oja's Rule を用いたオンラインPCAにより、OpenAI `ada-002` などが抱える「検索空間の極端な偏り（異方性）」をエッジ側でストリーミング補正し、検索精度を劇的に向上。
@@ -86,7 +87,7 @@ mlp.setLayerWeights(0, matrix1, bias1);
 mlp.setLayerWeights(1, matrix2, bias2);
 
 // 超高速非線形推論 (WASM)
-const output = mlp.predict(baseVector);
+const output = mlp.tune(baseVector);
 ```
 
 ### 3. 検索空間の等方化 (Online Whitening) [✨ NEW]

@@ -1,5 +1,6 @@
 import { IntentWeights } from "./IntentAdapter";
 import { flattenMatrix } from "./utils";
+import { AbstractAdamTrainer } from "./BaseTrainer";
 
 /**
  * 学習データのペア（Anchor, Positive, 複数のNegatives）
@@ -19,26 +20,17 @@ export interface InfoNCEExample {
  * 「1つの正解を近づけ、複数の不正解を一気に遠ざける」ように
  * IntentWeights (行列W と バイアスb) を学習するトレーナークラス。
  */
-export class InfoNCETrainer {
+export class InfoNCETrainer extends AbstractAdamTrainer {
   private dimension: number;
-
-  // Adam Optimizer States
-  private t: number = 0;
-  private mW: Float32Array;
-  private vW: Float32Array;
-  private mb: Float32Array;
-  private vb: Float32Array;
 
   /**
    * InfoNCETrainer のインスタンスを作成します。
    * @param {number} dimension ベクトルの次元数
    */
   constructor(dimension: number) {
+    super();
     this.dimension = dimension;
-    this.mW = new Float32Array(dimension * dimension);
-    this.vW = new Float32Array(dimension * dimension);
-    this.mb = new Float32Array(dimension);
-    this.vb = new Float32Array(dimension);
+    this.initAdamState(dimension, dimension);
   }
 
   private toWeights(

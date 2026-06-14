@@ -36,11 +36,17 @@ describe("MigrationTrainer", () => {
     adapter.addProjection("model_v1_to_v2", learnedWeights);
 
     // テスト
-    const res1 = adapter.project([1.0, 0.0, 0.0, 0.0], "model_v1_to_v2");
+    const res1 = adapter.tune([1.0, 0.0, 0.0, 0.0], "model_v1_to_v2");
     expect(cosineSimilarity(res1, [0.5, 0.5])).toBeGreaterThan(0.95);
 
-    const res2 = adapter.project([0.0, 1.0, 0.0, 0.0], "model_v1_to_v2");
+    const res2 = adapter.tune([0.0, 1.0, 0.0, 0.0], "model_v1_to_v2");
     expect(cosineSimilarity(res2, [-0.5, 0.5])).toBeGreaterThan(0.95);
+
+    const res3 = adapter.tune([0.0, 0.0, 1.0, 0.0], "model_v1_to_v2");
+    expect(cosineSimilarity(res3, [0.5, -0.5])).toBeGreaterThan(0.95);
+
+    const res4 = adapter.tune([0.0, 0.0, 0.0, 1.0], "model_v1_to_v2");
+    expect(cosineSimilarity(res4, [-0.5, -0.5])).toBeGreaterThan(0.95);
   });
 
   test("trains a mapping from 2D to 3D (Expansion)", async () => {
@@ -64,7 +70,7 @@ describe("MigrationTrainer", () => {
     const adapter = new ProjectionAdapter(2, 3);
     adapter.addProjection("expand", learnedWeights);
 
-    const res1 = adapter.project([1.0, 0.0], "expand");
+    const res1 = adapter.tune([1.0, 0.0], "expand");
     expect(cosineSimilarity(res1, [0.5, 0.5, 0.0])).toBeGreaterThan(0.9);
   });
 });

@@ -32,13 +32,6 @@ export interface TrainingOptions extends BaseTrainingOptions {}
 export class IntentTrainer extends BaseTrainer<TrainingExample, IntentWeights> {
   private dimension: number;
 
-  // Adam Optimizer States for Online Learning
-  private t: number = 0;
-  private mW: Float32Array;
-  private vW: Float32Array;
-  private mb: Float32Array;
-  private vb: Float32Array;
-
   /**
    * IntentTrainer のインスタンスを作成します。
    * @param {number} dimension ベクトルの次元数（入力・出力ともに同じ次元数となります）
@@ -46,10 +39,7 @@ export class IntentTrainer extends BaseTrainer<TrainingExample, IntentWeights> {
   constructor(dimension: number) {
     super();
     this.dimension = dimension;
-    this.mW = new Float32Array(dimension * dimension);
-    this.vW = new Float32Array(dimension * dimension);
-    this.mb = new Float32Array(dimension);
-    this.vb = new Float32Array(dimension);
+    this.initAdamState(dimension, dimension);
   }
 
   protected get sourceDimension(): number {

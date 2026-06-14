@@ -18,7 +18,7 @@ describe("ProjectionAdapter Core Logic", () => {
     const base = [5, 10, 15];
 
     // W * x = [[1,0,0], [0,1,0]] * [5,10,15]^T = [5, 10]^T
-    const result = adapter.project(base, "reduceTo2D");
+    const result = adapter.tune(base, "reduceTo2D");
 
     expect(result.length).toBe(2);
     expect(result[0]).toBeCloseTo(5, 5);
@@ -44,20 +44,20 @@ describe("ProjectionAdapter Core Logic", () => {
       matrix: [[1, 1, 1]], // 合計値への射影
     });
 
-    const result = adapter.project([2, 3, 4], "reduceTo1D");
+    const result = adapter.tune([2, 3, 4], "reduceTo1D");
     expect(result.length).toBe(1);
     expect(result[0]).toBeCloseTo(9, 5);
 
     adapter.removeProjection("reduceTo1D");
     expect(() => {
-      adapter.project([2, 3, 4], "reduceTo1D");
+      adapter.tune([2, 3, 4], "reduceTo1D");
     }).toThrow("Projection 'reduceTo1D' not found.");
   });
 
   test("should throw error if input dimension is mismatched", () => {
     const adapter = new ProjectionAdapter(3, 2, dummyProjections);
     expect(() => {
-      adapter.project([1, 2], "reduceTo2D"); // 2次元を与えてしまう
+      adapter.tune([1, 2], "reduceTo2D"); // 2次元を与えてしまう
     }).toThrow();
   });
 });

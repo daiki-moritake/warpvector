@@ -1,5 +1,6 @@
 import { IntentWeights } from "./IntentAdapter";
 import { flattenMatrix } from "./utils";
+import { AbstractAdamTrainer } from "./BaseTrainer";
 
 /**
  * 学習データのペア（Anchor, Positive, Negative）
@@ -21,26 +22,17 @@ export interface TripletExample {
  * "Anchor" を変換したベクトル A' が、"Negative" よりも "Positive" に
  * 設定されたマージン(Margin)分だけ確実により近づくように重みを更新します。
  */
-export class TripletTrainer {
+export class TripletTrainer extends AbstractAdamTrainer {
   private dimension: number;
-
-  // Adam Optimizer States
-  private t: number = 0;
-  private mW: Float32Array;
-  private vW: Float32Array;
-  private mb: Float32Array;
-  private vb: Float32Array;
 
   /**
    * TripletTrainer のインスタンスを作成します。
    * @param {number} dimension ベクトルの次元数
    */
   constructor(dimension: number) {
+    super();
     this.dimension = dimension;
-    this.mW = new Float32Array(dimension * dimension);
-    this.vW = new Float32Array(dimension * dimension);
-    this.mb = new Float32Array(dimension);
-    this.vb = new Float32Array(dimension);
+    this.initAdamState(dimension, dimension);
   }
 
   private toWeights(

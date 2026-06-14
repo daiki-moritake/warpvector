@@ -47,3 +47,19 @@ export function ensureWasmMemory(requiredBytes: number): boolean {
     return false;
   }
 }
+
+/**
+ * データをWASMメモリに書き込むヘルパー関数
+ */
+export function writeFloat32ArrayToWasm(
+  memory: WebAssembly.Memory,
+  data: number[] | Float32Array,
+  byteOffset: number
+): void {
+  const f32 = new Float32Array(memory.buffer);
+  const floatOffset = byteOffset / 4;
+  for (let i = 0; i < data.length; i++) {
+    f32[floatOffset + i] = data[i];
+  }
+}
+

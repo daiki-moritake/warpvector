@@ -1,4 +1,5 @@
 import { assertDimension, normalize, reject } from "./utils";
+import { WarpAdapter } from "./WarpAdapter";
 
 export interface WhiteningConfig {
   /**
@@ -22,7 +23,7 @@ export interface WhiteningConfig {
  * Oja's Rule によるオンラインPCAを実行し、
  * ベクトル空間の等方化（Whitening / Anisotropy Reduction）を行うアダプターです。
  */
-export class WhiteningAdapter {
+export class WhiteningAdapter implements WarpAdapter {
   public dim: number;
   public mean: Float32Array;
   public components: Float32Array[];

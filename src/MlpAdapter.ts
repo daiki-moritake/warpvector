@@ -1,4 +1,5 @@
-import { initWasm, ensureWasmMemory, getWasmMemory } from "./wasm/wasm-loader";
+import { getWasmInstance, ensureWasmMemory, writeFloat32ArrayToWasm } from "./wasm/wasm-loader";
+import { WarpAdapter } from "./WarpAdapter";
 import { Activation } from "./utils";
 
 /**
@@ -25,8 +26,12 @@ function getActivationId(activation: Activation): number {
 
 /**
  * MlpAdapter は WASM を使用して超高速に非線形な多層推論を行うラッパーです。
+ * 
+ * @example
+ * const mlp = new MlpAdapter([{ inputDim: 1536, outputDim: 128, activation: "relu" }]);
+ * const output = mlp.tune(inputVector);
  */
-export class MlpAdapter {
+export class MlpAdapter implements WarpAdapter {
   private layers: MlpLayer[];
   private wasmInstance: WebAssembly.Instance | null = null;
   
@@ -56,12 +61,12 @@ export class MlpAdapter {
    * インスタンス作成後に必ず呼び出してください。
    */
   public async init(): Promise<void> {
-    this.wasmInstance = await initWasm();
+    this.wasmInstance = await getWasmInstance();
     if (!this.wasmInstance) {
       throw new Error("Failed to initialize WASM for MlpAdapter.");
     }
 
-    const memory = getWasmMemory()!;
+    const memory = this.wasmInstance.exports.memory as WebAssembly.Memory;
 
     // 次元数の検証と計算
     let sDim = 0;
@@ -124,12 +129,12 @@ export class MlpAdapter {
     this.weightsPtr = offset; offset += totalWeights * 4;
     this.bufferPtr = offset; offset += maxDim * 8 + 8192; // +8192はWASM側でのバッファBのオフセット(4096)用
 
-    const requiredBytes = offset;
-    ensureWasmMemory(requiredBytes);
+    ensureWasmMemory(offset);
 
     // データの書き込み
-    const f32 = new Float32Array(memory.buffer);
-    const i32 = new Int32Array(memory.buffer);
+    const memoryBuffer = memory.buffer;
+    const f32 = new Float32Array(memoryBuffer);
+    const i32 = new Int32Array(memoryBuffer);
 
     // layerDims
     for (let i = 0; i < layerDims.length; i++) {
@@ -169,26 +174,24 @@ export class MlpAdapter {
   }
 
   /**
-   * 入力ベクトルに対してMLPの推論を実行します。
-   * @param vector 入力ベクトル
-   * @returns 出力ベクトル (Float32Array)
+   * ニューラルネットワークの順伝播を実行し、結果を返します。
+   * (WarpAdapter の実装として、predict の代わりに tune を提供します)
+   * 
+   * @param input 入力ベクトル
+   * @returns 推論結果ベクトル
    */
-  public tune(vector: number[] | Float32Array): Float32Array {
+  public tune(input: number[] | Float32Array): Float32Array {
     if (!this.isWasmReady || !this.wasmInstance) {
       throw new Error("MlpAdapter is not initialized. Call await init() first.");
     }
-    if (vector.length !== this.inputDim) {
-      throw new Error(`Input dimension mismatch. Expected ${this.inputDim}, got ${vector.length}`);
+    if (input.length !== this.inputDim) {
+      throw new Error(`Input dimension mismatch. Expected ${this.inputDim}, got ${input.length}`);
     }
 
-    const memory = getWasmMemory()!;
-    const f32 = new Float32Array(memory.buffer);
+    const memory = this.wasmInstance.exports.memory as WebAssembly.Memory;
 
     // 入力ベクトルの書き込み
-    const inIdx = this.inputPtr / 4;
-    for (let i = 0; i < vector.length; i++) {
-      f32[inIdx + i] = vector[i];
-    }
+    writeFloat32ArrayToWasm(memory, input, this.inputPtr);
 
     // WASMの呼び出し
     const mlpInferenceWasm = this.wasmInstance.exports.mlpInferenceWasm as CallableFunction;
@@ -204,9 +207,10 @@ export class MlpAdapter {
 
     // 結果の読み取り
     const result = new Float32Array(this.outputDim);
+    const outF32 = new Float32Array(memory.buffer);
     const outIdx = this.outputPtr / 4;
     for (let i = 0; i < this.outputDim; i++) {
-      result[i] = f32[outIdx + i];
+      result[i] = outF32[outIdx + i];
     }
 
     return result;

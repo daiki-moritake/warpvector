@@ -1,4 +1,6 @@
 import { assertDimension, flattenMatrix } from "./utils";
+import { getWasmInstance, ensureWasmMemory, writeFloat32ArrayToWasm } from "./wasm/wasm-loader";
+import { WarpAdapter } from "./WarpAdapter";
 
 /**
  * 次元削減/拡張のための射影行列の重みを定義するインターフェース
@@ -23,9 +25,10 @@ export interface ProjectionWeights {
  * ProjectionAdapter クラス
  * PCAやSVDなどで事前計算された射影行列を用いて、ベクトルの次元削減（または拡張）を行います。
  */
-export class ProjectionAdapter {
+export class ProjectionAdapter implements WarpAdapter {
   private readonly inDimension: number;
   private readonly outDimension: number;
+  private wasmInstance: WebAssembly.Instance | null = null;
 
   // フラット化された射影行列とバイアスを保存
   private readonly matrices: Map<string, Float32Array>;
@@ -99,34 +102,60 @@ export class ProjectionAdapter {
   }
 
   /**
-   * ベクトルに射影変換を適用し、次元を変更した新しいベクトルを返します。
-   * 数式: y = W * x
+   * ベクトルの次元削減（射影）を実行します。
+   * (WarpAdapter の実装として project の代わりに tune を提供します)
    *
-   * @param {number[] | Float32Array} baseVector - 変換元の入力ベクトル
-   * @param {string} projectionName - 適用する射影設定の名前
-   * @returns {Float32Array} 射影変換適用後の新しいベクトル
-   * @throws {Error} ベクトルの次元数が inDimension と一致しない場合、または射影設定が存在しない場合にエラーをスローします。
+   * @param vector 変換前のベクトル (例: 1536次元)
+   * @param version 適用する変換バージョンの識別子 (オプション)
+   * @returns 変換後のベクトル (例: 512次元)
    */
-  public project(
-    baseVector: number[] | Float32Array,
-    projectionName: string,
+  public tune(
+    vector: number[] | Float32Array,
+    version: string = "default",
   ): Float32Array {
-    assertDimension(baseVector, this.inDimension, "Base vector");
+    assertDimension(vector, this.inDimension, "Base vector");
 
-    const matrix = this.matrices.get(projectionName);
+    const matrix = this.matrices.get(version);
     if (!matrix) {
-      throw new Error(`Projection '${projectionName}' not found.`);
+      throw new Error(`Projection '${version}' not found.`);
     }
 
+    const instance = getWasmInstance();
+    const requiredBytes = (this.inDimension + this.outDimension) * 4;
+
+    if (
+      instance &&
+      instance.exports.projectWasm &&
+      ensureWasmMemory(requiredBytes)
+    ) {
+      const memory = instance.exports.memory as WebAssembly.Memory;
+      const inputPtr = 0;
+      const outputPtr = this.inDimension * 4;
+
+      writeFloat32ArrayToWasm(memory, vector, inputPtr);
+
+      const projectWasm = instance.exports.projectWasm as CallableFunction;
+      projectWasm(inputPtr, outputPtr);
+
+      const result = new Float32Array(this.outDimension);
+      const outF32 = new Float32Array(memory.buffer);
+      const outIdx = outputPtr / 4;
+      for (let i = 0; i < this.outDimension; i++) {
+        result[i] = outF32[outIdx + i];
+      }
+      return result;
+    }
+
+    // --- WASMが使えない場合のフォールバック (純粋なJS処理) ---
     const result = new Float32Array(this.outDimension);
-    const bias = this.biases.get(projectionName);
+    const bias = this.biases.get(version);
 
     // 行列ベクトル積: O(M * N)
     for (let i = 0; i < this.outDimension; i++) {
       let sum = bias ? bias[i] : 0;
       const rowOffset = i * this.inDimension;
       for (let j = 0; j < this.inDimension; j++) {
-        sum += matrix[rowOffset + j] * baseVector[j];
+        sum += matrix[rowOffset + j] * vector[j];
       }
       result[i] = sum;
     }

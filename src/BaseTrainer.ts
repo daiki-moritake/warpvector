@@ -23,12 +23,33 @@ export interface BaseTrainingOptions {
 }
 
 /**
+ * Adam最適化のステート変数を管理する共通基底クラス
+ */
+export abstract class AbstractAdamTrainer {
+  protected t: number = 0;
+  protected mW!: Float32Array;
+  protected vW!: Float32Array;
+  protected mb!: Float32Array;
+  protected vb!: Float32Array;
+
+  protected initAdamState(sDim: number, tDim: number): void {
+    if (!this.mW || this.mW.length !== sDim * tDim) {
+      this.mW = new Float32Array(sDim * tDim);
+      this.vW = new Float32Array(sDim * tDim);
+      this.mb = new Float32Array(tDim);
+      this.vb = new Float32Array(tDim);
+      this.t = 0;
+    }
+  }
+}
+
+/**
  * 確率的勾配降下法 (SGD + Momentum) を用いた学習のための共通基底クラス。
  *
  * @template TExample 学習に用いるデータペアの型 (入力と理想の出力のペアなど)
  * @template TResult 最終的に学習結果として出力される重み (行列やバイアス) の型
  */
-export abstract class BaseTrainer<TExample, TResult> {
+export abstract class BaseTrainer<TExample, TResult> extends AbstractAdamTrainer {
   /** 学習用サンプルの配列 */
   protected examples: TExample[] = [];
 
@@ -116,28 +137,24 @@ export abstract class BaseTrainer<TExample, TResult> {
     }
     const bias = new Float32Array(tDim);
 
-    const mMatrix = new Float32Array(tDim * sDim);
-    const vMatrix = new Float32Array(tDim * sDim);
-    const mBias = new Float32Array(tDim);
-    const vBias = new Float32Array(tDim);
-    let t = 0;
+    this.initAdamState(sDim, tDim);
 
     for (let epoch = 0; epoch < epochs; epoch++) {
       for (const example of this.examples) {
-        t++;
+        this.t++;
         const { source, target } = this.getInputs(example);
         this.adamStep(
           flatMatrix,
           bias,
-          mMatrix,
-          vMatrix,
-          mBias,
-          vBias,
+          this.mW,
+          this.vW,
+          this.mb,
+          this.vb,
           source,
           target,
           lr,
           reg,
-          t
+          this.t
         );
       }
     }

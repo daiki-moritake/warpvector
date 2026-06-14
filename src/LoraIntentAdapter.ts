@@ -1,4 +1,5 @@
 import { assertDimension, flattenMatrix } from "./utils";
+import { WarpAdapter } from "./WarpAdapter";
 
 /**
  * 低ランク適応（LoRA）の重みを定義するインターフェース
@@ -28,7 +29,7 @@ export interface LoraIntentWeights {
  * LoraIntentAdapter クラス
  * 低ランク行列（A, B）を使用して高次元ベクトルのアフィン変換をメモリ効率良く行います。
  */
-export class LoraIntentAdapter {
+export class LoraIntentAdapter implements WarpAdapter {
   private readonly dimension: number;
   private readonly rank: number;
 
