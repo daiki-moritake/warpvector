@@ -1,5 +1,5 @@
 import { IntentWeights } from "./IntentAdapter";
-import { flattenMatrix } from "./utils";
+import { flattenMatrix, assertDimension } from "./utils";
 import { AbstractAdamTrainer } from "./BaseTrainer";
 
 /**
@@ -67,13 +67,9 @@ export class TripletTrainer extends AbstractAdamTrainer {
     margin: number = 0.1,
     regularization: number = 0.001,
   ): Promise<IntentWeights> {
-    if (
-      anchor.length !== this.dimension ||
-      positive.length !== this.dimension ||
-      negative.length !== this.dimension
-    ) {
-      throw new Error(`Dimension mismatch. Expected ${this.dimension}`);
-    }
+    assertDimension(anchor, this.dimension, "TripletTrainer.train anchor");
+    assertDimension(positive, this.dimension, "TripletTrainer.train positive");
+    assertDimension(negative, this.dimension, "TripletTrainer.train negative");
 
     const dim = this.dimension;
     let flatMatrix: Float32Array;

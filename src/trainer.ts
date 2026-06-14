@@ -1,7 +1,7 @@
 import { IntentWeights } from "./IntentAdapter";
 import { BaseTrainer, BaseTrainingOptions } from "./BaseTrainer";
 import { initWasm } from "./wasm/wasm-loader";
-import { flattenMatrix } from "./utils";
+import { flattenMatrix, assertDimension } from "./utils";
 
 /**
  * 学習データのペア（ベースのクエリベクトルと、目標となる結果ベクトル）
@@ -87,9 +87,8 @@ export class IntentTrainer extends BaseTrainer<TrainingExample, IntentWeights> {
   ): Promise<IntentWeights> {
     await initWasm();
 
-    if (input.length !== this.dimension || target.length !== this.dimension) {
-      throw new Error(`Dimension mismatch. Expected ${this.dimension}`);
-    }
+    assertDimension(input, this.dimension, "IntentTrainer.addExample input");
+    assertDimension(target, this.dimension, "IntentTrainer.addExample target");
 
     const dim = this.dimension;
     let flatMatrix: Float32Array;

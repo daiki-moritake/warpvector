@@ -1,5 +1,5 @@
 import { IntentWeights } from "./IntentAdapter";
-import { flattenMatrix } from "./utils";
+import { flattenMatrix, assertDimension } from "./utils";
 import { AbstractAdamTrainer } from "./BaseTrainer";
 
 /**
@@ -67,13 +67,10 @@ export class InfoNCETrainer extends AbstractAdamTrainer {
   ): Promise<IntentWeights> {
     const dim = this.dimension;
 
-    if (anchor.length !== dim || positive.length !== dim) {
-      throw new Error(`Dimension mismatch. Expected ${dim}`);
-    }
-    for (const neg of negatives) {
-      if (neg.length !== dim) {
-        throw new Error(`Dimension mismatch in negatives. Expected ${dim}`);
-      }
+    assertDimension(anchor, dim, "InfoNCETrainer.train anchor");
+    assertDimension(positive, dim, "InfoNCETrainer.train positive");
+    for (let i = 0; i < negatives.length; i++) {
+      assertDimension(negatives[i], dim, `InfoNCETrainer.train negative[${i}]`);
     }
 
     let flatMatrix: Float32Array;

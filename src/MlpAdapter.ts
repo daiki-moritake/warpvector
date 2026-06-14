@@ -1,6 +1,6 @@
 import { initWasm, ensureWasmMemory, writeFloat32ArrayToWasm } from "./wasm/wasm-loader";
 import { WarpAdapter } from "./WarpAdapter";
-import { Activation } from "./utils";
+import { Activation, assertDimension } from "./utils";
 
 /**
  * MLPの1層を定義するインターフェース
@@ -184,9 +184,7 @@ export class MlpAdapter implements WarpAdapter {
     if (!this.isWasmReady || !this.wasmInstance) {
       throw new Error("MlpAdapter is not initialized. Call await init() first.");
     }
-    if (input.length !== this.inputDim) {
-      throw new Error(`Input dimension mismatch. Expected ${this.inputDim}, got ${input.length}`);
-    }
+    assertDimension(input, this.inputDim, "MlpAdapter.tune");
 
     const memory = this.wasmInstance.exports.memory as WebAssembly.Memory;
 

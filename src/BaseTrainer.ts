@@ -4,6 +4,7 @@ import {
   getWasmMemory,
   ensureWasmMemory,
 } from "./wasm/wasm-loader";
+import { assertDimension } from "./utils";
 
 /**
  * 基本的な学習オプションを定義するインターフェース。
@@ -40,6 +41,7 @@ export abstract class AbstractAdamTrainer {
       this.vb = new Float32Array(tDim);
       this.t = 0;
     }
+    assertDimension(this.mW, sDim * tDim, "AdamState mW");
   }
 }
 
@@ -87,16 +89,8 @@ export abstract class BaseTrainer<TExample, TResult> extends AbstractAdamTrainer
    */
   public addExample(example: TExample): void {
     const { source, target } = this.getInputs(example);
-    if (source.length !== this.sourceDimension) {
-      throw new Error(
-        `Source dimension mismatch. Expected ${this.sourceDimension}.`,
-      );
-    }
-    if (target.length !== this.targetDimension) {
-      throw new Error(
-        `Target dimension mismatch. Expected ${this.targetDimension}.`,
-      );
-    }
+    assertDimension(source, this.sourceDimension, "BaseTrainer.addExample source");
+    assertDimension(target, this.targetDimension, "BaseTrainer.addExample target");
     this.examples.push(example);
   }
 
