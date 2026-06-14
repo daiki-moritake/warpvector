@@ -58,8 +58,14 @@ export function writeFloat32ArrayToWasm(
 ): void {
   const f32 = new Float32Array(memory.buffer);
   const floatOffset = byteOffset / 4;
-  for (let i = 0; i < data.length; i++) {
-    f32[floatOffset + i] = data[i];
+  
+  if (data instanceof Float32Array) {
+    // memmove 相当の高速コピー
+    f32.set(data, floatOffset);
+  } else {
+    for (let i = 0; i < data.length; i++) {
+      f32[floatOffset + i] = data[i];
+    }
   }
 }
 

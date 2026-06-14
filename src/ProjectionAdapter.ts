@@ -116,12 +116,18 @@ export class ProjectionAdapter implements WarpAdapter {
     assertDimension(vector, this.inDimension, "Base vector");
 
     const matrix = this.matrices.get(version);
+    const bias = this.biases.get(version);
     if (!matrix) {
       throw new Error(`Projection '${version}' not found.`);
     }
 
     const instance = getWasmInstance();
-    const requiredBytes = (this.inDimension + this.outDimension) * 4;
+    const matrixSize = this.inDimension * this.outDimension * 4;
+    const biasSize = bias ? this.outDimension * 4 : 0;
+    const vectorSize = this.inDimension * 4;
+    const outputSize = this.outDimension * 4;
+    
+    const requiredBytes = matrixSize + biasSize + vectorSize + outputSize;
 
     if (
       instance &&
@@ -129,13 +135,20 @@ export class ProjectionAdapter implements WarpAdapter {
       ensureWasmMemory(requiredBytes)
     ) {
       const memory = instance.exports.memory as WebAssembly.Memory;
-      const inputPtr = 0;
-      const outputPtr = this.inDimension * 4;
+      
+      let offset = 0;
+      const matrixPtr = offset; offset += matrixSize;
+      const biasPtr = bias ? offset : 0; 
+      if (bias) offset += biasSize;
+      const inputPtr = offset; offset += vectorSize;
+      const outputPtr = offset; offset += outputSize;
 
+      writeFloat32ArrayToWasm(memory, matrix, matrixPtr);
+      if (bias) writeFloat32ArrayToWasm(memory, bias, biasPtr);
       writeFloat32ArrayToWasm(memory, vector, inputPtr);
 
       const projectWasm = instance.exports.projectWasm as CallableFunction;
-      projectWasm(inputPtr, outputPtr);
+      projectWasm(matrixPtr, biasPtr, inputPtr, outputPtr, this.inDimension, this.outDimension);
 
       const result = new Float32Array(this.outDimension);
       const outF32 = new Float32Array(memory.buffer);
@@ -148,7 +161,6 @@ export class ProjectionAdapter implements WarpAdapter {
 
     // --- WASMが使えない場合のフォールバック (純粋なJS処理) ---
     const result = new Float32Array(this.outDimension);
-    const bias = this.biases.get(version);
 
     // 行列ベクトル積: O(M * N)
     for (let i = 0; i < this.outDimension; i++) {

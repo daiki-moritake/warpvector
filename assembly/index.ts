@@ -248,3 +248,96 @@ export function colbertMaxSimWasm(
 
   return totalScore;
 }
+
+/**
+ * プロジェクション（次元削減・拡張）を行うWASMコア関数。
+ * 
+ * @param {usize} matrixPtr - 変換行列(W)のポインタ (f32)
+ * @param {usize} biasPtr - バイアス(b)のポインタ (f32, 0の場合はバイアスなし)
+ * @param {usize} inputPtr - 入力ベクトルのポインタ (f32)
+ * @param {usize} outputPtr - 出力ベクトルのポインタ (f32)
+ * @param {i32} inDim - 入力次元数
+ * @param {i32} outDim - 出力次元数
+ */
+export function projectWasm(
+  matrixPtr: usize,
+  biasPtr: usize,
+  inputPtr: usize,
+  outputPtr: usize,
+  inDim: i32,
+  outDim: i32
+): void {
+  for (let i = 0; i < outDim; i++) {
+    let sum: f32 = 0;
+    let rowOffset = i * inDim;
+    for (let j = 0; j < inDim; j++) {
+      let m = load<f32>(matrixPtr + (rowOffset + j) * 4);
+      let v = load<f32>(inputPtr + j * 4);
+      sum += m * v;
+    }
+    
+    if (biasPtr != 0) {
+      let b = load<f32>(biasPtr + i * 4);
+      sum += b;
+    }
+    store<f32>(outputPtr + i * 4, sum);
+  }
+}
+
+/**
+ * Sanger's Rule (GHA) によるオンラインPCAを計算するWASMコア関数。
+ * 複数の主成分をストリーミングで学習します。
+ * 
+ * @param {usize} componentsPtr - 主成分ベクトル群のポインタ (f32, サイズ: numComponents * dim)
+ * @param {usize} xResidualPtr - ゼロセンタリングされた入力ベクトル(x)のポインタ (f32)。計算中に更新されます。
+ * @param {i32} dim - ベクトルの次元数
+ * @param {i32} numComponents - 抽出・更新する主成分の数
+ * @param {f32} lr - 学習率 (learning rate)
+ */
+export function sangerUpdateWasm(
+  componentsPtr: usize,
+  xResidualPtr: usize,
+  dim: i32,
+  numComponents: i32,
+  lr: f32
+): void {
+  for (let k = 0; k < numComponents; k++) {
+    let wOffset = componentsPtr + k * dim * 4;
+    
+    // y = w^T * x_residual
+    let y: f32 = 0;
+    for (let i = 0; i < dim; i++) {
+      let w_val = load<f32>(wOffset + i * 4);
+      let x_val = load<f32>(xResidualPtr + i * 4);
+      y += w_val * x_val;
+    }
+    
+    // Oja's rule: w = w + lr * y * (x_residual - y * w)
+    let normSq: f32 = 0;
+    let lry = lr * y;
+    for (let i = 0; i < dim; i++) {
+      let w_val = load<f32>(wOffset + i * 4);
+      let x_val = load<f32>(xResidualPtr + i * 4);
+      
+      let w_new = w_val + lry * (x_val - y * w_val);
+      store<f32>(wOffset + i * 4, w_new);
+      normSq += w_new * w_new;
+    }
+    
+    // Normalize w
+    let norm = Math.sqrt(normSq as f64) as f32;
+    if (norm > 0) {
+      for (let i = 0; i < dim; i++) {
+        let w_val = load<f32>(wOffset + i * 4);
+        store<f32>(wOffset + i * 4, w_val / norm);
+      }
+    }
+    
+    // x_residual = x_residual - y * w
+    for (let i = 0; i < dim; i++) {
+      let x_val = load<f32>(xResidualPtr + i * 4);
+      let w_val = load<f32>(wOffset + i * 4);
+      store<f32>(xResidualPtr + i * 4, x_val - y * w_val);
+    }
+  }
+}
