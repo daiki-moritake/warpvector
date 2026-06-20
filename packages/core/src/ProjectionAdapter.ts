@@ -9,6 +9,9 @@ import {
   getWasmInstance,
   ensureWasmMemory,
   writeFloat32ArrayToWasm,
+  allocateWasmMemory,
+  withWasmMemoryStack,
+  readFloat32ArrayFromWasm,
 } from "./wasm/wasm-loader";
 import { WarpAdapter } from "./WarpAdapter";
 
@@ -146,37 +149,28 @@ export class ProjectionAdapter implements WarpAdapter {
     ) {
       const memory = instance.exports.memory as WebAssembly.Memory;
 
-      let offset = 0;
-      const matrixPtr = offset;
-      offset += matrixSize;
-      const biasPtr = bias ? offset : 0;
-      if (bias) offset += biasSize;
-      const inputPtr = offset;
-      offset += vectorSize;
-      const outputPtr = offset;
-      offset += outputSize;
+      return withWasmMemoryStack(() => {
+        const matrixPtr = allocateWasmMemory(matrixSize);
+        const biasPtr = bias ? allocateWasmMemory(biasSize) : 0;
+        const inputPtr = allocateWasmMemory(vectorSize);
+        const outputPtr = allocateWasmMemory(outputSize);
 
-      writeFloat32ArrayToWasm(memory, matrix, matrixPtr);
-      if (bias) writeFloat32ArrayToWasm(memory, bias, biasPtr);
-      writeFloat32ArrayToWasm(memory, vector, inputPtr);
+        writeFloat32ArrayToWasm(memory, matrix, matrixPtr);
+        if (bias) writeFloat32ArrayToWasm(memory, bias, biasPtr);
+        writeFloat32ArrayToWasm(memory, vector, inputPtr);
 
-      const projectWasm = instance.exports.projectWasm as CallableFunction;
-      projectWasm(
-        matrixPtr,
-        biasPtr,
-        inputPtr,
-        outputPtr,
-        this.inDimension,
-        this.outDimension,
-      );
+        const projectWasm = instance.exports.projectWasm as CallableFunction;
+        projectWasm(
+          matrixPtr,
+          biasPtr,
+          inputPtr,
+          outputPtr,
+          this.inDimension,
+          this.outDimension,
+        );
 
-      const result = new Float32Array(this.outDimension);
-      const outF32 = new Float32Array(memory.buffer);
-      const outIdx = outputPtr / 4;
-      for (let i = 0; i < this.outDimension; i++) {
-        result[i] = outF32[outIdx + i];
-      }
-      return result;
+        return readFloat32ArrayFromWasm(memory, outputPtr, this.outDimension);
+      });
     }
 
     // --- WASMが使えない場合のフォールバック (純粋なJS処理) ---

@@ -65,6 +65,11 @@ export class MlpAdapter implements WarpAdapter {
   private totalWeights = 0;
   private maxDim = 0;
 
+  // init() 時に永続化されるWASMメモリのポインタ
+  private persistentWeightsPtr = 0;
+  private persistentLayerDimsPtr = 0;
+  private persistentActivationsPtr = 0;
+
   constructor(layers: MlpLayer[]) {
     if (layers.length === 0) {
       throw new Error("MlpAdapter requires at least one layer.");
@@ -76,6 +81,10 @@ export class MlpAdapter implements WarpAdapter {
   /**
    * WASMの初期化と、MLP構造をWASMメモリに書き込む準備を行います。
    * インスタンス作成後に必ず呼び出してください。
+   *
+   * 重み・layerDims・activations はこのメソッド内で WASM メモリの永続領域に
+   * 一度だけ書き込まれます。tune() の呼び出しでは入出力バッファのみが
+   * スタック管理され、重みの再転送は行われません。
    */
   public async init(): Promise<void> {
     this.wasmInstance = await initWasm();
@@ -125,12 +134,86 @@ export class MlpAdapter implements WarpAdapter {
     this.inputDim = this.layerDims[0];
     this.outputDim = this.layerDims[this.layerDims.length - 1];
 
+    // --- 重みを WASM メモリの永続領域に書き込む ---
+    this.persistentWeightsPtr = allocateWasmMemory(this.totalWeights * 4);
+    this.persistentLayerDimsPtr = allocateWasmMemory((this.numLayers + 1) * 4);
+    this.persistentActivationsPtr = allocateWasmMemory(this.numLayers * 4);
+
+    this.writeWeightsToWasm();
+
     this.isWasmReady = true;
+  }
+
+  /**
+   * 現在の layers 配列の重み・layerDims・activations を永続化済みの
+   * WASM メモリ領域に書き込みます。init() および setLayerWeights() で使用します。
+   */
+  private writeWeightsToWasm(): void {
+    const memory = this.wasmInstance!.exports.memory as WebAssembly.Memory;
+    const memoryBuffer = memory.buffer;
+    const f32 = new Float32Array(memoryBuffer);
+    const i32 = new Int32Array(memoryBuffer);
+
+    // layerDims
+    for (let i = 0; i < this.layerDims.length; i++) {
+      i32[this.persistentLayerDimsPtr / 4 + i] = this.layerDims[i];
+    }
+    // activations
+    for (let i = 0; i < this.activations.length; i++) {
+      i32[this.persistentActivationsPtr / 4 + i] = this.activations[i];
+    }
+    // weights & bias (interleaved: row weights then row bias for each row)
+    let wIdx = this.persistentWeightsPtr / 4;
+    for (let i = 0; i < this.numLayers; i++) {
+      const layer = this.layers[i];
+      let rows, cols;
+      if (layer.matrix instanceof Float32Array) {
+        rows = layer.bias.length;
+        cols = layer.matrix.length / rows;
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            f32[wIdx++] = layer.matrix[r * cols + c];
+          }
+          f32[wIdx++] = layer.bias[r];
+        }
+      } else {
+        rows = layer.matrix.length;
+        cols = layer.matrix[0].length;
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            f32[wIdx++] = layer.matrix[r][c];
+          }
+          f32[wIdx++] = layer.bias[r];
+        }
+      }
+    }
+  }
+
+  /**
+   * 特定のレイヤーの重みを実行時に更新します。
+   * WASM メモリの永続領域も同期的に再書き込みされます。
+   *
+   * @param layerIndex 更新するレイヤーのインデックス
+   * @param layer 新しいレイヤーデータ
+   */
+  public setLayerWeights(layerIndex: number, layer: MlpLayer): void {
+    if (layerIndex < 0 || layerIndex >= this.numLayers) {
+      throw new Error(`Layer index ${layerIndex} out of range (0-${this.numLayers - 1})`);
+    }
+    this.layers[layerIndex] = layer;
+
+    // WASM が初期化済みなら永続領域を再書き込み
+    if (this.isWasmReady) {
+      this.writeWeightsToWasm();
+    }
   }
 
   /**
    * ニューラルネットワークの順伝播を実行し、結果を返します。
    * (WarpAdapter の実装として、predict の代わりに tune を提供します)
+   *
+   * 重み・layerDims・activations は init() 時に永続化された WASM メモリを
+   * 直接参照します。入出力バッファと中間バッファのみがスタック管理されます。
    *
    * @param input 入力ベクトル
    * @returns 推論結果ベクトル
@@ -145,65 +228,24 @@ export class MlpAdapter implements WarpAdapter {
 
     const memory = this.wasmInstance.exports.memory as WebAssembly.Memory;
     return withWasmMemoryStack(() => {
+      // 入出力と中間バッファのみをスタック上に確保
       const inputPtr = allocateWasmMemory(this.inputDim * 4);
       const outputPtr = allocateWasmMemory(this.outputDim * 4);
-      const layerDimsPtr = allocateWasmMemory((this.numLayers + 1) * 4);
-      const activationsPtr = allocateWasmMemory(this.numLayers * 4);
-      const weightsPtr = allocateWasmMemory(this.totalWeights * 4);
       const bufferPtr = allocateWasmMemory(this.maxDim * 4);
       const bufBPtr = allocateWasmMemory(this.maxDim * 4);
-
-      // データの書き込み
-      const memoryBuffer = memory.buffer;
-      const f32 = new Float32Array(memoryBuffer);
-      const i32 = new Int32Array(memoryBuffer);
-
-      // layerDims
-      for (let i = 0; i < this.layerDims.length; i++) {
-        i32[layerDimsPtr / 4 + i] = this.layerDims[i];
-      }
-      // activations
-      for (let i = 0; i < this.activations.length; i++) {
-        i32[activationsPtr / 4 + i] = this.activations[i];
-      }
-      // weights & bias
-      let wIdx = weightsPtr / 4;
-      for (let i = 0; i < this.numLayers; i++) {
-        const layer = this.layers[i];
-        let rows, cols;
-        if (layer.matrix instanceof Float32Array) {
-          rows = layer.bias.length;
-          cols = layer.matrix.length / rows;
-          for (let r = 0; r < rows; r++) {
-            for (let c = 0; c < cols; c++) {
-              f32[wIdx++] = layer.matrix[r * cols + c];
-            }
-            f32[wIdx++] = layer.bias[r];
-          }
-        } else {
-          rows = layer.matrix.length;
-          cols = layer.matrix[0].length;
-          for (let r = 0; r < rows; r++) {
-            for (let c = 0; c < cols; c++) {
-              f32[wIdx++] = layer.matrix[r][c];
-            }
-            f32[wIdx++] = layer.bias[r];
-          }
-        }
-      }
 
       // 入力ベクトルの書き込み
       writeFloat32ArrayToWasm(memory, input, inputPtr);
 
-      // WASMの呼び出し
+      // WASMの呼び出し（重みは永続化済みのポインタを使用）
       const mlpInferenceWasm = this.wasmInstance!.exports
         .mlpInferenceWasm as CallableFunction;
       mlpInferenceWasm(
         inputPtr,
         outputPtr,
-        weightsPtr,
-        layerDimsPtr,
-        activationsPtr,
+        this.persistentWeightsPtr,
+        this.persistentLayerDimsPtr,
+        this.persistentActivationsPtr,
         this.numLayers,
         bufferPtr,
         bufBPtr,
