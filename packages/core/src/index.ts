@@ -1,10 +1,10 @@
 // @warpvector/core - Core vector space transformation engine
-export * from "./WarpAdapter";
-export * from "./IntentAdapter";
-export * from "./LoraIntentAdapter";
-export * from "./ProjectionAdapter";
-export * from "./WarpPipeline";
-export * from "./db";
+export * from "./interfaces/WarpAdapter";
+export * from "./adapters/IntentAdapter";
+export * from "./adapters/LoraIntentAdapter";
+export * from "./adapters/ProjectionAdapter";
+export * from "./pipeline/WarpPipeline";
+export * from "./adapters/VectorDBAdapter";
 export * from "./utils";
 export * from "./validation";
 

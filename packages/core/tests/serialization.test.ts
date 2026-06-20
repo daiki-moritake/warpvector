@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { WhiteningAdapter } from "@warpvector/ml";
-import { ProjectionAdapter } from "../src/ProjectionAdapter";
+import { ProjectionAdapter } from "../src/adapters/ProjectionAdapter";
 import { MlpAdapter } from "@warpvector/ml";
 
 describe("Universal Serialization", () => {

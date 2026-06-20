@@ -1,5 +1,5 @@
 import { expect, test, describe } from "bun:test";
-import { VectorDBAdapter } from "../src/db";
+import { VectorDBAdapter } from "../src/adapters/VectorDBAdapter";
 
 describe("VectorDBAdapter", () => {
   test("toPgvector converts a vector to a string format for PostgreSQL", () => {

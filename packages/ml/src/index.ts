@@ -1,15 +1,15 @@
 // @warpvector/ml - Machine learning adapters and trainers
 import { WarpPipeline } from "@warpvector/core";
-import { MlpAdapter } from "./MlpAdapter";
-import { WhiteningAdapter } from "./WhiteningAdapter";
+import { MlpAdapter } from "./adapters/MlpAdapter";
+import { WhiteningAdapter } from "./adapters/WhiteningAdapter";
 
-export * from "./MlpAdapter";
-export * from "./WhiteningAdapter";
-export * from "./BaseTrainer";
-export * from "./IntentTrainer";
-export * from "./InfoNCETrainer";
-export * from "./TripletTrainer";
-export * from "./MigrationTrainer";
+export * from "./adapters/MlpAdapter";
+export * from "./adapters/WhiteningAdapter";
+export * from "./trainers/BaseTrainer";
+export * from "./trainers/IntentTrainer";
+export * from "./trainers/InfoNCETrainer";
+export * from "./trainers/TripletTrainer";
+export * from "./trainers/MigrationTrainer";
 
 // WarpPipeline にml系アダプタを自動登録 (side-effect)
 WarpPipeline.registerAdapter("MlpAdapter", (state) =>

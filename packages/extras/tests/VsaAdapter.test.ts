@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { VsaAdapter } from "../src/VsaAdapter";
+import { VsaAdapter } from "../src/adapters/VsaAdapter";
 
 describe("Vector Symbolic Architecture (VSA) Adapter", () => {
   test("bundle correctly adds and normalizes vectors", () => {

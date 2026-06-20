@@ -1,10 +1,10 @@
-import { assertDimension, flattenMatrix, applyAffine } from "./utils";
+import { assertDimension, flattenMatrix, applyAffine } from "../utils";
 import {
   safeJsonParse,
   assertPositiveInt,
   assertObject,
   assertNumberArray,
-} from "./validation";
+} from "../validation";
 import {
   getWasmInstance,
   ensureWasmMemory,
@@ -12,8 +12,8 @@ import {
   allocateWasmMemory,
   withWasmMemoryStack,
   readFloat32ArrayFromWasm,
-} from "./wasm/wasm-loader";
-import { WarpAdapter } from "./WarpAdapter";
+} from "../wasm/wasm-loader";
+import { WarpAdapter } from "../interfaces/WarpAdapter";
 
 /**
  * 次元削減/拡張のための射影行列の重みを定義するインターフェース

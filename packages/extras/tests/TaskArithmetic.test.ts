@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { TaskArithmetic } from "../src/TaskArithmetic";
+import { TaskArithmetic } from "../src/operations/TaskArithmetic";
 import { IntentWeights } from "@warpvector/core";
 
 describe("Task Arithmetic (Model Merging)", () => {

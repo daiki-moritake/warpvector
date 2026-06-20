@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { ProjectionAdapter, ProjectionWeights } from "../src/ProjectionAdapter";
+import { ProjectionAdapter, ProjectionWeights } from "../src/adapters/ProjectionAdapter";
 
 describe("ProjectionAdapter Core Logic", () => {
   const dummyProjections: Record<string, ProjectionWeights> = {

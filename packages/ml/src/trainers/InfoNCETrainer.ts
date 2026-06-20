@@ -5,7 +5,7 @@ import {
   applyAffine,
   innerProduct,
 } from "@warpvector/core";
-import { AbstractAdamTrainer } from "./BaseTrainer";
+import { AbstractAdamTrainer } from "../trainers/BaseTrainer";
 
 /**
  * 学習データのペア（Anchor, Positive, 複数のNegatives）

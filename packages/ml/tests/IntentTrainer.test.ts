@@ -1,5 +1,5 @@
 import { expect, test, describe } from "bun:test";
-import { IntentTrainer, TrainingExample } from "../src/IntentTrainer";
+import { IntentTrainer, TrainingExample } from "../src/trainers/IntentTrainer";
 import { IntentAdapter } from "@warpvector/core";
 import { cosineSimilarity } from "@warpvector/core";
 

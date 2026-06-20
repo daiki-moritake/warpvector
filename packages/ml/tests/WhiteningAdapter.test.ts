@@ -1,5 +1,5 @@
 import { expect, test, describe } from "bun:test";
-import { WhiteningAdapter } from "../src/WhiteningAdapter";
+import { WhiteningAdapter } from "../src/adapters/WhiteningAdapter";
 import { cosineSimilarity, normalize } from "@warpvector/core";
 
 describe("WhiteningAdapter", () => {

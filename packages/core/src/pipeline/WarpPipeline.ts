@@ -4,11 +4,11 @@ import {
   InputVector,
   OutputVector,
   AdapterState,
-} from "./WarpAdapter";
-import { IntentAdapter, IntentWeights } from "./IntentAdapter";
-import { LoraIntentAdapter, LoraIntentWeights } from "./LoraIntentAdapter";
-import { ProjectionAdapter, ProjectionWeights } from "./ProjectionAdapter";
-import { VectorDBAdapter } from "./db";
+} from "../interfaces/WarpAdapter";
+import { IntentAdapter, IntentWeights } from "../adapters/IntentAdapter";
+import { LoraIntentAdapter, LoraIntentWeights } from "../adapters/LoraIntentAdapter";
+import { ProjectionAdapter, ProjectionWeights } from "../adapters/ProjectionAdapter";
+import { VectorDBAdapter } from "../adapters/VectorDBAdapter";
 
 export interface PipelineStep {
   type: string;

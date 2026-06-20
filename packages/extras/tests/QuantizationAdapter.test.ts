@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { QuantizationAdapter } from "../src/QuantizationAdapter";
+import { QuantizationAdapter } from "../src/adapters/QuantizationAdapter";
 import { normalize } from "@warpvector/core";
 
 describe("QuantizationAdapter", () => {

@@ -1,5 +1,5 @@
 import { expect, test, describe } from "bun:test";
-import { InfoNCETrainer, InfoNCEExample } from "../src/InfoNCETrainer";
+import { InfoNCETrainer, InfoNCEExample } from "../src/trainers/InfoNCETrainer";
 import { IntentAdapter, IntentWeights } from "@warpvector/core";
 import { cosineSimilarity } from "@warpvector/core";
 

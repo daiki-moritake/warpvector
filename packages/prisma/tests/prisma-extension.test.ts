@@ -1,6 +1,6 @@
 import { expect, test, describe } from "bun:test";
 import { withWarpVector } from "../src/prisma";
-import { WarpAdapter } from "../src/WarpAdapter";
+import { WarpAdapter } from "../src/interfaces/WarpAdapter";
 import sql from "sql-template-tag";
 
 // モック用のアダプター (ベクトルの値を2倍にするだけ)

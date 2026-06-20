@@ -1,5 +1,5 @@
 import { expect, test, describe, beforeAll } from "bun:test";
-import { MlpAdapter, MlpLayer } from "../src/MlpAdapter";
+import { MlpAdapter, MlpLayer } from "../src/adapters/MlpAdapter";
 import { initWasm } from "@warpvector/core";
 
 describe("MlpAdapter", () => {

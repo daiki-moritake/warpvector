@@ -1,5 +1,5 @@
 import { expect, test, describe } from "bun:test";
-import { IntentAdapter } from "../src/IntentAdapter";
+import { IntentAdapter } from "../src/adapters/IntentAdapter";
 
 describe("IntentAdapter Binary Serialization", () => {
   test("exports and imports intent perfectly", () => {

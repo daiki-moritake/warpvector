@@ -1,5 +1,5 @@
 import { ProjectionWeights } from "@warpvector/core";
-import { BaseTrainer, BaseTrainingOptions } from "./BaseTrainer";
+import { BaseTrainer, BaseTrainingOptions } from "../trainers/BaseTrainer";
 
 /**
  * 移行用の学習データペア（旧モデルのベクトル -> 新モデルのベクトル）

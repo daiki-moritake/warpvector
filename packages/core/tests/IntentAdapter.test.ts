@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { IntentAdapter, IntentWeights } from "../src/IntentAdapter";
+import { IntentAdapter, IntentWeights } from "../src/adapters/IntentAdapter";
 import { normalize } from "../src/utils";
 
 describe("IntentAdapter Core Logic", () => {

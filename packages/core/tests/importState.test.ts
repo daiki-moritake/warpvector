@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import { IntentAdapter } from "../src/IntentAdapter";
-import { LoraIntentAdapter } from "../src/LoraIntentAdapter";
-import { ProjectionAdapter } from "../src/ProjectionAdapter";
+import { IntentAdapter } from "../src/adapters/IntentAdapter";
+import { LoraIntentAdapter } from "../src/adapters/LoraIntentAdapter";
+import { ProjectionAdapter } from "../src/adapters/ProjectionAdapter";
 
 describe("importState validation", () => {
   // --- IntentAdapter ---

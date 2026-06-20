@@ -1,5 +1,5 @@
 import { expect, test, describe } from "bun:test";
-import { TripletTrainer, TripletExample } from "../src/TripletTrainer";
+import { TripletTrainer, TripletExample } from "../src/trainers/TripletTrainer";
 import { IntentAdapter, IntentWeights } from "@warpvector/core";
 import { cosineSimilarity } from "@warpvector/core";
 

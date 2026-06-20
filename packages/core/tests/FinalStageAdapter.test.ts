@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { WarpPipeline } from "../src/WarpPipeline";
+import { WarpPipeline } from "../src/pipeline/WarpPipeline";
 import { QuantizationAdapter } from "@warpvector/extras";
 
 describe("FinalStageAdapter pipeline", () => {

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { LoraIntentAdapter, LoraIntentWeights } from "../src/LoraIntentAdapter";
+import { LoraIntentAdapter, LoraIntentWeights } from "../src/adapters/LoraIntentAdapter";
 
 describe("LoraIntentAdapter Core Logic", () => {
   const dummyIntents: Record<string, LoraIntentWeights> = {

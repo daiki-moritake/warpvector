@@ -1,5 +1,5 @@
 import { IntentWeights } from "@warpvector/core";
-import { BaseTrainer, BaseTrainingOptions } from "./BaseTrainer";
+import { BaseTrainer, BaseTrainingOptions } from "../trainers/BaseTrainer";
 import { initWasm } from "@warpvector/core";
 import { assertDimension, getFlatMatrixAndBias, applyAffine } from "@warpvector/core";
 

@@ -1,5 +1,5 @@
 import { expect, test, describe } from "bun:test";
-import { ColbertAdapter } from "../src/ColbertAdapter";
+import { ColbertAdapter } from "../src/adapters/ColbertAdapter";
 import { initWasm } from "@warpvector/core";
 
 // TypeScript側での参照用実装 (WASMとの結果を比較するため)

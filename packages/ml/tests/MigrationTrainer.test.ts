@@ -1,5 +1,5 @@
 import { expect, test, describe } from "bun:test";
-import { MigrationTrainer } from "../src/MigrationTrainer";
+import { MigrationTrainer } from "../src/trainers/MigrationTrainer";
 import { ProjectionAdapter } from "@warpvector/core";
 import { cosineSimilarity } from "@warpvector/core";
 

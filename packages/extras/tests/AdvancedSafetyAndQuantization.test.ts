@@ -1,7 +1,7 @@
 import { expect, test, describe } from "bun:test";
 import { MlpAdapter, WhiteningAdapter, BaseTrainer } from "@warpvector/ml";
 import { WarpPipeline, VectorDBAdapter, getWasmAllocatorOffset } from "@warpvector/core";
-import { QuantizationAdapter } from "../src/QuantizationAdapter";
+import { QuantizationAdapter } from "../src/adapters/QuantizationAdapter";
 import { withWarpVector } from "@warpvector/prisma";
 import sql from "sql-template-tag";
 

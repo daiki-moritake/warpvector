@@ -3,14 +3,14 @@ import {
   flattenMatrix,
   applyAffine,
   addScaledVector,
-} from "./utils";
+} from "../utils";
 import {
   safeJsonParse,
   assertPositiveInt,
   assertObject,
   assertNumberArray,
-} from "./validation";
-import { WarpAdapter } from "./WarpAdapter";
+} from "../validation";
+import { WarpAdapter } from "../interfaces/WarpAdapter";
 
 /**
  * 低ランク適応（LoRA）の重みを定義するインターフェース

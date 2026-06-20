@@ -7,21 +7,21 @@ import {
   assertDimension,
   applyAffine,
   addScaledVector,
-} from "./utils";
+} from "../utils";
 import {
   safeJsonParse,
   assertPositiveInt,
   assertObject,
   assertNumberArray,
-} from "./validation";
+} from "../validation";
 import {
   getWasmInstance,
   ensureWasmMemory,
   writeFloat32ArrayToWasm,
   allocateWasmMemory,
   withWasmMemoryStack,
-} from "./wasm/wasm-loader";
-import { WarpAdapter } from "./WarpAdapter";
+} from "../wasm/wasm-loader";
+import { WarpAdapter } from "../interfaces/WarpAdapter";
 
 /**
  * 意図（コンテキスト）ごとの変換情報を定義するインターフェース
