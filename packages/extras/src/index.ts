@@ -1,12 +1,35 @@
 // @warpvector/extras - Extended adapters for WarpVector
 import { WarpPipeline } from "@warpvector/core";
-import { QuantizationAdapter } from "./QuantizationAdapter";
+import { QuantizationAdapter, QuantizationConfig } from "./QuantizationAdapter";
 
 export * from "./ColbertAdapter";
 export * from "./QuantizationAdapter";
 export * from "./VsaAdapter";
 export * from "./TaskArithmetic";
 export * from "./fusion";
+
+/**
+ * WarpPipeline にワンライナーで量子化 FinalStage を設定するヘルパー関数。
+ *
+ * @example
+ * import { quantizePipeline } from "@warpvector/extras";
+ *
+ * const pipeline = quantizePipeline(
+ *   new WarpPipeline(768).addIntent({ ... }),
+ *   { type: "int8", dim: 768 }
+ * );
+ *
+ * @param pipeline 量子化を追加するパイプライン
+ * @param config 量子化設定
+ * @returns 量子化が設定されたパイプライン
+ */
+export function quantizePipeline(
+  pipeline: WarpPipeline,
+  config: QuantizationConfig,
+): WarpPipeline {
+  const quantizer = new QuantizationAdapter(config);
+  return pipeline.setFinalStage("QuantizationAdapter", quantizer);
+}
 
 // WarpPipeline にextras系アダプタを自動登録 (side-effect)
 WarpPipeline.registerAdapter("QuantizationAdapter", (state) =>

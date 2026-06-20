@@ -71,6 +71,16 @@ export class WarpLlamaIndexEmbeddings implements LlamaIndexBaseEmbedding {
 
   /**
    * ドキュメントの埋め込み（インデックス作成用）は変換を行いません。
+   *
+   * **設計上の意図: 非対称検索（Asymmetric Search）パターン**
+   *
+   * ドキュメント側は客観的なセマンティクス空間にそのまま配置し、
+   * クエリ側のみを意図に応じてワープすることで、同一インデックスに対して
+   * 複数の検索意図を柔軟に切り替えられます。
+   *
+   * ドキュメント側にもワープを適用したい場合は、
+   * `baseEmbeddings.getTextEmbedding()` の結果に
+   * `IntentAdapter.tune()` を直接適用してください。
    */
   async getTextEmbedding(text: string): Promise<number[]> {
     return this.baseEmbeddings.getTextEmbedding(text);

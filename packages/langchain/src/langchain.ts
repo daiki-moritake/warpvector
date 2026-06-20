@@ -99,7 +99,23 @@ export class WarpEmbeddings extends Embeddings {
 
   /**
    * ベースの embeddings モデルを使用して、ドキュメントを通常通り埋め込みます。
-   * VectorDB には客観的な空間データを含める必要があるため、インデックスされるドキュメントはワープ（変換）しません。
+   *
+   * **設計上の意図: ドキュメントは意図変換（ワープ）しません。**
+   *
+   * これは、ベクトル検索における非対称検索（Asymmetric Search）パターンに基づいています:
+   * - **ドキュメント側**: 客観的なセマンティクス空間に配置されるべきです。
+   *   意図変換を適用すると、特定の検索意図に偏った表現になり、
+   *   他の意図での検索精度が劣化します。
+   * - **クエリ側**: ユーザーの検索意図に応じて動的にベクトル空間を歪め、
+   *   目的に合った文書をより高ランクに引き上げます。
+   *
+   * この設計により、同一のドキュメントインデックスに対して
+   * 複数の異なる意図（例: "類似度重視" / "多様性重視"）で
+   * クエリを実行できます。
+   *
+   * もしドキュメント側にもワープを適用したい場合は、
+   * `baseEmbeddings.embedDocuments()` の結果に直接
+   * `IntentAdapter.tuneBatch()` を適用してください。
    */
   async embedDocuments(documents: string[]): Promise<number[][]> {
     return this.baseEmbeddings.embedDocuments(documents);
