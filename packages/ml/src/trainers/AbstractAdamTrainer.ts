@@ -1,10 +1,5 @@
-import {
-  allocateWasmMemory,
-  assertDimension,
-  getWasmInstance,
-  withWasmMemoryStack,
-  writeFloat32ArrayToWasm,
-} from "@warpvector/core";
+import { assertDimension } from "@warpvector/core";
+import { applyAdamToAffine } from "../optimizers/adam";
 
 /**
  * Adam最適化のステート変数を管理する共通基底クラス
@@ -82,96 +77,18 @@ export abstract class AbstractAdamTrainer<TResult = import("@warpvector/core").I
     reg: number,
     t: number,
   ): void {
-    const tDim = bias.length;
-    const sDim = input.length;
-    const beta1 = 0.9;
-    const beta2 = 0.999;
-    const epsilon = 1e-8;
-
-    const instance = getWasmInstance();
-    if (instance && instance.exports.adamUpdateWasm) {
-      const memory = instance.exports.memory as WebAssembly.Memory;
-
-      const matrixBytes = matrix.byteLength;
-      const biasBytes = bias.byteLength;
-      const inputBytes = sDim * 4;
-      const gradBytes = tDim * 4;
-
-      withWasmMemoryStack(() => {
-        const matrixPtr = allocateWasmMemory(matrixBytes);
-        const biasPtr = allocateWasmMemory(biasBytes);
-        const mMatrixPtr = allocateWasmMemory(matrixBytes);
-        const vMatrixPtr = allocateWasmMemory(matrixBytes);
-        const mBiasPtr = allocateWasmMemory(biasBytes);
-        const vBiasPtr = allocateWasmMemory(biasBytes);
-        const inputPtr = allocateWasmMemory(inputBytes);
-        const gradPtr = allocateWasmMemory(gradBytes);
-
-        // データの書き込み
-        writeFloat32ArrayToWasm(memory, matrix, matrixPtr);
-        writeFloat32ArrayToWasm(memory, bias, biasPtr);
-        writeFloat32ArrayToWasm(memory, mMatrix, mMatrixPtr);
-        writeFloat32ArrayToWasm(memory, vMatrix, vMatrixPtr);
-        writeFloat32ArrayToWasm(memory, mBias, mBiasPtr);
-        writeFloat32ArrayToWasm(memory, vBias, vBiasPtr);
-        writeFloat32ArrayToWasm(memory, input, inputPtr);
-        writeFloat32ArrayToWasm(memory, outputGradients, gradPtr);
-
-        const adamUpdateWasm = instance.exports.adamUpdateWasm as CallableFunction;
-        adamUpdateWasm(
-          matrixPtr,
-          biasPtr,
-          mMatrixPtr,
-          vMatrixPtr,
-          mBiasPtr,
-          vBiasPtr,
-          inputPtr,
-          gradPtr,
-          lr,
-          reg,
-          beta1,
-          beta2,
-          epsilon,
-          t,
-          sDim,
-          tDim,
-        );
-
-        // 更新されたデータを読み戻す
-        const f32 = new Float32Array(memory.buffer);
-        matrix.set(f32.subarray(matrixPtr / 4, matrixPtr / 4 + matrix.length));
-        bias.set(f32.subarray(biasPtr / 4, biasPtr / 4 + bias.length));
-        mMatrix.set(f32.subarray(mMatrixPtr / 4, mMatrixPtr / 4 + mMatrix.length));
-        vMatrix.set(f32.subarray(vMatrixPtr / 4, vMatrixPtr / 4 + vMatrix.length));
-        mBias.set(f32.subarray(mBiasPtr / 4, mBiasPtr / 4 + mBias.length));
-        vBias.set(f32.subarray(vBiasPtr / 4, vBiasPtr / 4 + vBias.length));
-      });
-    } else {
-      // WASMが使えない場合のJSフォールバック
-      for (let i = 0; i < tDim; i++) {
-        const bGrad = outputGradients[i];
-
-        // Adam for Bias
-        mBias[i] = beta1 * mBias[i] + (1 - beta1) * bGrad;
-        vBias[i] = beta2 * vBias[i] + (1 - beta2) * (bGrad * bGrad);
-        const mHatB = mBias[i] / (1 - Math.pow(beta1, t));
-        const vHatB = vBias[i] / (1 - Math.pow(beta2, t));
-
-        bias[i] -= (lr * mHatB) / (Math.sqrt(vHatB) + epsilon);
-
-        const rowOffset = i * sDim;
-        for (let j = 0; j < sDim; j++) {
-          const wIdx = rowOffset + j;
-          const wGrad = bGrad * input[j] + reg * matrix[wIdx];
-
-          mMatrix[wIdx] = beta1 * mMatrix[wIdx] + (1 - beta1) * wGrad;
-          vMatrix[wIdx] = beta2 * vMatrix[wIdx] + (1 - beta2) * (wGrad * wGrad);
-          const mHatW = mMatrix[wIdx] / (1 - Math.pow(beta1, t));
-          const vHatW = vMatrix[wIdx] / (1 - Math.pow(beta2, t));
-
-          matrix[wIdx] -= (lr * mHatW) / (Math.sqrt(vHatW) + epsilon);
-        }
-      }
-    }
+    applyAdamToAffine(
+      matrix,
+      bias,
+      mMatrix,
+      vMatrix,
+      mBias,
+      vBias,
+      input,
+      outputGradients,
+      lr,
+      reg,
+      t
+    );
   }
 }
