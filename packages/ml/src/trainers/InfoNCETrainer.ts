@@ -4,6 +4,7 @@ import {
   getFlatMatrixAndBias,
   applyAffine,
   innerProduct,
+  softmax,
 } from "@warpvector/core";
 import { AbstractAdamTrainer } from "../trainers/BaseTrainer";
 
@@ -50,8 +51,6 @@ export class InfoNCETrainer extends AbstractAdamTrainer {
     this.initAdamState(dimension, dimension);
   }
 
-
-
   /**
    * オンライン学習 (フィードバックループ) 用のメソッド。
    * 1つのクエリ(Anchor)、1つのクリック(Positive)、複数のスルー(Negatives)から重みを微調整します。
@@ -92,34 +91,17 @@ export class InfoNCETrainer extends AbstractAdamTrainer {
 
     // 2. スコア計算: s(A', X) = A' \cdot X
     const posScore = innerProduct(warpedAnchor, example.positive);
+    const numNegatives = example.negatives.length;
 
-    const negScores = new Float32Array(example.negatives.length);
-    for (let n = 0; n < example.negatives.length; n++) {
-      negScores[n] = innerProduct(warpedAnchor, example.negatives[n]);
+    // Softmax確率の計算のため、すべてのスコアを1つの配列にまとめる
+    const allScores = [posScore / temperature];
+    for (let n = 0; n < numNegatives; n++) {
+      allScores.push(innerProduct(warpedAnchor, example.negatives[n]) / temperature);
     }
 
-    // 3. Softmax 確率の計算 (数値的安定性のために max を引く)
-    let maxScore = posScore / temperature;
-    for (let n = 0; n < example.negatives.length; n++) {
-      const s = negScores[n] / temperature;
-      if (s > maxScore) maxScore = s;
-    }
-
-    const expPos = Math.exp(posScore / temperature - maxScore);
-    const expNegs = new Float32Array(example.negatives.length);
-    let sumExp = expPos;
-
-    for (let n = 0; n < example.negatives.length; n++) {
-      const expN = Math.exp(negScores[n] / temperature - maxScore);
-      expNegs[n] = expN;
-      sumExp += expN;
-    }
-
-    const pPos = expPos / sumExp; // 正解の予測確率
-    const pNegs = new Float32Array(example.negatives.length);
-    for (let n = 0; n < example.negatives.length; n++) {
-      pNegs[n] = expNegs[n] / sumExp; // 各不正解の予測確率
-    }
+    // 3. 共通の softmax() 関数を使用
+    const probs = softmax(allScores);
+    const pPos = probs[0]; // 正解の予測確率
 
     // 4. Backward Pass: 勾配計算と Adam Optimizer
     this.t += 1;
@@ -127,8 +109,9 @@ export class InfoNCETrainer extends AbstractAdamTrainer {
     const outputGradients = new Float32Array(dim);
     for (let i = 0; i < dim; i++) {
       let gradA_i = (pPos - 1.0) * example.positive[i];
-      for (let n = 0; n < example.negatives.length; n++) {
-        gradA_i += pNegs[n] * example.negatives[n][i];
+      for (let n = 0; n < numNegatives; n++) {
+        // probs の 1 以降が pNegs
+        gradA_i += probs[n + 1] * example.negatives[n][i];
       }
       outputGradients[i] = gradA_i / temperature;
     }
@@ -147,10 +130,6 @@ export class InfoNCETrainer extends AbstractAdamTrainer {
       this.t,
     );
 
-    const newWeights = this.toWeights(flatMatrix, bias);
-    if (currentWeights.routingVector) {
-      newWeights.routingVector = [...currentWeights.routingVector];
-    }
-    return newWeights;
+    return this.toWeightsWithRouting(flatMatrix, bias, currentWeights);
   }
 }

@@ -130,10 +130,6 @@ export class IntentTrainer extends BaseTrainer<TrainingExample, IntentWeights> {
       this.t,
     );
 
-    const newWeights = this.toWeights(flatMatrix, bias);
-    if (currentWeights.routingVector) {
-      newWeights.routingVector = [...currentWeights.routingVector];
-    }
-    return newWeights;
+    return this.toWeightsWithRouting(flatMatrix, bias, currentWeights);
   }
 }

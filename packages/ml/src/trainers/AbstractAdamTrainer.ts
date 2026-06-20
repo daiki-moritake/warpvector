@@ -45,6 +45,27 @@ export abstract class AbstractAdamTrainer<TResult = import("@warpvector/core").I
   }
 
   /**
+   * 学習済みの行列とバイアスを IntentWeights に変換し、
+   * 必要に応じて元の routingVector を引き継ぎます。
+   *
+   * @param flatMatrix 学習済みのフラット化された行列
+   * @param bias 学習済みのバイアスベクトル
+   * @param currentWeights 現在の重み（routingVectorを引き継ぐため）
+   * @returns routingVectorが引き継がれた新しい重み
+   */
+  protected toWeightsWithRouting(
+    flatMatrix: Float32Array,
+    bias: Float32Array,
+    currentWeights: import("@warpvector/core").IntentWeights,
+  ): import("@warpvector/core").IntentWeights {
+    const newWeights = this.toWeights(flatMatrix, bias) as unknown as import("@warpvector/core").IntentWeights;
+    if (currentWeights.routingVector) {
+      newWeights.routingVector = [...currentWeights.routingVector];
+    }
+    return newWeights;
+  }
+
+  /**
    * アフィンレイヤー (matrix, bias) に対する Adam のパラメータ更新を適用します。
    * InfoNCE や Triplet など、様々な損失関数で計算された勾配(outputGradients)を元に更新を行います。
    */
