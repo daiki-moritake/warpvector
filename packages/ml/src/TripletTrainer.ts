@@ -52,15 +52,7 @@ export class TripletTrainer extends AbstractAdamTrainer {
     this.initAdamState(dimension, dimension);
   }
 
-  private toWeights(
-    flatMatrix: Float32Array,
-    bias: Float32Array,
-  ): IntentWeights {
-    return {
-      matrix: flatMatrix, // 変換のオーバーヘッドを避けるためネイティブ配列のまま返す
-      bias: bias,
-    };
-  }
+
 
   /**
    * オンライン学習 (フィードバックループ) 用のメソッド。

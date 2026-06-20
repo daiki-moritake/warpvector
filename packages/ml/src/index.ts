@@ -6,10 +6,10 @@ import { WhiteningAdapter } from "./WhiteningAdapter";
 export * from "./MlpAdapter";
 export * from "./WhiteningAdapter";
 export * from "./BaseTrainer";
-export * from "./trainer";
+export * from "./IntentTrainer";
 export * from "./InfoNCETrainer";
 export * from "./TripletTrainer";
-export * from "./migration";
+export * from "./MigrationTrainer";
 
 // WarpPipeline にml系アダプタを自動登録 (side-effect)
 WarpPipeline.registerAdapter("MlpAdapter", (state) =>

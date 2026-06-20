@@ -60,24 +60,4 @@ export class MigrationTrainer extends BaseTrainer<
     return { source: example.source, target: example.target };
   }
 
-  protected toWeights(
-    flatMatrix: Float32Array,
-    bias: Float32Array,
-  ): ProjectionWeights {
-    const sDim = this.sourceDimension;
-    const tDim = this.targetDimension;
-    const outMatrix: number[][] = new Array(tDim);
-    for (let i = 0; i < tDim; i++) {
-      const row = new Array(sDim);
-      const rowOffset = i * sDim;
-      for (let j = 0; j < sDim; j++) {
-        row[j] = flatMatrix[rowOffset + j];
-      }
-      outMatrix[i] = row;
-    }
-    return {
-      matrix: outMatrix,
-      bias: Array.from(bias),
-    };
-  }
 }

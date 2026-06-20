@@ -23,9 +23,10 @@ export interface ProjectionWeights {
   /**
    * 射影変換行列
    * 行数が outDimension、列数が inDimension となります。
-   * @type {number[][]}
+   * 内部処理と互換性のため、number[][] と 1次元にフラット化された Float32Array の両方をサポートします。
+   * @type {number[][] | Float32Array}
    */
-  matrix: number[][]; // [outDimension][inDimension]
+  matrix: number[][] | Float32Array; // [outDimension][inDimension] or flat
 
   /**
    * オプションのバイアスベクトル
@@ -83,12 +84,22 @@ export class ProjectionAdapter implements WarpAdapter {
   public addProjection(name: string, weights: ProjectionWeights): void {
     const { matrix } = weights;
 
-    const flatMatrix = flattenMatrix(
-      matrix,
-      this.outDimension,
-      this.inDimension,
-      `Projection '${name}' Matrix`,
-    );
+    let flatMatrix: Float32Array;
+    if (matrix instanceof Float32Array) {
+      assertDimension(
+        matrix,
+        this.outDimension * this.inDimension,
+        `Projection '${name}' Matrix`,
+      );
+      flatMatrix = matrix;
+    } else {
+      flatMatrix = flattenMatrix(
+        matrix as number[][],
+        this.outDimension,
+        this.inDimension,
+        `Projection '${name}' Matrix`,
+      );
+    }
     this.matrices.set(name, flatMatrix);
 
     if (weights.bias) {

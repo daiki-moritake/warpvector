@@ -30,7 +30,7 @@ export interface BaseTrainingOptions {
 /**
  * Adam最適化のステート変数を管理する共通基底クラス
  */
-export abstract class AbstractAdamTrainer {
+export abstract class AbstractAdamTrainer<TResult = import("@warpvector/core").IntentWeights> {
   protected t: number = 0;
   protected mW!: Float32Array;
   protected vW!: Float32Array;
@@ -47,6 +47,25 @@ export abstract class AbstractAdamTrainer {
     }
     assertDimension(this.mW, sDim * tDim, "AdamState mW");
   }
+
+  /**
+   * 学習済みの1次元行列とバイアスから最終的な重みデータを構築します。
+   * デフォルトでは IntentWeights または互換性のある型にキャストして返します。
+   * @param flatMatrix 学習済みのフラット化された行列
+   * @param bias 学習済みのバイアスベクトル
+   * @returns TResult
+   */
+  protected toWeights(
+    flatMatrix: Float32Array,
+    bias: Float32Array,
+  ): TResult {
+    return {
+      matrix: flatMatrix,
+      bias: bias,
+    } as unknown as TResult;
+  }
+
+
 
   /**
    * アフィンレイヤー (matrix, bias) に対する Adam のパラメータ更新を適用します。
@@ -168,7 +187,7 @@ export abstract class AbstractAdamTrainer {
 export abstract class BaseTrainer<
   TExample,
   TResult,
-> extends AbstractAdamTrainer {
+> extends AbstractAdamTrainer<TResult> {
   /** 学習用サンプルの配列 */
   protected examples: TExample[] = [];
 
@@ -186,16 +205,7 @@ export abstract class BaseTrainer<
     source: number[] | Float32Array;
     target: number[] | Float32Array;
   };
-  /**
-   * 学習済みの1次元行列とバイアスを、最終的な結果の型 (TResult) に変換します。
-   * @param {Float32Array} flatMatrix 学習済みのフラット化された行列
-   * @param {Float32Array} bias 学習済みのバイアスベクトル
-   * @returns {TResult} 変換された重みデータ
-   */
-  protected abstract toWeights(
-    flatMatrix: Float32Array,
-    bias: Float32Array,
-  ): TResult;
+
 
   /**
    * 学習用のサンプルデータを追加します。
