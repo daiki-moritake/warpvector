@@ -4,6 +4,8 @@ export * from "./adapters/IntentAdapter";
 export * from "./adapters/LoraIntentAdapter";
 export * from "./adapters/ProjectionAdapter";
 export * from "./pipeline/WarpPipeline";
+export * from "./pipeline/AdapterRegistry";
+export * from "./pipeline/FormatRegistry";
 export * from "./adapters/VectorDBAdapter";
 export * from "./utils";
 export * from "./validation";

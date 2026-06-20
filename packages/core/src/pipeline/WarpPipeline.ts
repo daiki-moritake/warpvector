@@ -9,6 +9,8 @@ import { IntentAdapter, IntentWeights } from "../adapters/IntentAdapter";
 import { LoraIntentAdapter, LoraIntentWeights } from "../adapters/LoraIntentAdapter";
 import { ProjectionAdapter, ProjectionWeights } from "../adapters/ProjectionAdapter";
 import { VectorDBAdapter } from "../adapters/VectorDBAdapter";
+import { AdapterRegistry } from "./AdapterRegistry";
+import { FormatRegistry } from "./FormatRegistry";
 
 export interface PipelineStep {
   type: string;
@@ -48,15 +50,6 @@ export class WarpPipeline {
   private finalStage?: { type: string; adapter: FinalStageAdapter };
 
   /**
-   * アダプタの復元関数を保持するレジストリ。
-   * カスタムアダプタをパイプラインで利用・復元可能にするために使用します。
-   */
-  private static adapterRegistry = new Map<
-    string,
-    (state: AdapterState) => WarpAdapter
-  >();
-
-  /**
    * カスタムアダプタをパイプラインのレジストリに登録します。
    * これにより importState でカスタムアダプタを復元可能になります。
    *
@@ -67,16 +60,8 @@ export class WarpPipeline {
     type: string,
     importFn: (state: AdapterState) => WarpAdapter,
   ): void {
-    WarpPipeline.adapterRegistry.set(type, importFn);
+    AdapterRegistry.register(type, importFn);
   }
-
-  /**
-   * フォーマット変換ロジックを保持するレジストリ。
-   */
-  private static formatRegistry = new Map<
-    string,
-    (vector: OutputVector, options: FormatOptions) => unknown
-  >();
 
   /**
    * カスタムの出力フォーマットを登録します。
@@ -89,7 +74,7 @@ export class WarpPipeline {
     format: string,
     formatFn: (vector: OutputVector, options: FormatOptions) => unknown,
   ): void {
-    WarpPipeline.formatRegistry.set(format, formatFn);
+    FormatRegistry.register(format, formatFn);
   }
 
   constructor(public inputDim: number) {}
@@ -269,7 +254,7 @@ export class WarpPipeline {
   ): unknown {
     const tunedVector = this.run(vector, context);
 
-    const formatFn = WarpPipeline.formatRegistry.get(dbOptions.format);
+    const formatFn = FormatRegistry.get(dbOptions.format);
     if (!formatFn) {
       throw new Error(
         `Unknown format: ${dbOptions.format}. Did you forget to register it?`,
@@ -330,7 +315,7 @@ export class WarpPipeline {
     const pipeline = new WarpPipeline(0);
 
     for (const step of states) {
-      const importFn = WarpPipeline.adapterRegistry.get(step.type);
+      const importFn = AdapterRegistry.get(step.type);
       if (!importFn) {
         throw new Error(
           `Unknown adapter type: ${step.type}. Did you forget to register it via WarpPipeline.registerAdapter?`,
@@ -343,7 +328,7 @@ export class WarpPipeline {
 
     // FinalStage の復元
     if (finalStageState) {
-      const importFn = WarpPipeline.finalStageRegistry.get(finalStageState.type);
+      const importFn = AdapterRegistry.getFinalStage(finalStageState.type);
       if (importFn) {
         const adapter = importFn(finalStageState.state as AdapterState);
         pipeline.finalStage = { type: finalStageState.type, adapter };
@@ -354,21 +339,13 @@ export class WarpPipeline {
   }
 
   /**
-   * FinalStageAdapter の復元関数を保持するレジストリ。
-   */
-  private static finalStageRegistry = new Map<
-    string,
-    (state: AdapterState) => FinalStageAdapter
-  >();
-
-  /**
    * FinalStageAdapter をレジストリに登録します。
    */
   public static registerFinalStage(
     type: string,
     importFn: (state: AdapterState) => FinalStageAdapter,
   ): void {
-    WarpPipeline.finalStageRegistry.set(type, importFn);
+    AdapterRegistry.registerFinalStage(type, importFn);
   }
 }
 
