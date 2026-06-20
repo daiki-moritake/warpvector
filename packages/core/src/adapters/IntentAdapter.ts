@@ -214,28 +214,12 @@ export class IntentAdapter implements WarpAdapter {
     return result;
   }
 
-  /**
-   * 複数のベースベクトルに対して、指定された意図のアフィン変換をバッチ処理で適用します。
-   * メモリと条件が許せば、自動的にWASM/SIMDエンジンにオフロードして超高速処理を行います。
-   *
-   * @param {(number[] | Float32Array)[]} baseVectors - 変換元のベクトルの配列 (2次元配列)
-   * @param {string} intent - 適用する意図（intent）の名前
-   * @param {Activation} [activation] - （オプション）非線形活性化関数
-   * @returns {Float32Array[]} 変換後のベクトルの配列
-   * @throws {Error} 指定された意図が存在しない場合や入力ベクトルの次元が不正な場合にエラーをスローします。
-   */
-  public tuneBatch(
+  private executeBatchAffine(
+    matrix: Float32Array,
+    bias: Float32Array,
     baseVectors: (number[] | Float32Array)[],
-    intent: string,
     activation?: Activation,
   ): Float32Array[] {
-    const matrix = this.matrices.get(intent);
-    const bias = this.biases.get(intent);
-
-    if (!matrix || !bias) {
-      throw new Error(`Intent '${intent}' not found.`);
-    }
-
     const batchSize = baseVectors.length;
     const instance = getWasmInstance();
 
@@ -298,6 +282,31 @@ export class IntentAdapter implements WarpAdapter {
   }
 
   /**
+   * 複数のベースベクトルに対して、指定された意図のアフィン変換をバッチ処理で適用します。
+   * メモリと条件が許せば、自動的にWASM/SIMDエンジンにオフロードして超高速処理を行います。
+   *
+   * @param {(number[] | Float32Array)[]} baseVectors - 変換元のベクトルの配列 (2次元配列)
+   * @param {string} intent - 適用する意図（intent）の名前
+   * @param {Activation} [activation] - （オプション）非線形活性化関数
+   * @returns {Float32Array[]} 変換後のベクトルの配列
+   * @throws {Error} 指定された意図が存在しない場合や入力ベクトルの次元が不正な場合にエラーをスローします。
+   */
+  public tuneBatch(
+    baseVectors: (number[] | Float32Array)[],
+    intent: string,
+    activation?: Activation,
+  ): Float32Array[] {
+    const matrix = this.matrices.get(intent);
+    const bias = this.biases.get(intent);
+
+    if (!matrix || !bias) {
+      throw new Error(`Intent '${intent}' not found.`);
+    }
+
+    return this.executeBatchAffine(matrix, bias, baseVectors, activation);
+  }
+
+  /**
    * 複数の意図を指定された重みでブレンドし、ベクトルにアフィン変換を適用します。
    *
    * @param {number[] | Float32Array} baseVector - 変換元のベクトル
@@ -338,65 +347,7 @@ export class IntentAdapter implements WarpAdapter {
     activation?: Activation,
   ): Float32Array[] {
     const { matrix, bias } = this.computeBlendedWeights(blendWeights);
-    const batchSize = baseVectors.length;
-
-    // WASMによる最適化
-    const instance = getWasmInstance();
-
-    if (instance) {
-      const memory = instance.exports.memory as WebAssembly.Memory;
-      return withWasmMemoryStack(() => {
-        const matrixPtr = allocateWasmMemory(this.dimension * this.dimension * 4);
-        const biasPtr = allocateWasmMemory(this.dimension * 4);
-        const vectorsPtr = allocateWasmMemory(batchSize * this.dimension * 4);
-        const resultsPtr = allocateWasmMemory(batchSize * this.dimension * 4);
-
-        writeFloat32ArrayToWasm(memory, matrix, matrixPtr);
-        writeFloat32ArrayToWasm(memory, bias, biasPtr);
-
-        for (let k = 0; k < batchSize; k++) {
-          writeFloat32ArrayToWasm(
-            memory,
-            baseVectors[k],
-            vectorsPtr + k * this.dimension * 4,
-          );
-        }
-
-        const tuneBatchWasm = instance.exports.tuneBatchWasm as CallableFunction;
-        tuneBatchWasm(
-          matrixPtr,
-          biasPtr,
-          vectorsPtr,
-          resultsPtr,
-          this.dimension,
-          batchSize,
-        );
-
-        const results = new Array<Float32Array>(batchSize);
-        const outF32Mem = new Float32Array(memory.buffer);
-        for (let k = 0; k < batchSize; k++) {
-          const res = outF32Mem.slice(
-            resultsPtr / 4 + k * this.dimension,
-            resultsPtr / 4 + (k + 1) * this.dimension,
-          );
-          applyActivationToVector(res, activation);
-          results[k] = res;
-        }
-        return results;
-      });
-    }
-
-    // --- WASMフォールバック (JS) ---
-    const results = new Array<Float32Array>(batchSize);
-    for (let k = 0; k < batchSize; k++) {
-      const baseVector = baseVectors[k];
-      assertDimension(baseVector, this.dimension, `Base vector at index ${k}`);
-      const result = new Float32Array(this.dimension);
-      applyAffine(matrix, bias, baseVector, result, this.dimension);
-      applyActivationToVector(result, activation);
-      results[k] = result;
-    }
-    return results;
+    return this.executeBatchAffine(matrix, bias, baseVectors, activation);
   }
 
   /**
