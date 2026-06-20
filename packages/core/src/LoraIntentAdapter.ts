@@ -4,6 +4,12 @@ import {
   applyAffine,
   addScaledVector,
 } from "./utils";
+import {
+  safeJsonParse,
+  assertPositiveInt,
+  assertObject,
+  assertNumberArray,
+} from "./validation";
 import { WarpAdapter } from "./WarpAdapter";
 
 /**
@@ -183,12 +189,23 @@ export class LoraIntentAdapter implements WarpAdapter {
    * エクスポートされた JSON 状態から LoraIntentAdapter を復元します。
    */
   public static importState(stateJson: string): LoraIntentAdapter {
-    const data = JSON.parse(stateJson);
-    const adapter = new LoraIntentAdapter(data.dimension, data.rank);
-    for (const [name, intent] of Object.entries(data.intents) as any) {
-      adapter.matricesA.set(name, new Float32Array(intent.matrixA));
-      adapter.matricesB.set(name, new Float32Array(intent.matrixB));
-      adapter.biases.set(name, new Float32Array(intent.bias));
+    const data = assertObject(
+      safeJsonParse(stateJson, "LoraIntentAdapter"),
+      "root",
+    );
+    const dimension = assertPositiveInt(data.dimension, "dimension");
+    const rank = assertPositiveInt(data.rank, "rank");
+    const adapter = new LoraIntentAdapter(dimension, rank);
+
+    const intents = assertObject(data.intents, "intents");
+    for (const [name, rawIntent] of Object.entries(intents)) {
+      const intent = assertObject(rawIntent, `intents.${name}`);
+      const matrixA = assertNumberArray(intent.matrixA, `intents.${name}.matrixA`);
+      const matrixB = assertNumberArray(intent.matrixB, `intents.${name}.matrixB`);
+      const bias = assertNumberArray(intent.bias, `intents.${name}.bias`);
+      adapter.matricesA.set(name, new Float32Array(matrixA));
+      adapter.matricesB.set(name, new Float32Array(matrixB));
+      adapter.biases.set(name, new Float32Array(bias));
     }
     return adapter;
   }

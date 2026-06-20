@@ -1,5 +1,11 @@
 import { assertDimension } from "@warpvector/core";
-import { WarpAdapter } from "@warpvector/core";
+import { WarpAdapter, FinalStageAdapter } from "@warpvector/core";
+import {
+  safeJsonParse,
+  assertObject,
+  assertPositiveInt,
+  assertType,
+} from "@warpvector/core";
 
 export type QuantizationType = "int8" | "binary";
 
@@ -25,7 +31,7 @@ export interface QuantizationConfig {
  * QuantizationAdapter は、Float32のベクトルを Int8 や Binary に圧縮し、
  * メモリ使用量と保存コストを劇的に（1/4 〜 1/32 に）削減します。
  */
-export class QuantizationAdapter implements WarpAdapter {
+export class QuantizationAdapter implements WarpAdapter, FinalStageAdapter {
   private type: QuantizationType;
   private dim: number;
   private dynamic: boolean;
@@ -163,12 +169,29 @@ export class QuantizationAdapter implements WarpAdapter {
     }
   }
 
+  /**
+   * FinalStageAdapter の実装: Float32Array を量子化します。
+   * WarpPipeline.setFinalStage() で使用される場合はこのメソッドが呼ばれます。
+   */
+  public encode(vector: Float32Array): Int8Array | Uint8Array {
+    return this.tune(vector);
+  }
+
   public exportState(): string {
     return JSON.stringify({ type: this.type, dim: this.dim, dynamic: this.dynamic });
   }
 
   public static importState(stateJson: string): QuantizationAdapter {
-    const config = JSON.parse(stateJson);
-    return new QuantizationAdapter(config);
+    const data = assertObject(
+      safeJsonParse(stateJson, "QuantizationAdapter"),
+      "root",
+    );
+    assertType(data.type, "string", "type");
+    assertPositiveInt(data.dim, "dim");
+    return new QuantizationAdapter({
+      type: data.type as QuantizationType,
+      dim: data.dim as number,
+      dynamic: typeof data.dynamic === "boolean" ? data.dynamic : true,
+    });
   }
 }

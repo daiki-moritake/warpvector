@@ -1,5 +1,11 @@
 import { assertDimension, flattenMatrix, applyAffine } from "./utils";
 import {
+  safeJsonParse,
+  assertPositiveInt,
+  assertObject,
+  assertNumberArray,
+} from "./validation";
+import {
   getWasmInstance,
   ensureWasmMemory,
   writeFloat32ArrayToWasm,
@@ -214,13 +220,22 @@ export class ProjectionAdapter implements WarpAdapter {
    * 注意: 保存されている matrix は既にフラット化された 1D 配列であることを前提としています。
    */
   public static importState(stateJson: string): ProjectionAdapter {
-    const data = JSON.parse(stateJson);
-    const adapter = new ProjectionAdapter(data.inDimension, data.outDimension);
-    for (const [name, proj] of Object.entries(data.projections) as any) {
-      // 内部状態を直接復元
-      adapter.matrices.set(name, new Float32Array(proj.matrix));
+    const data = assertObject(
+      safeJsonParse(stateJson, "ProjectionAdapter"),
+      "root",
+    );
+    const inDimension = assertPositiveInt(data.inDimension, "inDimension");
+    const outDimension = assertPositiveInt(data.outDimension, "outDimension");
+    const adapter = new ProjectionAdapter(inDimension, outDimension);
+
+    const projections = assertObject(data.projections, "projections");
+    for (const [name, rawProj] of Object.entries(projections)) {
+      const proj = assertObject(rawProj, `projections.${name}`);
+      const matrix = assertNumberArray(proj.matrix, `projections.${name}.matrix`);
+      adapter.matrices.set(name, new Float32Array(matrix));
       if (proj.bias) {
-        adapter.biases.set(name, new Float32Array(proj.bias));
+        const bias = assertNumberArray(proj.bias, `projections.${name}.bias`);
+        adapter.biases.set(name, new Float32Array(bias));
       }
     }
     return adapter;

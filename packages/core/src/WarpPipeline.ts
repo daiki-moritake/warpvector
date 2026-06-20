@@ -1,5 +1,6 @@
 import {
   WarpAdapter,
+  FinalStageAdapter,
   InputVector,
   OutputVector,
   AdapterState,
@@ -15,6 +16,11 @@ export interface PipelineStep {
 }
 
 export interface PipelineState {
+  type: string;
+  state: AdapterState | null;
+}
+
+export interface FinalStageState {
   type: string;
   state: AdapterState | null;
 }
@@ -39,6 +45,7 @@ export interface FormatOptions {
  */
 export class WarpPipeline {
   private steps: PipelineStep[] = [];
+  private finalStage?: { type: string; adapter: FinalStageAdapter };
 
   /**
    * アダプタの復元関数を保持するレジストリ。
@@ -86,6 +93,19 @@ export class WarpPipeline {
   }
 
   constructor(public inputDim: number) {}
+
+  /**
+   * 量子化などの最終変換（FinalStageAdapter）をパイプライン末尾に設定します。
+   * パイプラインの run() 実行時、全ての WarpAdapter による変換が完了した後に
+   * FinalStageAdapter.encode() が呼ばれます。
+   *
+   * @param type アダプタの識別子 (例: "QuantizationAdapter")
+   * @param adapter FinalStageAdapter を実装したインスタンス
+   */
+  public setFinalStage(type: string, adapter: FinalStageAdapter): this {
+    this.finalStage = { type, adapter };
+    return this;
+  }
 
   /**
    * IntentAdapter (意図による線形変換) をパイプラインに追加します。
@@ -158,14 +178,28 @@ export class WarpPipeline {
    * @returns パイプラインを通過した最終的なベクトル (Float32Array または Uint8Array/Int8Array)
    */
   public run(vector: InputVector, context?: RunContext): OutputVector {
-    let currentVector: OutputVector = vector as OutputVector; // Initial input is Vector, but OutputVector handles ArrayTypes
+    // ステップが空でfinalStageもない場合は不要な変換を避ける
+    if (this.steps.length === 0 && !this.finalStage) {
+      return vector instanceof Float32Array ? vector : new Float32Array(vector);
+    }
+
+    let currentVector: Float32Array = vector instanceof Float32Array
+      ? vector
+      : new Float32Array(vector);
 
     for (const step of this.steps) {
       // 全てのアダプタにコンテキストを渡す（不要なアダプタは内部で無視する）
-      currentVector = step.adapter.tune(
-        currentVector as InputVector,
+      const result = step.adapter.tune(
+        currentVector,
         context?.intent || "default",
       );
+      // WarpAdapter の中間段は常に Float32Array を返すことを期待
+      currentVector = result as Float32Array;
+    }
+
+    // 最終段（量子化等）が設定されている場合、encode() を適用
+    if (this.finalStage) {
+      return this.finalStage.adapter.encode(currentVector);
     }
 
     return currentVector;
@@ -183,21 +217,29 @@ export class WarpPipeline {
     vectors: InputVector[],
     context?: RunContext,
   ): OutputVector[] {
-    let currentVectors: OutputVector[] = vectors as OutputVector[];
+    let currentVectors: Float32Array[] = vectors.map((v) =>
+      v instanceof Float32Array ? v : new Float32Array(v),
+    );
 
     for (const step of this.steps) {
       if (typeof step.adapter.tuneBatch === "function") {
         // tuneBatch メソッドがある場合は一括処理を委譲
         currentVectors = step.adapter.tuneBatch(
-          currentVectors as InputVector[],
+          currentVectors,
           context?.intent || "default",
-        );
+        ) as Float32Array[];
       } else {
         // tuneBatch がない場合は通常のループ処理へフォールバック
-        currentVectors = currentVectors.map((vec) =>
-          step.adapter.tune(vec as InputVector, context?.intent || "default"),
+        currentVectors = currentVectors.map(
+          (vec) =>
+            step.adapter.tune(vec, context?.intent || "default") as Float32Array,
         );
       }
+    }
+
+    // 最終段（量子化等）が設定されている場合、encode() を適用
+    if (this.finalStage) {
+      return currentVectors.map((vec) => this.finalStage!.adapter.encode(vec));
     }
 
     return currentVectors;
@@ -232,8 +274,8 @@ export class WarpPipeline {
    * パイプライン内の全アダプタの状態（学習済みの重みなど）を JSON 化可能な配列として出力します。
    * これにより、DBやRedis等への永続化が容易になります。
    */
-  public exportState(): PipelineState[] {
-    return this.steps.map((step) => {
+  public exportState(): { steps: PipelineState[]; finalStage?: FinalStageState } {
+    const steps = this.steps.map((step) => {
       const state =
         typeof step.adapter.exportState === "function"
           ? step.adapter.exportState()
@@ -243,6 +285,19 @@ export class WarpPipeline {
         state,
       };
     });
+
+    let finalStage: FinalStageState | undefined;
+    if (this.finalStage) {
+      finalStage = {
+        type: this.finalStage.type,
+        state:
+          typeof this.finalStage.adapter.exportState === "function"
+            ? this.finalStage.adapter.exportState()
+            : null,
+      };
+    }
+
+    return { steps, finalStage };
   }
 
   /**
@@ -250,7 +305,13 @@ export class WarpPipeline {
    * @param states exportState で出力された配列
    * @returns 復元された新しい WarpPipeline インスタンス
    */
-  public static importState(states: PipelineState[]): WarpPipeline {
+  public static importState(
+    data: PipelineState[] | { steps: PipelineState[]; finalStage?: FinalStageState },
+  ): WarpPipeline {
+    // 後方互換: PipelineState[] (旧形式) と { steps, finalStage } (新形式) の両方を受け付ける
+    const states = Array.isArray(data) ? data : data.steps;
+    const finalStageState = Array.isArray(data) ? undefined : data.finalStage;
+
     if (!states || states.length === 0) {
       throw new Error("No states provided to import.");
     }
@@ -271,7 +332,34 @@ export class WarpPipeline {
       pipeline.steps.push({ type: step.type, adapter });
     }
 
+    // FinalStage の復元
+    if (finalStageState) {
+      const importFn = WarpPipeline.finalStageRegistry.get(finalStageState.type);
+      if (importFn) {
+        const adapter = importFn(finalStageState.state as AdapterState);
+        pipeline.finalStage = { type: finalStageState.type, adapter };
+      }
+    }
+
     return pipeline;
+  }
+
+  /**
+   * FinalStageAdapter の復元関数を保持するレジストリ。
+   */
+  private static finalStageRegistry = new Map<
+    string,
+    (state: AdapterState) => FinalStageAdapter
+  >();
+
+  /**
+   * FinalStageAdapter をレジストリに登録します。
+   */
+  public static registerFinalStage(
+    type: string,
+    importFn: (state: AdapterState) => FinalStageAdapter,
+  ): void {
+    WarpPipeline.finalStageRegistry.set(type, importFn);
   }
 }
 

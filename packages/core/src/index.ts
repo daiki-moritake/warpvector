@@ -6,6 +6,7 @@ export * from "./ProjectionAdapter";
 export * from "./WarpPipeline";
 export * from "./db";
 export * from "./utils";
+export * from "./validation";
 
 // WASM runtime utilities (used by sub-packages @warpvector/ml, @warpvector/extras)
 export {

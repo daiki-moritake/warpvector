@@ -8,6 +8,11 @@ import {
   allocateWasmMemory,
   withWasmMemoryStack,
   readFloat32ArrayFromWasm,
+  safeJsonParse,
+  assertObject,
+  assertArray,
+  assertNumberArray,
+  assertType,
 } from "@warpvector/core";
 
 /**
@@ -235,15 +240,36 @@ export class MlpAdapter implements WarpAdapter {
    * 注意: 復元後、再度 `await init()` を呼び出してWASMメモリを初期化する必要があります。
    */
   public static importState(stateJson: string): MlpAdapter {
-    const data = JSON.parse(stateJson);
-    const layers: MlpLayer[] = data.layers.map((l: any) => ({
-      // Float32Array に戻すか、そのまま2D配列として扱う
-      matrix: Array.isArray(l.matrix[0])
-        ? l.matrix
-        : new Float32Array(l.matrix),
-      bias: new Float32Array(l.bias),
-      activation: l.activation,
-    }));
+    const data = assertObject(
+      safeJsonParse(stateJson, "MlpAdapter"),
+      "root",
+    );
+    const rawLayers = assertArray(data.layers, "layers");
+    const layers: MlpLayer[] = rawLayers.map((rawLayer: unknown, i: number) => {
+      const l = assertObject(rawLayer, `layers[${i}]`);
+      assertType(l.activation, "string", `layers[${i}].activation`);
+      const bias = assertNumberArray(l.bias, `layers[${i}].bias`);
+
+      // matrix は 2D配列 or flat 1D配列の両方をサポート
+      let matrix: number[][] | Float32Array;
+      if (Array.isArray(l.matrix) && Array.isArray(l.matrix[0])) {
+        // 2D 配列
+        matrix = (l.matrix as unknown[][]).map(
+          (row: unknown, j: number) =>
+            assertNumberArray(row, `layers[${i}].matrix[${j}]`),
+        );
+      } else {
+        matrix = new Float32Array(
+          assertNumberArray(l.matrix, `layers[${i}].matrix`),
+        );
+      }
+
+      return {
+        matrix,
+        bias: new Float32Array(bias),
+        activation: l.activation as Activation,
+      };
+    });
     return new MlpAdapter(layers);
   }
 }

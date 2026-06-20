@@ -9,6 +9,12 @@ import {
   addScaledVector,
 } from "./utils";
 import {
+  safeJsonParse,
+  assertPositiveInt,
+  assertObject,
+  assertNumberArray,
+} from "./validation";
+import {
   getWasmInstance,
   ensureWasmMemory,
   writeFloat32ArrayToWasm,
@@ -232,12 +238,6 @@ export class IntentAdapter implements WarpAdapter {
 
     const batchSize = baseVectors.length;
     const instance = getWasmInstance();
-    // WASMに必要なメモリ量（行列 + バイアス + 入力ベクトル全体 + 出力ベクトル全体）
-    const requiredBytes =
-      (this.dimension * this.dimension +
-        this.dimension +
-        batchSize * this.dimension * 2) *
-      4;
 
     // WASMモジュールが利用可能で、共有メモリにアクセス・拡張できる場合
     if (instance) {
@@ -342,11 +342,6 @@ export class IntentAdapter implements WarpAdapter {
 
     // WASMによる最適化
     const instance = getWasmInstance();
-    const requiredBytes =
-      (this.dimension * this.dimension +
-        this.dimension +
-        batchSize * this.dimension * 2) *
-      4;
 
     if (instance) {
       const memory = instance.exports.memory as WebAssembly.Memory;
@@ -592,16 +587,30 @@ export class IntentAdapter implements WarpAdapter {
    * エクスポートされた JSON 状態から IntentAdapter を復元します。
    */
   public static importState(stateJson: string): IntentAdapter {
-    const data = JSON.parse(stateJson);
-    const adapter = new IntentAdapter(data.dimension);
-    for (const [name, intent] of Object.entries(data.intents) as any) {
-      // 内部表現(1D Array)として復元するか、addIntent で再計算させるか。
-      // パフォーマンスと汎用性の観点から、addIntentを利用する（matrixはflatなFloat32Arrayとして渡す）
+    const data = assertObject(
+      safeJsonParse(stateJson, "IntentAdapter"),
+      "root",
+    );
+    const dimension = assertPositiveInt(data.dimension, "dimension");
+    const adapter = new IntentAdapter(dimension);
+
+    const intents = assertObject(data.intents, "intents");
+
+    for (const [name, rawIntent] of Object.entries(intents)) {
+      const intent = assertObject(rawIntent, `intents.${name}`);
+      const matrix = assertNumberArray(intent.matrix, `intents.${name}.matrix`);
+      const bias = assertNumberArray(intent.bias, `intents.${name}.bias`);
+
       adapter.addIntent(name, {
-        matrix: new Float32Array(intent.matrix),
-        bias: new Float32Array(intent.bias),
+        matrix: new Float32Array(matrix),
+        bias: new Float32Array(bias),
         routingVector: intent.routingVector
-          ? new Float32Array(intent.routingVector)
+          ? new Float32Array(
+              assertNumberArray(
+                intent.routingVector,
+                `intents.${name}.routingVector`,
+              ),
+            )
           : undefined,
       });
     }

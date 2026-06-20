@@ -12,3 +12,8 @@ export * from "./fusion";
 WarpPipeline.registerAdapter("QuantizationAdapter", (state) =>
   QuantizationAdapter.importState(state as string),
 );
+
+// FinalStageAdapter としても登録（パイプライン末尾の量子化復元用）
+WarpPipeline.registerFinalStage("QuantizationAdapter", (state) =>
+  QuantizationAdapter.importState(state as string),
+);

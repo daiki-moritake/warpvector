@@ -10,6 +10,12 @@ import {
   allocateWasmMemory,
   initWasm,
   withWasmMemoryStack,
+  safeJsonParse,
+  assertPositiveInt,
+  assertNonNegativeInt,
+  assertObject,
+  assertNumberArray,
+  assertArray,
 } from "@warpvector/core";
 
 export interface WhiteningConfig {
@@ -218,15 +224,23 @@ export class WhiteningAdapter implements WarpAdapter {
    * シリアライズされた学習状態から WhiteningAdapter を復元します。
    */
   public static importState(stateJson: string): WhiteningAdapter {
-    const data = JSON.parse(stateJson);
-    const adapter = new WhiteningAdapter(data.dim, {
-      learningRate: data.learningRate,
-      numComponents: data.numComponents,
-    });
-    adapter.count = data.count;
-    adapter.mean = new Float32Array(data.mean);
-    adapter.components = data.components.map(
-      (c: number[]) => new Float32Array(c),
+    const data = assertObject(
+      safeJsonParse(stateJson, "WhiteningAdapter"),
+      "root",
+    );
+    const dim = assertPositiveInt(data.dim, "dim");
+    const learningRate = typeof data.learningRate === "number" ? data.learningRate : 0.01;
+    const numComponents = assertPositiveInt(data.numComponents, "numComponents");
+    const count = assertNonNegativeInt(data.count, "count");
+    const mean = assertNumberArray(data.mean, "mean");
+    const components = assertArray(data.components, "components");
+
+    const adapter = new WhiteningAdapter(dim, { learningRate, numComponents });
+    adapter.count = count;
+    adapter.mean = new Float32Array(mean);
+    adapter.components = components.map(
+      (c: unknown, i: number) =>
+        new Float32Array(assertNumberArray(c, `components[${i}]`)),
     );
     return adapter;
   }
