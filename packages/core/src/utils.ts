@@ -367,12 +367,23 @@ export function applyAffine(
   inDim: number,
   outDim: number = inDim,
 ): void {
-  for (let i = 0; i < outDim; i++) {
-    let sum = bias ? bias[i] : 0;
-    const rowOffset = i * inDim;
-    for (let j = 0; j < inDim; j++) {
-      sum += matrix[rowOffset + j] * vector[j];
+  if (bias) {
+    for (let i = 0; i < outDim; i++) {
+      let sum = bias[i];
+      const rowOffset = i * inDim;
+      for (let j = 0; j < inDim; j++) {
+        sum += matrix[rowOffset + j] * vector[j];
+      }
+      result[i] = sum;
     }
-    result[i] = sum;
+  } else {
+    for (let i = 0; i < outDim; i++) {
+      let sum = 0;
+      const rowOffset = i * inDim;
+      for (let j = 0; j < inDim; j++) {
+        sum += matrix[rowOffset + j] * vector[j];
+      }
+      result[i] = sum;
+    }
   }
 }

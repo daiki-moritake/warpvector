@@ -217,9 +217,12 @@ export class WarpPipeline {
     vectors: InputVector[],
     context?: RunContext,
   ): OutputVector[] {
-    let currentVectors: Float32Array[] = vectors.map((v) =>
-      v instanceof Float32Array ? v : new Float32Array(v),
-    );
+    const batchSize = vectors.length;
+    let currentVectors = new Array<Float32Array>(batchSize);
+    for (let i = 0; i < batchSize; i++) {
+      const v = vectors[i];
+      currentVectors[i] = v instanceof Float32Array ? v : new Float32Array(v);
+    }
 
     for (const step of this.steps) {
       if (typeof step.adapter.tuneBatch === "function") {
@@ -230,16 +233,22 @@ export class WarpPipeline {
         ) as Float32Array[];
       } else {
         // tuneBatch がない場合は通常のループ処理へフォールバック
-        currentVectors = currentVectors.map(
-          (vec) =>
-            step.adapter.tune(vec, context?.intent || "default") as Float32Array,
-        );
+        for (let i = 0; i < batchSize; i++) {
+          currentVectors[i] = step.adapter.tune(
+            currentVectors[i],
+            context?.intent || "default",
+          ) as Float32Array;
+        }
       }
     }
 
     // 最終段（量子化等）が設定されている場合、encode() を適用
     if (this.finalStage) {
-      return currentVectors.map((vec) => this.finalStage!.adapter.encode(vec));
+      const results = new Array<OutputVector>(batchSize);
+      for (let i = 0; i < batchSize; i++) {
+        results[i] = this.finalStage!.adapter.encode(currentVectors[i]);
+      }
+      return results;
     }
 
     return currentVectors;

@@ -257,6 +257,72 @@ export class MlpAdapter implements WarpAdapter {
   }
 
   /**
+   * 複数のベクトルを一括で処理します。
+   * withWasmMemoryStack の呼び出しを1回に抑えることで、WASMのメモリ割り当て/解放のオーバーヘッドを
+   * 大幅に削減します。
+   *
+   * @param inputs 入力ベクトルの配列
+   * @param intent 互換性のための引数 (MlpAdapterでは無視されます)
+   * @returns 推論結果ベクトルの配列
+   */
+  public tuneBatch(
+    inputs: (number[] | Float32Array)[],
+    intent?: string,
+  ): Float32Array[] {
+    if (!this.isWasmReady || !this.wasmInstance) {
+      throw new Error(
+        "MlpAdapter is not initialized. Call await init() first.",
+      );
+    }
+    const batchSize = inputs.length;
+    if (batchSize === 0) return [];
+
+    const memory = this.wasmInstance.exports.memory as WebAssembly.Memory;
+    return withWasmMemoryStack(() => {
+      // バッチ処理用にバッファをスタック上に1回だけ確保
+      const inputPtr = allocateWasmMemory(this.inputDim * 4);
+      const outputPtr = allocateWasmMemory(this.outputDim * 4);
+      const bufferPtr = allocateWasmMemory(this.maxDim * 4);
+      const bufBPtr = allocateWasmMemory(this.maxDim * 4);
+
+      const mlpInferenceWasm = this.wasmInstance!.exports
+        .mlpInferenceWasm as CallableFunction;
+
+      const results = new Array<Float32Array>(batchSize);
+      const f32Mem = new Float32Array(memory.buffer);
+      const outOffset = outputPtr / 4;
+
+      for (let i = 0; i < batchSize; i++) {
+        const input = inputs[i];
+        assertDimension(input, this.inputDim, `MlpAdapter.tuneBatch at index ${i}`);
+
+        // 入力ベクトルの書き込み
+        writeFloat32ArrayToWasm(memory, input, inputPtr);
+
+        // WASM推論の呼び出し
+        mlpInferenceWasm(
+          inputPtr,
+          outputPtr,
+          this.persistentWeightsPtr,
+          this.persistentLayerDimsPtr,
+          this.persistentActivationsPtr,
+          this.numLayers,
+          bufferPtr,
+          bufBPtr,
+        );
+
+        // 結果を読み取って新しいFloat32Arrayにコピー
+        const outArray = new Float32Array(this.outputDim);
+        for (let j = 0; j < this.outputDim; j++) {
+          outArray[j] = f32Mem[outOffset + j];
+        }
+        results[i] = outArray;
+      }
+      return results;
+    });
+  }
+
+  /**
    * 現在のMLP構造と重みをシリアライズして出力します。
    */
   public exportState(): string {

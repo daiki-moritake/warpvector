@@ -95,4 +95,39 @@ describe("MlpAdapter", () => {
     expect(() => adapter.tune([1])).toThrow();
     expect(() => adapter.tune([1, 2, 3])).toThrow();
   });
+
+  test("tuneBatch produces the same output as multiple tune calls", async () => {
+    const layers: MlpLayer[] = [
+      {
+        matrix: [
+          [1, 0.5],
+          [-0.5, 1],
+          [0.1, -0.1],
+        ],
+        bias: [0.1, -0.2, 0.3],
+        activation: "relu",
+      },
+    ];
+
+    const adapter = new MlpAdapter(layers);
+    await adapter.init();
+
+    const inputs = [
+      [1, 2],
+      [-1, -2],
+      [0, 0],
+      [0.5, -0.5],
+    ];
+
+    const batchOutputs = adapter.tuneBatch(inputs);
+    const singleOutputs = inputs.map((input) => adapter.tune(input));
+
+    expect(batchOutputs.length).toBe(inputs.length);
+    for (let i = 0; i < inputs.length; i++) {
+      expect(batchOutputs[i].length).toBe(singleOutputs[i].length);
+      for (let j = 0; j < batchOutputs[i].length; j++) {
+        expect(batchOutputs[i][j]).toBeCloseTo(singleOutputs[i][j], 5);
+      }
+    }
+  });
 });
