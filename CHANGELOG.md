@@ -5,6 +5,58 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-06-22
+
+### Added
+
+#### 新機能 — ML / アダプタ
+- `SoftWhiteningAdapter` (旧 `InverseDiffusionAdapter`): オンライン次元チューニングのための逆拡散ベースの軟白色化アダプタ
+- `TimeReversalReranker`: 波動方程式に着想を得たグラフベースのリランキングアダプタ
+- `MultipathScatteringReranker`: ランダムウォークによるハブ検出リランカー（WASM 対応）
+- `BaseGraphReranker`: グラフベースリランカーの共通基底クラス
+- `MoEAdapter`: Mixture of Experts (MoE) ルーティングアダプタ
+- `AutoTuningPipeline`: AutoML による自動パイプライン最適化
+- `CrossEncoderTrainer`: 高精度再学習のためのクロスエンコーダートレーナー
+- Advanced Safety & Safe Quantization: 大次元 MLP 推論のメモリ安全性強化とバリデーション
+
+#### 新機能 — ツール / DX
+- `create-warpvector-app` CLI: プロジェクトスキャフォールディングツール
+- Interactive Playground: WASM アクセラレーテッドなベクトル空間のインタラクティブデモ
+  - PCA による動的 2D 射影カメラ
+  - LLM による埋め込み生成とインテント/クエリの動的入力
+  - ブレンドモード・ライブコードスニペットパネル
+  - 量子化・白色化コントロール
+  - コスト削減シミュレーションビジュアル
+- GitHub Pages デプロイワークフロー (`deploy-playground.yml`)
+
+#### 新機能 — ドキュメント
+- Edge Quickstart ガイド (`docs/edge-quickstart.md`)
+- Auto-Learning ガイド (`docs/auto-learning-guide.md`)
+- 日本語版ドキュメント全面翻訳（API Reference, Tutorial, Cookbook 等）
+- Cookbook: E-commerce Search, Pinecone RAG, Cloudflare Edge
+- Migration Guide (`docs/migration-guide.md`): v0.1 → v0.2 アップグレードガイド
+- 技術記事 4 本追加（`articles/` ディレクトリ）
+- Express Batch API / Edge API Handler のサンプル追加
+
+#### 新機能 — CI / インフラ
+- CI ワークフロー拡張: Node.js 20/22 互換性マトリクス、バンドルサイズ監視
+- プロジェクトガバナンス: CODE_OF_CONDUCT, CONTRIBUTING, Issue Templates
+
+### Changed
+- `InverseDiffusionAdapter` → `SoftWhiteningAdapter` にリネーム
+- CI の Node.js バージョンを v22 に更新
+- バリデーションエラーメッセージのローカライズ
+- WASM バイナリストレージを固定長バイト配列に変更し、リランカーロジックを最適化
+- Trainer インターフェースの改善: トレーニングループとカスタムトレーニングパイプライン対応
+- Pipeline アダプタインターフェースのバッチ処理サポート強化
+- Playground エンジンのステート遷移ロジック簡素化
+
+### テスト
+- テスト数: 147 → 209 (62 テスト追加)
+- バンドルサイズ: index.mjs 112KB (24.0KB gzipped)
+
+---
+
 ## [0.1.7] - 2026-06-21
 
 ### Added
