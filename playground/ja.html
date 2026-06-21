@@ -76,6 +76,42 @@ const result = baseVector;</code></pre>
 
       <!-- Right: Controls + Rankings -->
       <div style="display:flex;flex-direction:column;gap:24px;">
+
+        <!-- Optimization & Compression Card -->
+        <div class="card animate-in">
+          <div class="card__header">
+            <div class="card__title">
+              <span class="card__title-icon" style="background:rgba(245,158,11,0.15);color:var(--accent-amber);">⚡</span>
+              最適化と圧縮
+            </div>
+          </div>
+          <div class="card__body">
+            <div class="optimization-control">
+              <div class="control-header">
+                <span>1. 白色化 (Whitening)</span>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="whiteningToggle">
+                  <span class="slider round"></span>
+                </label>
+              </div>
+              <p class="control-desc">異方性を修正し、ドットを均等に散らばらせて検索解像度を向上させます。</p>
+            </div>
+
+            <div class="optimization-control" style="margin-top: 16px;">
+              <div class="control-header">
+                <span>2. 量子化 (Quantization)</span>
+                <span class="memory-badge" id="memoryBadge">1536 Bytes/vec</span>
+              </div>
+              <p class="control-desc">超圧縮技術。最大 32 倍に圧縮しても順位が維持されることを確認してください。</p>
+              <div class="radio-group" id="quantizationGroup" style="margin-top: 10px;">
+                <label class="radio-btn active"><input type="radio" name="quantMode" value="none" checked> Float32</label>
+                <label class="radio-btn"><input type="radio" name="quantMode" value="int8"> Int8</label>
+                <label class="radio-btn"><input type="radio" name="quantMode" value="binary"> Binary</label>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div class="card animate-in">
           <div class="card__header">
             <div class="card__title">

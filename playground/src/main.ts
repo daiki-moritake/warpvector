@@ -214,7 +214,7 @@ export async function initPlayground(lang: Lang) {
 
   function initDisplayState() {
     animTargetVectors = state.docs.map(d => new Float32Array(d.currentVector));
-    animTargetQueryVector = new Float32Array(state.query.vector);
+    animTargetQueryVector = new Float32Array(state.query.currentVector);
     animTargetBasis1 = new Float32Array(state.basis1);
     animTargetBasis2 = new Float32Array(state.basis2);
     
@@ -454,7 +454,7 @@ export async function initPlayground(lang: Lang) {
 
     // 2. Set new TARGETS from DemoState
     animTargetVectors = state.docs.map(d => new Float32Array(d.currentVector));
-    animTargetQueryVector = new Float32Array(state.query.vector);
+    animTargetQueryVector = new Float32Array(state.query.currentVector);
     animTargetBasis1 = new Float32Array(state.basis1);
     animTargetBasis2 = new Float32Array(state.basis2);
 
@@ -559,6 +559,44 @@ export async function initPlayground(lang: Lang) {
         applyBlend();
       } else {
         switchIntent('none');
+      }
+    });
+  }
+
+  // Whitening Toggle
+  const whiteningToggle = document.getElementById('whiteningToggle') as HTMLInputElement | null;
+  if (whiteningToggle) {
+    whiteningToggle.addEventListener('change', () => {
+      state.useWhitening = whiteningToggle.checked;
+      recomputeBaseRankings();
+      applyCurrentState();
+    });
+  }
+
+  // Quantization Radio
+  const quantGroup = document.getElementById('quantizationGroup');
+  const memoryBadge = document.getElementById('memoryBadge');
+  if (quantGroup && memoryBadge) {
+    quantGroup.addEventListener('change', (e) => {
+      const target = e.target as HTMLInputElement;
+      if (target.name === 'quantMode') {
+        state.quantMode = target.value as 'none' | 'int8' | 'binary';
+        
+        // Update styling
+        quantGroup.querySelectorAll('.radio-btn').forEach(l => l.classList.remove('active'));
+        target.closest('.radio-btn')?.classList.add('active');
+
+        // Update badge
+        if (state.quantMode === 'none') {
+          memoryBadge.textContent = '1536 Bytes/vec';
+        } else if (state.quantMode === 'int8') {
+          memoryBadge.textContent = '384 Bytes/vec';
+        } else if (state.quantMode === 'binary') {
+          memoryBadge.textContent = '48 Bytes/vec';
+        }
+
+        recomputeBaseRankings();
+        applyCurrentState();
       }
     });
   }
