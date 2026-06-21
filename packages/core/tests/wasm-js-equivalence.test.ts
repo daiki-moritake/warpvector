@@ -49,8 +49,7 @@ describe("WASM vs JS equivalence", () => {
       const matrix = Array.from({ length: dim }, (_, i) =>
         Array.from(
           { length: dim },
-          (_, j) =>
-            Math.sin((i * dim + j) * 0.37) * 0.5 / Math.sqrt(dim),
+          (_, j) => (Math.sin((i * dim + j) * 0.37) * 0.5) / Math.sqrt(dim),
         ),
       );
       const bias = Array.from(
@@ -107,10 +106,7 @@ describe("WASM vs JS equivalence", () => {
 
       // 一部の値が負になる行列
       const matrix = Array.from({ length: dim }, (_, i) =>
-        Array.from(
-          { length: dim },
-          (_, j) => (i === j ? -1 : 0),
-        ),
+        Array.from({ length: dim }, (_, j) => (i === j ? -1 : 0)),
       );
       adapter.addIntent("neg", {
         matrix,
@@ -186,9 +182,8 @@ describe("WASM vs JS equivalence", () => {
         default: { matrix },
       });
 
-      const vector = Float32Array.from(
-        { length: inDim },
-        (_, i) => Math.cos(i * 0.07),
+      const vector = Float32Array.from({ length: inDim }, (_, i) =>
+        Math.cos(i * 0.07),
       );
 
       // 2回実行して同じ結果が得られることを確認

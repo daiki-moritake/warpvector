@@ -1,12 +1,15 @@
 import { expect, test, describe } from "bun:test";
 import { MlpAdapter, WhiteningAdapter, BaseTrainer } from "@warpvector/ml";
-import { WarpPipeline, VectorDBAdapter, getWasmAllocatorOffset } from "@warpvector/core";
+import {
+  WarpPipeline,
+  VectorDBAdapter,
+  getWasmAllocatorOffset,
+} from "@warpvector/core";
 import { QuantizationAdapter } from "../src/adapters/QuantizationAdapter";
 import { withWarpVector } from "@warpvector/prisma";
 import sql from "sql-template-tag";
 
 describe("Advanced Safety, Memory allocation, and Quantization Tests", () => {
-  
   test("1536 and 3072 dimension MLP inference without buffer overrun", async () => {
     // 1536次元
     const dim1536 = 1536;
@@ -16,7 +19,7 @@ describe("Advanced Safety, Memory allocation, and Quantization Tests", () => {
     b1.fill(0.0);
 
     const mlp1536 = new MlpAdapter([
-      { matrix: w1, bias: b1, activation: "relu" }
+      { matrix: w1, bias: b1, activation: "relu" },
     ]);
     await mlp1536.init();
 
@@ -36,7 +39,7 @@ describe("Advanced Safety, Memory allocation, and Quantization Tests", () => {
     b2.fill(0.1);
 
     const mlp3072 = new MlpAdapter([
-      { matrix: w2, bias: b2, activation: "linear" }
+      { matrix: w2, bias: b2, activation: "linear" },
     ]);
     await mlp3072.init();
 
@@ -57,8 +60,13 @@ describe("Advanced Safety, Memory allocation, and Quantization Tests", () => {
     b.fill(0.0);
 
     // MlpAdapter と WhiteningAdapter を両方使うパイプライン
-    const mlpAdapter = new MlpAdapter([{ matrix: w, bias: b, activation: "linear" }]);
-    const whiteningAdapter = new WhiteningAdapter(dim, { learningRate: 0.1, numComponents: 2 });
+    const mlpAdapter = new MlpAdapter([
+      { matrix: w, bias: b, activation: "linear" },
+    ]);
+    const whiteningAdapter = new WhiteningAdapter(dim, {
+      learningRate: 0.1,
+      numComponents: 2,
+    });
     const pipeline = new WarpPipeline(dim)
       .addStep("MlpAdapter", mlpAdapter)
       .addStep("WhiteningAdapter", whiteningAdapter);
@@ -75,8 +83,12 @@ describe("Advanced Safety, Memory allocation, and Quantization Tests", () => {
 
   test("QuantizationAdapter dynamic scaling and dot product restoration", () => {
     const dim = 8;
-    const adapter = new QuantizationAdapter({ type: "int8", dim, dynamic: true });
-    
+    const adapter = new QuantizationAdapter({
+      type: "int8",
+      dim,
+      dynamic: true,
+    });
+
     // 絶対値の最大値が 0.05 と非常に小さなベクトル
     const rawVector1 = [0.01, -0.05, 0.02, 0.03, -0.01, 0.04, 0.0, 0.01];
     const rawVector2 = [0.02, 0.01, -0.04, 0.01, 0.02, -0.03, 0.01, 0.02];
@@ -93,7 +105,10 @@ describe("Advanced Safety, Memory allocation, and Quantization Tests", () => {
     expect(maxVal1).toBeCloseTo(0.05, 5);
 
     // 動的スケーリングによるドット積の復元
-    const expectedDot = rawVector1.reduce((sum, v, i) => sum + v * rawVector2[i], 0);
+    const expectedDot = rawVector1.reduce(
+      (sum, v, i) => sum + v * rawVector2[i],
+      0,
+    );
     const approxDot = QuantizationAdapter.int8DotProduct(q1, q2);
 
     // 近似された内積が実数空間の内積に近いはず
@@ -107,22 +122,22 @@ describe("Advanced Safety, Memory allocation, and Quantization Tests", () => {
     const extension = withWarpVector({
       adapter,
       vectorField: "embedding",
-      distanceOperator: "<=>"
+      distanceOperator: "<=>",
     });
 
     const mockClient: any = {
       $extends: (ext: any) => {
         const extObj = ext({
           $extends: (e: any) => e,
-          $queryRaw: async () => []
+          $queryRaw: async () => [],
         });
         return {
           document: {
             ...extObj.model.$allModels,
-            $name: "Document"
-          }
+            $name: "Document",
+          },
         };
-      }
+      },
     };
 
     const client = mockClient.$extends(extension);
@@ -131,7 +146,7 @@ describe("Advanced Safety, Memory allocation, and Quantization Tests", () => {
     const results = await client.document.searchByVector({
       vector: [0.1, 0.2],
       where: sql`category = ${"science"}`,
-      topK: 5
+      topK: 5,
     });
     expect(results).toEqual([]);
 
@@ -139,8 +154,8 @@ describe("Advanced Safety, Memory allocation, and Quantization Tests", () => {
     expect(
       client.document.searchByVector({
         vector: [0.1, 0.2],
-        topK: -5
-      })
+        topK: -5,
+      }),
     ).rejects.toThrow("Invalid topK value.");
   });
 
@@ -148,7 +163,7 @@ describe("Advanced Safety, Memory allocation, and Quantization Tests", () => {
     // Binary量子化されたベクトルのモック (16ビット分 = 2バイト)
     const binaryVector = new Uint8Array([240, 15]); // 240 = 11110000, 15 = 00001111
     const pgvectorStr = VectorDBAdapter.toPgvector(binaryVector);
-    
+
     expect(pgvectorStr).toBe("1111000000001111");
   });
 
@@ -157,7 +172,7 @@ describe("Advanced Safety, Memory allocation, and Quantization Tests", () => {
     const w = new Float32Array(dim * dim);
     w.fill(0.01);
     const b = new Float32Array(dim);
-    
+
     const mlp = new MlpAdapter([{ matrix: w, bias: b, activation: "linear" }]);
     await mlp.init();
 
@@ -165,11 +180,11 @@ describe("Advanced Safety, Memory allocation, and Quantization Tests", () => {
     input.fill(1.0);
 
     const offsetBefore = getWasmAllocatorOffset();
-    
+
     for (let i = 0; i < 50; i++) {
       mlp.tune(input);
     }
-    
+
     const offsetAfter = getWasmAllocatorOffset();
     expect(offsetAfter).toBe(offsetBefore);
   });
@@ -178,10 +193,18 @@ describe("Advanced Safety, Memory allocation, and Quantization Tests", () => {
     type Example = { source: number[]; target: number[] };
     type Weights = { matrix: Float32Array; bias: Float32Array };
     class DummyTrainer extends BaseTrainer<Example, Weights> {
-      get sourceDimension() { return 2; }
-      get targetDimension() { return 2; }
-      getInputs(example: Example) { return example; }
-      toWeights(matrix: Float32Array, bias: Float32Array): Weights { return { matrix, bias }; }
+      get sourceDimension() {
+        return 2;
+      }
+      get targetDimension() {
+        return 2;
+      }
+      getInputs(example: Example) {
+        return example;
+      }
+      toWeights(matrix: Float32Array, bias: Float32Array): Weights {
+        return { matrix, bias };
+      }
     }
 
     const trainer1 = new DummyTrainer();
@@ -194,7 +217,7 @@ describe("Advanced Safety, Memory allocation, and Quantization Tests", () => {
 
     const [w1, w2] = await Promise.all([
       trainer1.train({ epochs: 10 }),
-      trainer2.train({ epochs: 10 })
+      trainer2.train({ epochs: 10 }),
     ]);
 
     expect(w1).toBeDefined();

@@ -11,7 +11,6 @@ import { BaseTrainingOptions } from "./types";
 export type { BaseTrainingOptions };
 export { AbstractAdamTrainer };
 
-
 /**
  * Adam オプティマイザを用いた学習のための共通基底クラス。
  *
@@ -39,7 +38,6 @@ export abstract class BaseTrainer<
     source: number[] | Float32Array;
     target: number[] | Float32Array;
   };
-
 
   /**
    * 学習用のサンプルデータを追加します。

@@ -1,4 +1,4 @@
-import { IntentAdapter, IntentWeights } from "../src/IntentAdapter";
+import { IntentAdapter, IntentWeights } from "warpvector";
 
 // 3次元ベクトル空間のダミーインテントを定義
 const dummyIntents: Record<string, IntentWeights> = {
@@ -15,8 +15,8 @@ const dummyIntents: Record<string, IntentWeights> = {
   formal: {
     matrix: [
       [0.9, -0.1, 0.0],
-      [0.1,  0.9, 0.0],
-      [0.0,  0.0, 1.0],
+      [0.1, 0.9, 0.0],
+      [0.0, 0.0, 1.0],
     ],
     bias: [-0.2, 0.0, 0.1],
   },

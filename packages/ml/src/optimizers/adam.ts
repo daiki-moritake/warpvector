@@ -71,7 +71,8 @@ export function applyAdamToAffine(
       writeFloat32ArrayToWasm(memory, input, inputPtr);
       writeFloat32ArrayToWasm(memory, outputGradients, gradPtr);
 
-      const adamUpdateWasm = instance.exports.adamUpdateWasm as CallableFunction;
+      const adamUpdateWasm = instance.exports
+        .adamUpdateWasm as CallableFunction;
       adamUpdateWasm(
         matrixPtr,
         biasPtr,
@@ -95,8 +96,12 @@ export function applyAdamToAffine(
       const f32 = new Float32Array(memory.buffer);
       matrix.set(f32.subarray(matrixPtr / 4, matrixPtr / 4 + matrix.length));
       bias.set(f32.subarray(biasPtr / 4, biasPtr / 4 + bias.length));
-      mMatrix.set(f32.subarray(mMatrixPtr / 4, mMatrixPtr / 4 + mMatrix.length));
-      vMatrix.set(f32.subarray(vMatrixPtr / 4, vMatrixPtr / 4 + vMatrix.length));
+      mMatrix.set(
+        f32.subarray(mMatrixPtr / 4, mMatrixPtr / 4 + mMatrix.length),
+      );
+      vMatrix.set(
+        f32.subarray(vMatrixPtr / 4, vMatrixPtr / 4 + vMatrix.length),
+      );
       mBias.set(f32.subarray(mBiasPtr / 4, mBiasPtr / 4 + mBias.length));
       vBias.set(f32.subarray(vBiasPtr / 4, vBiasPtr / 4 + vBias.length));
     });

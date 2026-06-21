@@ -1,5 +1,9 @@
 import { IntentWeights } from "@warpvector/core";
-import { flattenMatrix, assertDimension, addScaledVector } from "@warpvector/core";
+import {
+  flattenMatrix,
+  assertDimension,
+  addScaledVector,
+} from "@warpvector/core";
 
 export interface TaskConfig {
   /**

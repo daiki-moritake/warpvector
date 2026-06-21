@@ -4,7 +4,6 @@ import { join } from "path";
 
 const projectRoot = join(__dirname, "..");
 const outDir = join(projectRoot, "packages", "core", "src", "wasm");
-const legacyOutDir = join(projectRoot, "src", "wasm");
 
 // 出力先ディレクトリの作成
 if (!existsSync(outDir)) {

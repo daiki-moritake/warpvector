@@ -72,9 +72,7 @@ describe("WarpPrismaExtension", () => {
     // そして $3 が limit になる。
     // text表現を確認する：
     // SELECT * FROM "Document" WHERE category = $1 ORDER BY "my_embedding" <=> $2::vector LIMIT $3;
-    expect(text).toContain(
-      "ORDER BY \"my_embedding\" <=> $2::vector",
-    );
+    expect(text).toContain('ORDER BY "my_embedding" <=> $2::vector');
     expect(text).toContain("LIMIT $3");
 
     expect(values[0]).toBe("science");

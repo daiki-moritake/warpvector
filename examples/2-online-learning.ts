@@ -1,8 +1,8 @@
-import { IntentTrainer, IntentWeights } from '../src';
+import { IntentWeights, IntentTrainer } from "warpvector";
 
 /**
  * サンプル2: ユーザーフィードバックに基づくオンライン学習
- * 
+ *
  * ユーザーが検索結果をクリック（いいね）した際、その行動履歴を元に
  * フロントエンド（またはエッジ環境）で動的に変換行列を学習・成長させます。
  */
@@ -38,8 +38,12 @@ const runTraining = async () => {
   for (let epoch = 1; epoch <= 10; epoch++) {
     // updateOnline で重みを更新します
     // 引数: 現在の重み, クエリベクトル, ターゲットベクトル, 学習率
-    userWeights = await trainer.updateOnline(userWeights, queryVector, clickedItemVector, 0.05);
-    
+    userWeights = await trainer.updateOnline(
+      userWeights,
+      { input: queryVector, target: clickedItemVector },
+      { learningRate: 0.05 },
+    );
+
     if (epoch % 2 === 0) {
       console.log(`Epoch ${epoch} - 重みの微調整が完了しました`);
     }
@@ -49,7 +53,9 @@ const runTraining = async () => {
   console.log(" Matrix:", userWeights.matrix);
   console.log(" Bias:", userWeights.bias);
 
-  console.log("\n💡 次回からこのユーザーの検索ベクトルにこの重みを適用すれば、初めからクリックした商品に近い結果が出やすくなります！");
+  console.log(
+    "\n💡 次回からこのユーザーの検索ベクトルにこの重みを適用すれば、初めからクリックした商品に近い結果が出やすくなります！",
+  );
 };
 
 runTraining();

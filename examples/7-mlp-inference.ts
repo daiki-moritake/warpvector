@@ -1,12 +1,12 @@
-import { MlpAdapter, MlpLayer } from "../src/MlpAdapter";
+import { MlpAdapter, MlpLayer } from "warpvector";
 
 /**
  * 【WASMを用いた超軽量・非線形MLP推論デモ】
- * 
+ *
  * WarpVectorは単なるアフィン変換（1層の行列積）だけでなく、
  * ReLUやSigmoidを含む多層ニューラルネットワーク（MLP）の推論を
  * WASMを用いて超高速に実行することができます。
- * 
+ *
  * 外部の重厚なTensorFlow.jsやONNX.jsなどに依存せず、
  * エッジデバイスやブラウザ内で完結するゼロ依存の推論エンジンとして機能します。
  */
@@ -45,18 +45,18 @@ async function runMlpDemo() {
     {
       matrix: layer1Matrix,
       bias: layer1Bias,
-      activation: "relu" // 第1層の出力はReLUを通す
+      activation: "relu", // 第1層の出力はReLUを通す
     },
     {
       matrix: layer2Matrix,
       bias: layer2Bias,
-      activation: "sigmoid" // 第2層(出力層)の出力はSigmoidを通す
-    }
+      activation: "sigmoid", // 第2層(出力層)の出力はSigmoidを通す
+    },
   ];
 
   console.log("🚀 MlpAdapter を初期化中 (WASMコンパイルとメモリ確保)...");
   const adapter = new MlpAdapter(layers);
-  
+
   // 必須: WASMの非同期初期化
   await adapter.init();
   console.log("✅ 初期化完了\n");
@@ -70,24 +70,30 @@ async function runMlpDemo() {
   // パフォーマンス計測
   const ITERATIONS = 100000;
   console.log(`\n⏳ ${ITERATIONS.toLocaleString()} 回の推論を実行中...`);
-  
+
   const start = performance.now();
   let finalResult: Float32Array | null = null;
-  
+
   for (let i = 0; i < ITERATIONS; i++) {
     finalResult = adapter.tune(testVector);
   }
-  
+
   const end = performance.now();
   const timeMs = end - start;
 
   console.log(`📤 最終出力ベクトル (${outputDim}次元):`, finalResult);
   console.log(`\n⏱️ 合計時間: ${timeMs.toFixed(2)} ms`);
-  console.log(`⚡ 1推論あたりの時間: ${(timeMs / ITERATIONS * 1000).toFixed(4)} マイクロ秒`);
-  console.log(`🔥 推論スループット: ${Math.floor(ITERATIONS / (timeMs / 1000)).toLocaleString()} 回 / 秒`);
-  
+  console.log(
+    `⚡ 1推論あたりの時間: ${((timeMs / ITERATIONS) * 1000).toFixed(4)} マイクロ秒`,
+  );
+  console.log(
+    `🔥 推論スループット: ${Math.floor(ITERATIONS / (timeMs / 1000)).toLocaleString()} 回 / 秒`,
+  );
+
   console.log("\n💡 考察:");
-  console.log("TensorFlow.jsなどの重いライブラリをロードせずとも、数十〜数百次元のMLPであればWASMとTypedArrayの組み合わせで極めて高速（毎秒数百万回レベル）に推論可能です！");
+  console.log(
+    "TensorFlow.jsなどの重いライブラリをロードせずとも、数十〜数百次元のMLPであればWASMとTypedArrayの組み合わせで極めて高速（毎秒数百万回レベル）に推論可能です！",
+  );
 }
 
 runMlpDemo().catch(console.error);

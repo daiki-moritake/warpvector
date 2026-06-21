@@ -96,7 +96,9 @@ export class InfoNCETrainer extends AbstractAdamTrainer {
     // Softmax確率の計算のため、すべてのスコアを1つの配列にまとめる
     const allScores = [posScore / temperature];
     for (let n = 0; n < numNegatives; n++) {
-      allScores.push(innerProduct(warpedAnchor, example.negatives[n]) / temperature);
+      allScores.push(
+        innerProduct(warpedAnchor, example.negatives[n]) / temperature,
+      );
     }
 
     // 3. 共通の softmax() 関数を使用

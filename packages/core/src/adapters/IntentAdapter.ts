@@ -223,7 +223,9 @@ export class IntentAdapter implements WarpAdapter {
     if (instance) {
       const memory = instance.exports.memory as WebAssembly.Memory;
       return withWasmMemoryStack(() => {
-        const matrixPtr = allocateWasmMemory(this.dimension * this.dimension * 4);
+        const matrixPtr = allocateWasmMemory(
+          this.dimension * this.dimension * 4,
+        );
         const biasPtr = allocateWasmMemory(this.dimension * 4);
         const vectorsPtr = allocateWasmMemory(batchSize * this.dimension * 4);
         const resultsPtr = allocateWasmMemory(batchSize * this.dimension * 4);
@@ -239,7 +241,8 @@ export class IntentAdapter implements WarpAdapter {
           );
         }
 
-        const tuneBatchWasm = instance.exports.tuneBatchWasm as CallableFunction;
+        const tuneBatchWasm = instance.exports
+          .tuneBatchWasm as CallableFunction;
         tuneBatchWasm(
           matrixPtr,
           biasPtr,

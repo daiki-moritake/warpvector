@@ -59,5 +59,4 @@ export class MigrationTrainer extends BaseTrainer<
   } {
     return { source: example.source, target: example.target };
   }
-
 }

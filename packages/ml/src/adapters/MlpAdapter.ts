@@ -197,7 +197,9 @@ export class MlpAdapter implements WarpAdapter {
    */
   public setLayerWeights(layerIndex: number, layer: MlpLayer): void {
     if (layerIndex < 0 || layerIndex >= this.numLayers) {
-      throw new Error(`Layer index ${layerIndex} out of range (0-${this.numLayers - 1})`);
+      throw new Error(
+        `Layer index ${layerIndex} out of range (0-${this.numLayers - 1})`,
+      );
     }
     this.layers[layerIndex] = layer;
 
@@ -293,7 +295,11 @@ export class MlpAdapter implements WarpAdapter {
 
       for (let i = 0; i < batchSize; i++) {
         const input = inputs[i];
-        assertDimension(input, this.inputDim, `MlpAdapter.tuneBatch at index ${i}`);
+        assertDimension(
+          input,
+          this.inputDim,
+          `MlpAdapter.tuneBatch at index ${i}`,
+        );
 
         // 入力ベクトルの書き込み
         writeFloat32ArrayToWasm(memory, input, inputPtr);
@@ -347,10 +353,7 @@ export class MlpAdapter implements WarpAdapter {
    * 注意: 復元後、再度 `await init()` を呼び出してWASMメモリを初期化する必要があります。
    */
   public static importState(stateJson: string): MlpAdapter {
-    const data = assertObject(
-      safeJsonParse(stateJson, "MlpAdapter"),
-      "root",
-    );
+    const data = assertObject(safeJsonParse(stateJson, "MlpAdapter"), "root");
     const rawLayers = assertArray(data.layers, "layers");
     const layers: MlpLayer[] = rawLayers.map((rawLayer: unknown, i: number) => {
       const l = assertObject(rawLayer, `layers[${i}]`);
@@ -361,9 +364,8 @@ export class MlpAdapter implements WarpAdapter {
       let matrix: number[][] | Float32Array;
       if (Array.isArray(l.matrix) && Array.isArray(l.matrix[0])) {
         // 2D 配列
-        matrix = (l.matrix as unknown[][]).map(
-          (row: unknown, j: number) =>
-            assertNumberArray(row, `layers[${i}].matrix[${j}]`),
+        matrix = (l.matrix as unknown[][]).map((row: unknown, j: number) =>
+          assertNumberArray(row, `layers[${i}].matrix[${j}]`),
         );
       } else {
         matrix = new Float32Array(

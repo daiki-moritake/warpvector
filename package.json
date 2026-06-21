@@ -24,7 +24,7 @@
     "build": "bun run build:packages && tsup src/index.ts --format cjs,esm --dts --clean",
     "test": "bun run build:wasm && bun test",
     "bench": "bun run build:wasm && bun run benchmarks/run.ts",
-    "format": "prettier --write \"src/**/*.ts\" \"packages/*/src/**/*.ts\" \"tests/**/*.ts\""
+    "format": "prettier --write \"src/**/*.ts\" \"packages/*/src/**/*.ts\" \"packages/*/tests/**/*.ts\" \"examples/**/*.ts\""
   },
   "keywords": [
     "vector",

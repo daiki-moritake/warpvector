@@ -52,8 +52,6 @@ export class TripletTrainer extends AbstractAdamTrainer {
     this.initAdamState(dimension, dimension);
   }
 
-
-
   /**
    * オンライン学習 (フィードバックループ) 用のメソッド。
    * 1つのトリプレットデータからリアルタイムに重みを微調整します。

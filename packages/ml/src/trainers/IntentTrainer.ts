@@ -1,7 +1,11 @@
 import { IntentWeights } from "@warpvector/core";
 import { BaseTrainer } from "../trainers/BaseTrainer";
 import { initWasm } from "@warpvector/core";
-import { assertDimension, getFlatMatrixAndBias, applyAffine } from "@warpvector/core";
+import {
+  assertDimension,
+  getFlatMatrixAndBias,
+  applyAffine,
+} from "@warpvector/core";
 
 /**
  * 学習データのペア（ベースのクエリベクトルと、目標となる結果ベクトル）
@@ -65,8 +69,6 @@ export class IntentTrainer extends BaseTrainer<TrainingExample, IntentWeights> {
   } {
     return { source: example.input, target: example.target };
   }
-
-
 
   /**
    * オンライン学習 (フィードバックループ) 用のメソッド。

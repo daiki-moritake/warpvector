@@ -71,7 +71,11 @@ export class QuantizationAdapter implements WarpAdapter, FinalStageAdapter {
         }
 
         // 最後の 4 バイトに maxVal をリトルエンディアンで書き込む
-        const view = new DataView(result.buffer, result.byteOffset, result.byteLength);
+        const view = new DataView(
+          result.buffer,
+          result.byteOffset,
+          result.byteLength,
+        );
         view.setFloat32(this.dim, maxVal, true);
         return result;
       } else {
@@ -145,7 +149,14 @@ export class QuantizationAdapter implements WarpAdapter, FinalStageAdapter {
         maxA = viewA.getFloat32(dim, true);
         maxB = viewB.getFloat32(dim, true);
         // 妥当な浮動小数点スケール値であるかの検証 (NaNを除く正数かつ現実的な範囲)
-        if (!isNaN(maxA) && !isNaN(maxB) && maxA > 0 && maxA < 1000.0 && maxB > 0 && maxB < 1000.0) {
+        if (
+          !isNaN(maxA) &&
+          !isNaN(maxB) &&
+          maxA > 0 &&
+          maxA < 1000.0 &&
+          maxB > 0 &&
+          maxB < 1000.0
+        ) {
           isDynamic = true;
         }
       } catch (e) {
@@ -178,7 +189,11 @@ export class QuantizationAdapter implements WarpAdapter, FinalStageAdapter {
   }
 
   public exportState(): string {
-    return JSON.stringify({ type: this.type, dim: this.dim, dynamic: this.dynamic });
+    return JSON.stringify({
+      type: this.type,
+      dim: this.dim,
+      dynamic: this.dynamic,
+    });
   }
 
   public static importState(stateJson: string): QuantizationAdapter {

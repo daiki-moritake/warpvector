@@ -4,7 +4,9 @@ import { applyAdamToAffine } from "../optimizers/adam";
 /**
  * Adam最適化のステート変数を管理する共通基底クラス
  */
-export abstract class AbstractAdamTrainer<TResult = import("@warpvector/core").IntentWeights> {
+export abstract class AbstractAdamTrainer<
+  TResult = import("@warpvector/core").IntentWeights,
+> {
   protected t: number = 0;
   protected mW!: Float32Array;
   protected vW!: Float32Array;
@@ -29,10 +31,7 @@ export abstract class AbstractAdamTrainer<TResult = import("@warpvector/core").I
    * @param bias 学習済みのバイアスベクトル
    * @returns TResult
    */
-  protected toWeights(
-    flatMatrix: Float32Array,
-    bias: Float32Array,
-  ): TResult {
+  protected toWeights(flatMatrix: Float32Array, bias: Float32Array): TResult {
     return {
       matrix: flatMatrix,
       bias: bias,
@@ -53,7 +52,10 @@ export abstract class AbstractAdamTrainer<TResult = import("@warpvector/core").I
     bias: Float32Array,
     currentWeights: import("@warpvector/core").IntentWeights,
   ): import("@warpvector/core").IntentWeights {
-    const newWeights = this.toWeights(flatMatrix, bias) as unknown as import("@warpvector/core").IntentWeights;
+    const newWeights = this.toWeights(
+      flatMatrix,
+      bias,
+    ) as unknown as import("@warpvector/core").IntentWeights;
     if (currentWeights.routingVector) {
       newWeights.routingVector = [...currentWeights.routingVector];
     }
@@ -88,7 +90,7 @@ export abstract class AbstractAdamTrainer<TResult = import("@warpvector/core").I
       outputGradients,
       lr,
       reg,
-      t
+      t,
     );
   }
 }

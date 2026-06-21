@@ -1,5 +1,5 @@
-import { QuantizationAdapter, IntentAdapter } from "../src";
-import { initWasm } from "../src/wasm/wasm-loader";
+import { IntentAdapter, initWasm } from "@warpvector/core";
+import { QuantizationAdapter } from "@warpvector/extras";
 
 async function runBenchmark() {
   console.log("🚀 WarpVector Performance Benchmark");

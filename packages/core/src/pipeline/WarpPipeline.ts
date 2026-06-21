@@ -6,8 +6,14 @@ import {
   AdapterState,
 } from "../interfaces/WarpAdapter";
 import { IntentAdapter, IntentWeights } from "../adapters/IntentAdapter";
-import { LoraIntentAdapter, LoraIntentWeights } from "../adapters/LoraIntentAdapter";
-import { ProjectionAdapter, ProjectionWeights } from "../adapters/ProjectionAdapter";
+import {
+  LoraIntentAdapter,
+  LoraIntentWeights,
+} from "../adapters/LoraIntentAdapter";
+import {
+  ProjectionAdapter,
+  ProjectionWeights,
+} from "../adapters/ProjectionAdapter";
 import { VectorDBAdapter } from "../adapters/VectorDBAdapter";
 import { AdapterRegistry } from "./AdapterRegistry";
 import { FormatRegistry } from "./FormatRegistry";
@@ -168,9 +174,8 @@ export class WarpPipeline {
       return vector instanceof Float32Array ? vector : new Float32Array(vector);
     }
 
-    let currentVector: Float32Array = vector instanceof Float32Array
-      ? vector
-      : new Float32Array(vector);
+    let currentVector: Float32Array =
+      vector instanceof Float32Array ? vector : new Float32Array(vector);
 
     for (const step of this.steps) {
       // 全てのアダプタにコンテキストを渡す（不要なアダプタは内部で無視する）
@@ -268,7 +273,10 @@ export class WarpPipeline {
    * パイプライン内の全アダプタの状態（学習済みの重みなど）を JSON 化可能な配列として出力します。
    * これにより、DBやRedis等への永続化が容易になります。
    */
-  public exportState(): { steps: PipelineState[]; finalStage?: FinalStageState } {
+  public exportState(): {
+    steps: PipelineState[];
+    finalStage?: FinalStageState;
+  } {
     const steps = this.steps.map((step) => {
       const state =
         typeof step.adapter.exportState === "function"
@@ -300,7 +308,9 @@ export class WarpPipeline {
    * @returns 復元された新しい WarpPipeline インスタンス
    */
   public static importState(
-    data: PipelineState[] | { steps: PipelineState[]; finalStage?: FinalStageState },
+    data:
+      | PipelineState[]
+      | { steps: PipelineState[]; finalStage?: FinalStageState },
   ): WarpPipeline {
     // 後方互換: PipelineState[] (旧形式) と { steps, finalStage } (新形式) の両方を受け付ける
     const states = Array.isArray(data) ? data : data.steps;

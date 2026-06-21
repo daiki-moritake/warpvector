@@ -25,7 +25,10 @@ describe("WarpPipeline", () => {
           ],
         },
       })
-      .addStep("QuantizationAdapter", new QuantizationAdapter({ type: "int8", dim: 2 }));
+      .addStep(
+        "QuantizationAdapter",
+        new QuantizationAdapter({ type: "int8", dim: 2 }),
+      );
 
     const input = [0.5, 1.0, 1.5];
 
@@ -44,7 +47,10 @@ describe("WarpPipeline", () => {
 
   test("can export and import state completely", () => {
     const pipeline = new WarpPipeline(8)
-      .addStep("WhiteningAdapter", new WhiteningAdapter(8, { numComponents: 1 }))
+      .addStep(
+        "WhiteningAdapter",
+        new WhiteningAdapter(8, { numComponents: 1 }),
+      )
       .addIntent({
         test: {
           matrix: [
@@ -60,7 +66,10 @@ describe("WarpPipeline", () => {
           bias: [0, 0, 0, 0, 0, 0, 0, 0],
         },
       })
-      .addStep("QuantizationAdapter", new QuantizationAdapter({ type: "binary", dim: 8 }));
+      .addStep(
+        "QuantizationAdapter",
+        new QuantizationAdapter({ type: "binary", dim: 8 }),
+      );
 
     const state = pipeline.exportState();
     expect(state.steps.length).toBe(3);
@@ -104,7 +113,9 @@ describe("WarpPipeline", () => {
 
   test("runAndFormat outputs to pgvector format correctly", () => {
     const pipeline = new WarpPipeline(2); // no-op pipeline for testing formatting
-    const result = pipeline.runAndFormat(new Float32Array([0.1, 0.2]), { format: "pgvector" });
+    const result = pipeline.runAndFormat(new Float32Array([0.1, 0.2]), {
+      format: "pgvector",
+    });
     expect(typeof result).toBe("string");
     // Float32の精度で値が格納されるため、文字列表現が若干異なる場合があるが、
     // toPgvectorの形式（[x, y]）であることを確認
@@ -126,7 +137,9 @@ describe("WarpPipeline", () => {
 
   test("runAndFormat outputs to redis format correctly", () => {
     const pipeline = new WarpPipeline(2);
-    const result = pipeline.runAndFormat([1.0, -1.0], { format: "redis" }) as Uint8Array;
+    const result = pipeline.runAndFormat([1.0, -1.0], {
+      format: "redis",
+    }) as Uint8Array;
     expect(result).toBeInstanceOf(Uint8Array);
     // Float32Array [1.0, -1.0] has byte length 8
     expect(result.length).toBe(8);
@@ -144,8 +157,7 @@ describe("WarpPipeline", () => {
       },
     ]);
 
-    const pipeline = new WarpPipeline(2)
-      .addStep("MlpAdapter", mlpAdapter);
+    const pipeline = new WarpPipeline(2).addStep("MlpAdapter", mlpAdapter);
 
     await pipeline.init();
 

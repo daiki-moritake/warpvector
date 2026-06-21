@@ -144,4 +144,3 @@ export function readFloat32ArrayFromWasm(
   const floatOffset = byteOffset / 4;
   return new Float32Array(f32.subarray(floatOffset, floatOffset + length));
 }
-

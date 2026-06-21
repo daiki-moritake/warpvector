@@ -200,8 +200,14 @@ export class LoraIntentAdapter implements WarpAdapter {
     const intents = assertObject(data.intents, "intents");
     for (const [name, rawIntent] of Object.entries(intents)) {
       const intent = assertObject(rawIntent, `intents.${name}`);
-      const matrixA = assertNumberArray(intent.matrixA, `intents.${name}.matrixA`);
-      const matrixB = assertNumberArray(intent.matrixB, `intents.${name}.matrixB`);
+      const matrixA = assertNumberArray(
+        intent.matrixA,
+        `intents.${name}.matrixA`,
+      );
+      const matrixB = assertNumberArray(
+        intent.matrixB,
+        `intents.${name}.matrixB`,
+      );
       const bias = assertNumberArray(intent.bias, `intents.${name}.bias`);
       adapter.matricesA.set(name, new Float32Array(matrixA));
       adapter.matricesB.set(name, new Float32Array(matrixB));

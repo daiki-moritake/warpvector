@@ -110,10 +110,7 @@ export class WhiteningAdapter implements WarpAdapter {
 
     const instance = getWasmInstance();
 
-    if (
-      instance &&
-      instance.exports.sangerUpdateWasm
-    ) {
+    if (instance && instance.exports.sangerUpdateWasm) {
       const memory = instance.exports.memory as WebAssembly.Memory;
       withWasmMemoryStack(() => {
         const componentsSize = this.numComponents * this.dim * 4;
@@ -221,8 +218,12 @@ export class WhiteningAdapter implements WarpAdapter {
       "root",
     );
     const dim = assertPositiveInt(data.dim, "dim");
-    const learningRate = typeof data.learningRate === "number" ? data.learningRate : 0.01;
-    const numComponents = assertPositiveInt(data.numComponents, "numComponents");
+    const learningRate =
+      typeof data.learningRate === "number" ? data.learningRate : 0.01;
+    const numComponents = assertPositiveInt(
+      data.numComponents,
+      "numComponents",
+    );
     const count = assertNonNegativeInt(data.count, "count");
     const mean = assertNumberArray(data.mean, "mean");
     const components = assertArray(data.components, "components");

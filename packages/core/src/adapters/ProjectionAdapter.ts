@@ -235,7 +235,10 @@ export class ProjectionAdapter implements WarpAdapter {
     const projections = assertObject(data.projections, "projections");
     for (const [name, rawProj] of Object.entries(projections)) {
       const proj = assertObject(rawProj, `projections.${name}`);
-      const matrix = assertNumberArray(proj.matrix, `projections.${name}.matrix`);
+      const matrix = assertNumberArray(
+        proj.matrix,
+        `projections.${name}.matrix`,
+      );
       adapter.matrices.set(name, new Float32Array(matrix));
       if (proj.bias) {
         const bias = assertNumberArray(proj.bias, `projections.${name}.bias`);

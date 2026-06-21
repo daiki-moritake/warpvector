@@ -1,6 +1,9 @@
 // @warpvector/extras - Extended adapters for WarpVector
 import { WarpPipeline } from "@warpvector/core";
-import { QuantizationAdapter, QuantizationConfig } from "./adapters/QuantizationAdapter";
+import {
+  QuantizationAdapter,
+  QuantizationConfig,
+} from "./adapters/QuantizationAdapter";
 
 export * from "./adapters/ColbertAdapter";
 export * from "./adapters/QuantizationAdapter";
