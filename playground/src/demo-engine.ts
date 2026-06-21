@@ -354,7 +354,7 @@ export async function createDemoState(
     }
   }
 
-  const queryText = lang === 'en' ? "Apple" : "Apple"; 
+  const queryText = lang === 'en' ? "Apple" : "機械学習とデータ分析"; 
   
   const defaultIntents = DEFAULT_INTENTS[lang];
   const intentTexts = defaultIntents.map(i => i.text);
