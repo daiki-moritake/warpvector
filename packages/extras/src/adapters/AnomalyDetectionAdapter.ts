@@ -82,11 +82,16 @@ export class AnomalyDetectionAdapter implements WarpAdapter {
   }
 
   public exportState(): string {
-    return JSON.stringify({ mode: this.mode, maxValue: this.maxValue });
+    return JSON.stringify({ 
+      __version: "1.0",
+      mode: this.mode, 
+      maxValue: this.maxValue 
+    });
   }
 
   public static importState(state: string): AnomalyDetectionAdapter {
     const config = JSON.parse(state);
+    // 将来 __version を使ったマイグレーション処理をここに追加できます
     return new AnomalyDetectionAdapter(config);
   }
 }

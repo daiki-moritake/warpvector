@@ -100,6 +100,62 @@ export abstract class BaseTrainer<
   }
 
   /**
+   * メモリに全データを保持せず、ストリームやジェネレータからデータを逐次読み込んで学習を実行します。
+   * 大規模なデータセット（数百万件など）で OOM を防ぐためのスケーラブルな学習メソッドです。
+   * 
+   * @param dataFactory 1エポック分の学習データを生成する関数。AsyncIterable または Iterable を返します。
+   * @param options 学習のハイパーパラメータオプション
+   * @returns 学習済みの重みを返します。
+   */
+  public async trainFromGenerator(
+    dataFactory: () => AsyncIterable<TExample> | Iterable<TExample>,
+    options: BaseTrainingOptions = {}
+  ): Promise<TResult> {
+    return wasmMutex.runExclusive(async () => {
+      await initWasm();
+
+      const lr = options.learningRate ?? 0.01;
+      const epochs = options.epochs ?? 100;
+      const reg = options.regularization ?? 0.001;
+
+      const sDim = this.sourceDimension;
+      const tDim = this.targetDimension;
+
+      const flatMatrix = new Float32Array(tDim * sDim);
+      for (let i = 0; i < tDim; i++) {
+        if (i < sDim) {
+          flatMatrix[i * sDim + i] = 1.0;
+        }
+      }
+      const bias = new Float32Array(tDim);
+
+      this.initAdamState(sDim, tDim);
+
+      for (let epoch = 0; epoch < epochs; epoch++) {
+        const stream = dataFactory();
+        for await (const example of stream) {
+          this.t++;
+          this.adamStep(
+            flatMatrix,
+            bias,
+            this.mW,
+            this.vW,
+            this.mb,
+            this.vb,
+            example,
+            lr,
+            reg,
+            this.t,
+            options
+          );
+        }
+      }
+
+      return this.toWeights(flatMatrix, bias);
+    });
+  }
+
+  /**
    * サンプルデータに対する短時間のテストランを行い、最も損失(Loss)が小さくなる最適な学習率を自動探索します。
    * `options.autoTune` が true の場合に `train` メソッド内で自動的に呼び出されます。
    *

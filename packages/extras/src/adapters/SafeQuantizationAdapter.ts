@@ -64,11 +64,15 @@ export class SafeQuantizationAdapter implements WarpAdapter {
   }
 
   public exportState(): string {
-    return JSON.stringify(this.options);
+    return JSON.stringify({
+      __version: "1.0",
+      ...this.options
+    });
   }
 
   public static importState(state: string): SafeQuantizationAdapter {
     const options = JSON.parse(state);
+    // 将来 __version を使ったマイグレーション処理をここに追加できます
     return new SafeQuantizationAdapter(options);
   }
 }
