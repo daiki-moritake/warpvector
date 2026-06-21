@@ -9,6 +9,8 @@
 
 データベースとアプリケーションの間に立ち、インメモリの高速なアフィン変換によって、データの意味的距離をユーザーの「真の意図」に極限まで近づけます。
 
+> 🎮 [**インタラクティブデモを試す**](https://daiki-moritake.github.io/warpvector/ja.html) · 📖 [English README](./README.md)
+
 ---
 
 ## 💡 なぜ `warpvector` なのか？
