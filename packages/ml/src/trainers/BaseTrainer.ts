@@ -76,6 +76,10 @@ export abstract class BaseTrainer<
 
       this.initAdamState(sDim, tDim);
 
+      const patience = options.patience;
+      let bestLoss = Infinity;
+      let patienceCounter = 0;
+
       for (let epoch = 0; epoch < epochs; epoch++) {
         for (const example of this.examples) {
           this.t++;
@@ -92,6 +96,25 @@ export abstract class BaseTrainer<
             this.t,
             options // allow passing custom options like temperature or margin
           );
+        }
+
+        if (patience !== undefined) {
+          let currentLoss = 0;
+          for (const example of this.examples) {
+            currentLoss += this.calculateLoss(flatMatrix, bias, example, options);
+          }
+          currentLoss /= this.examples.length || 1;
+
+          if (currentLoss < bestLoss) {
+            bestLoss = currentLoss;
+            patienceCounter = 0;
+          } else {
+            patienceCounter++;
+            if (patienceCounter >= patience) {
+              console.log(`Early stopping triggered at epoch ${epoch + 1}. Loss did not improve for ${patience} epochs.`);
+              break;
+            }
+          }
         }
       }
 
@@ -131,9 +154,15 @@ export abstract class BaseTrainer<
 
       this.initAdamState(sDim, tDim);
 
+      const patience = options.patience;
+      let bestLoss = Infinity;
+      let patienceCounter = 0;
+
       for (let epoch = 0; epoch < epochs; epoch++) {
-        const stream = dataFactory();
-        for await (const example of stream) {
+        let currentLossSum = 0;
+        let exampleCount = 0;
+
+        for await (const example of dataFactory()) {
           this.t++;
           this.adamStep(
             flatMatrix,
@@ -148,6 +177,25 @@ export abstract class BaseTrainer<
             this.t,
             options
           );
+
+          if (patience !== undefined) {
+            currentLossSum += this.calculateLoss(flatMatrix, bias, example, options);
+            exampleCount++;
+          }
+        }
+
+        if (patience !== undefined && exampleCount > 0) {
+          const avgLoss = currentLossSum / exampleCount;
+          if (avgLoss < bestLoss) {
+            bestLoss = avgLoss;
+            patienceCounter = 0;
+          } else {
+            patienceCounter++;
+            if (patienceCounter >= patience) {
+              console.log(`Early stopping triggered at epoch ${epoch + 1}. Loss did not improve for ${patience} epochs.`);
+              break;
+            }
+          }
         }
       }
 

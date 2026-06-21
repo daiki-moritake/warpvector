@@ -1,5 +1,5 @@
 import { WarpPipeline, InputVector, OutputVector } from "@warpvector/core";
-import { SearchExample, calculateMRR, calculateRecall } from "./metrics";
+import { SearchExample, getPositiveRank } from "./metrics";
 
 export type MetricType = "MRR" | "Recall@1" | "Recall@5" | "Recall@10";
 
@@ -47,31 +47,39 @@ export class PipelineAutoTuner {
     }
   }
 
-  /**
-   * 与えられたパラメータでパイプラインを評価し、スコアを返します。
-   */
   private evaluatePipeline(pipeline: WarpPipeline, metric: MetricType): number {
-    // 評価用にデータセット全体をパイプラインで変換
-    const transformedDataset: SearchExample<OutputVector>[] = this.dataset.map(ex => {
-      return {
-        query: pipeline.run(ex.query),
-        positive: pipeline.run(ex.positive),
-        negatives: ex.negatives ? ex.negatives.map(neg => pipeline.run(neg)) : []
-      };
-    });
+    if (this.dataset.length === 0) return 0;
 
-    switch (metric) {
-      case "MRR":
-        return calculateMRR(transformedDataset);
-      case "Recall@1":
-        return calculateRecall(transformedDataset, 1);
-      case "Recall@5":
-        return calculateRecall(transformedDataset, 5);
-      case "Recall@10":
-        return calculateRecall(transformedDataset, 10);
-      default:
-        throw new Error(`Unknown metric: ${metric}`);
+    let scoreSum = 0;
+
+    // データセット全体を一度に変換してメモリ配列に保持するのではなく、
+    // 1件ずつ推論してスコアを加算することで O(1) のメモリオーバーヘッドを実現します。
+    for (const ex of this.dataset) {
+      const transformedQuery = pipeline.run(ex.query);
+      const transformedPositive = pipeline.run(ex.positive);
+      const transformedNegatives = ex.negatives ? ex.negatives.map(neg => pipeline.run(neg)) : [];
+
+      const rank = getPositiveRank(transformedQuery, transformedPositive, transformedNegatives);
+
+      switch (metric) {
+        case "MRR":
+          scoreSum += 1.0 / rank;
+          break;
+        case "Recall@1":
+          if (rank <= 1) scoreSum += 1;
+          break;
+        case "Recall@5":
+          if (rank <= 5) scoreSum += 1;
+          break;
+        case "Recall@10":
+          if (rank <= 10) scoreSum += 1;
+          break;
+        default:
+          throw new Error(`Unknown metric: ${metric}`);
+      }
     }
+
+    return scoreSum / this.dataset.length;
   }
 
   /**
