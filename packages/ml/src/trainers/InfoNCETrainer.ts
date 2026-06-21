@@ -6,7 +6,8 @@ import {
   innerProduct,
   softmax,
 } from "@warpvector/core";
-import { AbstractAdamTrainer } from "../trainers/BaseTrainer";
+import { BaseTrainer } from "../trainers/BaseTrainer";
+import { initWasm } from "@warpvector/core";
 
 /**
  * 学習データのペア（Anchor, Positive, 複数のNegatives）
@@ -38,7 +39,7 @@ export interface InfoNCEOnlineOptions {
  * 「1つの正解を近づけ、複数の不正解を一気に遠ざける」ように
  * IntentWeights (行列W と バイアスb) を学習するトレーナークラス。
  */
-export class InfoNCETrainer extends AbstractAdamTrainer {
+export class InfoNCETrainer extends BaseTrainer<InfoNCEExample, IntentWeights> {
   private dimension: number;
 
   /**
@@ -49,6 +50,99 @@ export class InfoNCETrainer extends AbstractAdamTrainer {
     super();
     this.dimension = dimension;
     this.initAdamState(dimension, dimension);
+  }
+
+  protected get sourceDimension(): number {
+    return this.dimension;
+  }
+
+  protected get targetDimension(): number {
+    return this.dimension;
+  }
+
+  protected calculateLoss(
+    matrix: Float32Array,
+    bias: Float32Array,
+    example: InfoNCEExample,
+    options?: InfoNCEOnlineOptions
+  ): number {
+    const dim = this.dimension;
+    const temperature = options?.temperature ?? 0.1;
+
+    const warpedAnchor = new Float32Array(dim);
+    applyAffine(matrix, bias, example.anchor, warpedAnchor, dim);
+
+    const posScore = innerProduct(warpedAnchor, example.positive);
+    const numNegatives = example.negatives.length;
+
+    const allScores = [posScore / temperature];
+    for (let n = 0; n < numNegatives; n++) {
+      allScores.push(
+        innerProduct(warpedAnchor, example.negatives[n]) / temperature,
+      );
+    }
+
+    const probs = softmax(allScores);
+    const pPos = probs[0];
+    
+    // Cross entropy loss for the positive class
+    return -Math.log(Math.max(pPos, 1e-9));
+  }
+
+  protected adamStep(
+    matrix: Float32Array,
+    bias: Float32Array,
+    mMatrix: Float32Array,
+    vMatrix: Float32Array,
+    mBias: Float32Array,
+    vBias: Float32Array,
+    example: InfoNCEExample,
+    lr: number,
+    reg: number,
+    t: number,
+    options?: InfoNCEOnlineOptions
+  ): void {
+    const dim = this.dimension;
+    const temperature = options?.temperature ?? 0.1;
+
+    const warpedAnchor = new Float32Array(dim);
+    applyAffine(matrix, bias, example.anchor, warpedAnchor, dim);
+
+    const posScore = innerProduct(warpedAnchor, example.positive);
+    const numNegatives = example.negatives.length;
+
+    const allScores = [posScore / temperature];
+    for (let n = 0; n < numNegatives; n++) {
+      allScores.push(
+        innerProduct(warpedAnchor, example.negatives[n]) / temperature,
+      );
+    }
+
+    const probs = softmax(allScores);
+    const pPos = probs[0];
+
+    const outputGradients = new Float32Array(dim);
+    for (let i = 0; i < dim; i++) {
+      let gradA_i = (pPos - 1.0) * example.positive[i];
+      for (let n = 0; n < numNegatives; n++) {
+        gradA_i += probs[n + 1] * example.negatives[n][i];
+      }
+      outputGradients[i] = gradA_i / temperature;
+    }
+
+    this.applyAdamToAffine(
+      matrix,
+      bias,
+      mMatrix,
+      vMatrix,
+      mBias,
+      vBias,
+      example.anchor,
+      outputGradients,
+      lr,
+      reg,
+      t
+    );
   }
 
   /**
@@ -66,7 +160,6 @@ export class InfoNCETrainer extends AbstractAdamTrainer {
     options: InfoNCEOnlineOptions = {},
   ): Promise<IntentWeights> {
     const learningRate = options.learningRate ?? 0.01;
-    const temperature = options.temperature ?? 0.1;
     const regularization = options.regularization ?? 0.001;
     const dim = this.dimension;
 
@@ -85,51 +178,19 @@ export class InfoNCETrainer extends AbstractAdamTrainer {
       "updateOnline Matrix",
     );
 
-    // 1. Forward Pass: アンカーベクトルを現在のアフィン変換でワープさせる A' = W * A + b
-    const warpedAnchor = new Float32Array(dim);
-    applyAffine(flatMatrix, bias, example.anchor, warpedAnchor, dim);
-
-    // 2. スコア計算: s(A', X) = A' \cdot X
-    const posScore = innerProduct(warpedAnchor, example.positive);
-    const numNegatives = example.negatives.length;
-
-    // Softmax確率の計算のため、すべてのスコアを1つの配列にまとめる
-    const allScores = [posScore / temperature];
-    for (let n = 0; n < numNegatives; n++) {
-      allScores.push(
-        innerProduct(warpedAnchor, example.negatives[n]) / temperature,
-      );
-    }
-
-    // 3. 共通の softmax() 関数を使用
-    const probs = softmax(allScores);
-    const pPos = probs[0]; // 正解の予測確率
-
-    // 4. Backward Pass: 勾配計算と Adam Optimizer
     this.t += 1;
-    // dL/dA'_i = (1 / tau) * [ (pPos - 1) * P_i + sum_k (pNegs_k * N_ki) ]
-    const outputGradients = new Float32Array(dim);
-    for (let i = 0; i < dim; i++) {
-      let gradA_i = (pPos - 1.0) * example.positive[i];
-      for (let n = 0; n < numNegatives; n++) {
-        // probs の 1 以降が pNegs
-        gradA_i += probs[n + 1] * example.negatives[n][i];
-      }
-      outputGradients[i] = gradA_i / temperature;
-    }
-
-    this.applyAdamToAffine(
+    this.adamStep(
       flatMatrix,
       bias,
       this.mW,
       this.vW,
       this.mb,
       this.vb,
-      example.anchor,
-      outputGradients,
+      example,
       learningRate,
       regularization,
       this.t,
+      options
     );
 
     return this.toWeightsWithRouting(flatMatrix, bias, currentWeights);

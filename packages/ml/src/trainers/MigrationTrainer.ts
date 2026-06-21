@@ -1,4 +1,4 @@
-import { ProjectionWeights } from "@warpvector/core";
+import { ProjectionWeights, applyAffine } from "@warpvector/core";
 import { BaseTrainer } from "../trainers/BaseTrainer";
 
 /**
@@ -53,5 +53,60 @@ export class MigrationTrainer extends BaseTrainer<
     target: number[] | Float32Array;
   } {
     return { source: example.source, target: example.target };
+  }
+
+  protected calculateLoss(
+    matrix: Float32Array,
+    bias: Float32Array,
+    example: MigrationExample
+  ): number {
+    const sDim = this._sourceDimension;
+    const tDim = this._targetDimension;
+    const pred = new Float32Array(tDim);
+    applyAffine(matrix, bias, example.source, pred, sDim, tDim);
+    
+    let loss = 0;
+    for (let i = 0; i < tDim; i++) {
+      const diff = pred[i] - example.target[i];
+      loss += diff * diff;
+    }
+    return loss;
+  }
+
+  protected adamStep(
+    matrix: Float32Array,
+    bias: Float32Array,
+    mMatrix: Float32Array,
+    vMatrix: Float32Array,
+    mBias: Float32Array,
+    vBias: Float32Array,
+    example: MigrationExample,
+    lr: number,
+    reg: number,
+    t: number
+  ): void {
+    const sDim = this._sourceDimension;
+    const tDim = this._targetDimension;
+    const pred = new Float32Array(tDim);
+    applyAffine(matrix, bias, example.source, pred, sDim, tDim);
+
+    const outputGradients = new Float32Array(tDim);
+    for (let i = 0; i < tDim; i++) {
+      outputGradients[i] = pred[i] - example.target[i];
+    }
+
+    this.applyAdamToAffine(
+      matrix,
+      bias,
+      mMatrix,
+      vMatrix,
+      mBias,
+      vBias,
+      example.source,
+      outputGradients,
+      lr,
+      reg,
+      t
+    );
   }
 }

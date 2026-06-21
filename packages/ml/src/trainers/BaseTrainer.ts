@@ -1,8 +1,6 @@
 import {
   initWasm,
   wasmMutex,
-  assertDimension,
-  applyAffine,
 } from "@warpvector/core";
 
 import { AbstractAdamTrainer } from "./AbstractAdamTrainer";
@@ -13,6 +11,7 @@ export { AbstractAdamTrainer };
 
 /**
  * Adam オプティマイザを用いた学習のための共通基底クラス。
+ * 任意の損失関数 (MSE, Triplet, InfoNCE 等) をプラグインできる Template Method パターンを採用しています。
  *
  * @template TExample 学習に用いるデータペアの型 (入力と理想の出力のペアなど)
  * @template TResult 最終的に学習結果として出力される重み (行列やバイアス) の型
@@ -30,34 +29,11 @@ export abstract class BaseTrainer<
   protected abstract get targetDimension(): number;
 
   /**
-   * サンプルデータから、学習アルゴリズムに渡すソースベクトルとターゲットベクトルを抽出します。
-   * @param {TExample} example 学習サンプルのデータ
-   * @returns {{ source: number[] | Float32Array; target: number[] | Float32Array }}
-   */
-  protected abstract getInputs(example: TExample): {
-    source: number[] | Float32Array;
-    target: number[] | Float32Array;
-  };
-
-  /**
    * 学習用のサンプルデータを追加します。
-   * 次元数がソース/ターゲットと一致しない場合はエラーとなります。
    *
    * @param {TExample} example 追加するサンプルデータ
-   * @throws {Error} 次元数が一致しない場合にスローされます。
    */
   public addExample(example: TExample): void {
-    const { source, target } = this.getInputs(example);
-    assertDimension(
-      source,
-      this.sourceDimension,
-      "BaseTrainer.addExample source",
-    );
-    assertDimension(
-      target,
-      this.targetDimension,
-      "BaseTrainer.addExample target",
-    );
     this.examples.push(example);
   }
 
@@ -103,7 +79,6 @@ export abstract class BaseTrainer<
       for (let epoch = 0; epoch < epochs; epoch++) {
         for (const example of this.examples) {
           this.t++;
-          const { source, target } = this.getInputs(example);
           this.adamStep(
             flatMatrix,
             bias,
@@ -111,11 +86,11 @@ export abstract class BaseTrainer<
             this.vW,
             this.mb,
             this.vb,
-            source,
-            target,
+            example,
             lr,
             reg,
             this.t,
+            options // allow passing custom options like temperature or margin
           );
         }
       }
@@ -157,7 +132,6 @@ export abstract class BaseTrainer<
       for (let epoch = 0; epoch < testEpochs; epoch++) {
         for (const example of this.examples) {
           t++;
-          const { source, target } = this.getInputs(example);
           this.adamStep(
             flatMatrix,
             bias,
@@ -165,24 +139,18 @@ export abstract class BaseTrainer<
             vMatrix,
             mBias,
             vBias,
-            source,
-            target,
+            example,
             lr,
             reg,
             t,
+            options
           );
         }
       }
 
       let currentLoss = 0;
       for (const example of this.examples) {
-        const { source, target } = this.getInputs(example);
-        const pred = new Float32Array(tDim);
-        applyAffine(flatMatrix, bias, source, pred, sDim, tDim);
-        for (let i = 0; i < tDim; i++) {
-          const diff = pred[i] - target[i];
-          currentLoss += diff * diff;
-        }
+        currentLoss += this.calculateLoss(flatMatrix, bias, example, options);
       }
 
       if (currentLoss < minLoss) {
@@ -195,46 +163,50 @@ export abstract class BaseTrainer<
   }
 
   /**
-   * Adam オプティマイザによる1ステップのパラメータ更新を実行します。
-   * In-place (破壊的) に `matrix` と `bias` を更新します。
-   * バックワード処理は WASM バックエンドへオフロードされます。
+   * 指定されたサンプルに対する損失 (Loss) を計算します。
+   * サブクラスで独自の損失関数 (L2, マージンロス, クロスエントロピー等) を実装してください。
+   *
+   * @param {Float32Array} matrix 現在の重み行列
+   * @param {Float32Array} bias 現在のバイアス
+   * @param {TExample} example 評価するサンプル
+   * @param {BaseTrainingOptions} [options] その他オプション
+   * @returns {number} 計算された損失値
    */
-  protected adamStep(
+  protected abstract calculateLoss(
+    matrix: Float32Array,
+    bias: Float32Array,
+    example: TExample,
+    options?: BaseTrainingOptions
+  ): number;
+
+  /**
+   * Adam オプティマイザによる1ステップのパラメータ更新を実行します。
+   * サブクラスで、独自の勾配計算ロジックを実装し、内部で `applyAdamToAffine` を呼び出して
+   * In-place (破壊的) に `matrix` と `bias` を更新してください。
+   *
+   * @param {Float32Array} matrix 更新対象の重み行列
+   * @param {Float32Array} bias 更新対象のバイアス
+   * @param {Float32Array} mMatrix Adam のモメンタムベクトル M (行列用)
+   * @param {Float32Array} vMatrix Adam のモメンタムベクトル V (行列用)
+   * @param {Float32Array} mBias Adam のモメンタムベクトル M (バイアス用)
+   * @param {Float32Array} vBias Adam のモメンタムベクトル V (バイアス用)
+   * @param {TExample} example 勾配計算の元となるサンプル
+   * @param {number} lr 学習率
+   * @param {number} reg L2正則化の強さ
+   * @param {number} t 現在のタイムステップ
+   * @param {BaseTrainingOptions} [options] その他オプション
+   */
+  protected abstract adamStep(
     matrix: Float32Array,
     bias: Float32Array,
     mMatrix: Float32Array,
     vMatrix: Float32Array,
     mBias: Float32Array,
     vBias: Float32Array,
-    x: number[] | Float32Array,
-    y: number[] | Float32Array,
+    example: TExample,
     lr: number,
     reg: number,
     t: number,
-  ): void {
-    const sDim = this.sourceDimension;
-    const tDim = this.targetDimension;
-
-    const pred = new Float32Array(tDim);
-    applyAffine(matrix, bias, x, pred, sDim, tDim);
-
-    const outputGradients = new Float32Array(tDim);
-    for (let i = 0; i < tDim; i++) {
-      outputGradients[i] = pred[i] - y[i];
-    }
-
-    this.applyAdamToAffine(
-      matrix,
-      bias,
-      mMatrix,
-      vMatrix,
-      mBias,
-      vBias,
-      x,
-      outputGradients,
-      lr,
-      reg,
-      t,
-    );
-  }
+    options?: BaseTrainingOptions
+  ): void;
 }

@@ -199,8 +199,11 @@ describe("Advanced Safety, Memory allocation, and Quantization Tests", () => {
       get targetDimension() {
         return 2;
       }
-      getInputs(example: Example) {
-        return example;
+      calculateLoss() {
+        return 0;
+      }
+      adamStep() {
+        // Mock step
       }
       toWeights(matrix: Float32Array, bias: Float32Array): Weights {
         return { matrix, bias };

@@ -5,7 +5,8 @@ import {
   applyAffine,
   innerProduct,
 } from "@warpvector/core";
-import { AbstractAdamTrainer } from "../trainers/BaseTrainer";
+import { BaseTrainer } from "../trainers/BaseTrainer";
+import { initWasm } from "@warpvector/core";
 
 /**
  * 学習データのペア（Anchor, Positive, Negative）
@@ -39,7 +40,7 @@ export interface TripletOnlineOptions {
  * "Anchor" を変換したベクトル A' が、"Negative" よりも "Positive" に
  * 設定されたマージン(Margin)分だけ確実により近づくように重みを更新します。
  */
-export class TripletTrainer extends AbstractAdamTrainer {
+export class TripletTrainer extends BaseTrainer<TripletExample, IntentWeights> {
   private dimension: number;
 
   /**
@@ -50,6 +51,77 @@ export class TripletTrainer extends AbstractAdamTrainer {
     super();
     this.dimension = dimension;
     this.initAdamState(dimension, dimension);
+  }
+
+  protected get sourceDimension(): number {
+    return this.dimension;
+  }
+
+  protected get targetDimension(): number {
+    return this.dimension;
+  }
+
+  protected calculateLoss(
+    matrix: Float32Array,
+    bias: Float32Array,
+    example: TripletExample,
+    options?: TripletOnlineOptions
+  ): number {
+    const dim = this.dimension;
+    const margin = options?.margin ?? 0.1;
+    const warpedAnchor = new Float32Array(dim);
+    applyAffine(matrix, bias, example.anchor, warpedAnchor, dim);
+
+    const posScore = innerProduct(warpedAnchor, example.positive);
+    const negScore = innerProduct(warpedAnchor, example.negative);
+
+    return Math.max(0, margin + negScore - posScore);
+  }
+
+  protected adamStep(
+    matrix: Float32Array,
+    bias: Float32Array,
+    mMatrix: Float32Array,
+    vMatrix: Float32Array,
+    mBias: Float32Array,
+    vBias: Float32Array,
+    example: TripletExample,
+    lr: number,
+    reg: number,
+    t: number,
+    options?: TripletOnlineOptions
+  ): void {
+    const dim = this.dimension;
+    const margin = options?.margin ?? 0.1;
+    
+    const warpedAnchor = new Float32Array(dim);
+    applyAffine(matrix, bias, example.anchor, warpedAnchor, dim);
+
+    const posScore = innerProduct(warpedAnchor, example.positive);
+    const negScore = innerProduct(warpedAnchor, example.negative);
+
+    const loss = margin + negScore - posScore;
+
+    if (loss > 0) {
+      const outputGradients = new Float32Array(dim);
+      for (let i = 0; i < dim; i++) {
+        outputGradients[i] = example.negative[i] - example.positive[i];
+      }
+
+      this.applyAdamToAffine(
+        matrix,
+        bias,
+        mMatrix,
+        vMatrix,
+        mBias,
+        vBias,
+        example.anchor,
+        outputGradients,
+        lr,
+        reg,
+        t
+      );
+    }
   }
 
   /**
@@ -92,41 +164,20 @@ export class TripletTrainer extends AbstractAdamTrainer {
       "updateOnline Matrix",
     );
 
-    // 1. Forward Pass: アンカーベクトルを現在のアフィン変換でワープさせる A' = W * A + b
-    const warpedAnchor = new Float32Array(dim);
-    applyAffine(flatMatrix, bias, example.anchor, warpedAnchor, dim);
-
-    // 2. マージンロスの計算
-    const posScore = innerProduct(warpedAnchor, example.positive);
-    const negScore = innerProduct(warpedAnchor, example.negative);
-
-    const loss = margin + negScore - posScore;
-
-    // 3. Backward Pass: ロスが0より大きい（マージンを満たしていない）場合のみ重みを更新
-    if (loss > 0) {
-      this.t += 1;
-
-      // 誤差逆伝播 (dL/dA')
-      const outputGradients = new Float32Array(dim);
-      for (let i = 0; i < dim; i++) {
-        // dL/dA'_i = N_i - P_i
-        outputGradients[i] = example.negative[i] - example.positive[i];
-      }
-
-      this.applyAdamToAffine(
-        flatMatrix,
-        bias,
-        this.mW,
-        this.vW,
-        this.mb,
-        this.vb,
-        example.anchor,
-        outputGradients,
-        learningRate,
-        regularization,
-        this.t,
-      );
-    }
+    this.t += 1;
+    this.adamStep(
+      flatMatrix,
+      bias,
+      this.mW,
+      this.vW,
+      this.mb,
+      this.vb,
+      example,
+      learningRate,
+      regularization,
+      this.t,
+      options
+    );
 
     return this.toWeightsWithRouting(flatMatrix, bias, currentWeights);
   }
