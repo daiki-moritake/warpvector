@@ -2,38 +2,70 @@
  * WarpVector Playground — Real Library Demo Engine
  *
  * This module uses the ACTUAL @warpvector/core library to perform
- * intent-based vector transformations. No simulation — real WASM-accelerated
- * affine transforms are happening in the browser.
+ * intent-based vector transformations.
+ * Now enhanced to use REAL embeddings via Transformers.js in a Web Worker!
  */
-import { IntentAdapter, initWasm, type IntentWeights } from '@warpvector/core';
+import { IntentAdapter, initWasm } from '@warpvector/core';
 
-const DIM = 32; // Small enough for browser visualization, large enough for real math
+// all-MiniLM-L6-v2 uses 384 dimensions
+export const DIM = 384; 
 
-/** Seed-based pseudo-random for reproducibility */
-function seededRandom(seed: number): () => number {
-  let s = seed;
-  return () => {
-    s = (s * 16807 + 0) % 2147483647;
-    return (s - 1) / 2147483646;
-  };
+// Worker instance
+let worker: Worker | null = null;
+let messageIdCounter = 0;
+type ProgressCallback = (status: string, data?: any) => void;
+
+/** Initialize the Web Worker for Transformers.js */
+function getWorker(): Worker {
+  if (!worker) {
+    worker = new Worker(new URL('./worker.ts', import.meta.url), {
+      type: 'module'
+    });
+  }
+  return worker;
 }
 
-/** Generate a random unit vector */
-function randomUnitVector(rng: () => number, dim: number): Float32Array {
-  const v = new Float32Array(dim);
-  let norm = 0;
-  for (let i = 0; i < dim; i++) {
-    v[i] = rng() * 2 - 1;
-    norm += v[i] * v[i];
-  }
-  norm = Math.sqrt(norm);
-  for (let i = 0; i < dim; i++) v[i] /= norm;
-  return v;
+/** Promisified message sending to Worker */
+function runWorkerTask(type: string, payload: any, onProgress?: ProgressCallback): Promise<any> {
+  return new Promise((resolve, reject) => {
+    const id = messageIdCounter++;
+    const w = getWorker();
+    
+    const listener = (event: MessageEvent) => {
+      if (event.data.id === id) {
+        if (event.data.status === 'progress' && onProgress) {
+          onProgress(event.data.status, event.data.data);
+        } else if (event.data.status === 'ready') {
+          // Used for 'load' task
+          w.removeEventListener('message', listener);
+          resolve(true);
+        } else if (event.data.status === 'complete') {
+          w.removeEventListener('message', listener);
+          resolve(event.data.embeddings);
+        } else if (event.data.status === 'error') {
+          w.removeEventListener('message', listener);
+          reject(new Error(event.data.error));
+        }
+      }
+    };
+    
+    w.addEventListener('message', listener);
+    w.postMessage({ id, type, ...payload });
+  });
+}
+
+/** Preload the model */
+export async function preloadModel(onProgress?: ProgressCallback) {
+  await runWorkerTask('load', {}, onProgress);
+}
+
+/** Get embeddings for an array of texts */
+export async function getEmbeddings(texts: string[]): Promise<Float32Array[]> {
+  return await runWorkerTask('embed', { texts });
 }
 
 /** Generate a transformation matrix that pulls vectors in a category's direction */
-function generateIntentMatrix(
-  rng: () => number,
+export function generateIntentMatrix(
   dim: number,
   categoryDirection: Float32Array,
   strength: number,
@@ -43,26 +75,23 @@ function generateIntentMatrix(
   const bias = new Float32Array(dim);
 
   // Identity matrix
-  for (let i = 0; i < dim; i++) matrix[i * dim + i] = 1.0;
+  for (let i = 0; i < dim; i++) {
+    matrix[i * dim + i] = 1.0;
+  }
 
   // Add outer product: strength * direction ⊗ direction
   for (let i = 0; i < dim; i++) {
     for (let j = 0; j < dim; j++) {
       matrix[i * dim + j] += strength * categoryDirection[i] * categoryDirection[j];
     }
-    bias[i] = strength * 0.1 * categoryDirection[i];
-  }
-
-  // Add small random perturbation for realism
-  for (let i = 0; i < dim * dim; i++) {
-    matrix[i] += (rng() - 0.5) * 0.02;
+    bias[i] = strength * 0.1 * categoryDirection[i]; // Small bias in the direction
   }
 
   return { matrix, bias };
 }
 
 /** Cosine similarity between two vectors */
-function cosineSim(a: Float32Array, b: Float32Array): number {
+export function cosineSim(a: Float32Array, b: Float32Array): number {
   let dot = 0, normA = 0, normB = 0;
   for (let i = 0; i < a.length; i++) {
     dot += a[i] * b[i];
@@ -73,7 +102,7 @@ function cosineSim(a: Float32Array, b: Float32Array): number {
 }
 
 /** Project high-dimensional vector to 2D using two basis vectors */
-function projectTo2D(
+export function projectTo2D(
   vec: Float32Array,
   basis1: Float32Array,
   basis2: Float32Array,
@@ -91,6 +120,7 @@ export interface DocPoint {
   name: string;
   category: string;
   color: string;
+  text: string;
   baseVector: Float32Array;
   currentVector: Float32Array;
   pos: { x: number; y: number };
@@ -98,151 +128,248 @@ export interface DocPoint {
 
 export interface DemoState {
   docs: DocPoint[];
-  query: { vector: Float32Array; pos: { x: number; y: number } };
+  query: { text: string; vector: Float32Array; pos: { x: number; y: number } };
   adapter: IntentAdapter;
   basis1: Float32Array;
   basis2: Float32Array;
   wasmReady: boolean;
+  intentsList: { key: string; name: string; desc: string; icon: string; color: string }[];
 }
 
-/** Create the full demo state with real warpvector IntentAdapter */
-export async function createDemoState(lang: 'en' | 'ja'): Promise<DemoState> {
+export interface RankedDoc extends DocPoint {
+  score: number;
+}
+
+export interface BenchmarkResult {
+  batchSize: number;
+  batchMs: number;
+  individualMs: number;
+  batchOpsPerSec: number;
+  individualOpsPerSec: number;
+  speedup: number;
+}
+
+// Sample dataset
+const INITIAL_DATA = {
+  en: {
+    tech: [
+      { name: "TypeScript WASM Guide", text: "A comprehensive guide on running WebAssembly in TypeScript applications for high performance computing." },
+      { name: "React Performance Tips", text: "Techniques for optimizing React rendering, including useMemo, useCallback, and virtual DOM strategies." },
+      { name: "Edge Computing Patterns", text: "Architectural patterns for deploying serverless functions to the edge for low latency global applications." },
+      { name: "Vector Database Internals", text: "Deep dive into HNSW indexes, cosine similarity, and distributed architectures of modern vector databases." }
+    ],
+    business: [
+      { name: "Q3 Revenue Analysis", text: "Financial breakdown of Q3 performance, highlighting key growth areas and operational cost reductions." },
+      { name: "Market Entry Strategy", text: "Strategic framework for entering new emerging markets, including competitor analysis and pricing models." },
+      { name: "Enterprise SaaS Pricing", text: "How to structure tiered pricing, usage-based billing, and enterprise negotiation tactics for SaaS products." },
+      { name: "Startup Fundraising", text: "A guide to series A fundraising, creating pitch decks, and evaluating term sheets from venture capitalists." }
+    ],
+    medical: [
+      { name: "Clinical Trial Design", text: "Methodology for designing phase III clinical trials, including patient cohort selection and statistical significance." },
+      { name: "Drug Interaction DB", text: "A database outlining adverse effects and pharmacokinetic interactions between common prescription medications." },
+      { name: "Patient Data Privacy", text: "Compliance guidelines for handling electronic health records (EHR) under HIPAA and GDPR regulations." },
+      { name: "Genomics Pipeline", text: "Bioinformatics pipelines for analyzing next-generation sequencing data and identifying genetic variants." }
+    ],
+    general: [
+      { name: "Machine Learning Basics", text: "Introduction to machine learning concepts: supervised learning, neural networks, and loss functions." },
+      { name: "Data Privacy Compliance", text: "General overview of data protection laws and how companies must secure personally identifiable information." },
+      { name: "Cloud Infrastructure", text: "Comparing AWS, Google Cloud, and Azure for hosting scalable web applications and databases." }
+    ]
+  },
+  ja: {
+    tech: [
+      { name: "TypeScript WASM ガイド", text: "TypeScriptアプリケーションでハイパフォーマンスコンピューティングのためにWebAssemblyを実行する包括的ガイド。" },
+      { name: "React パフォーマンス最適化", text: "useMemo, useCallback, 仮想DOM戦略を含むReactレンダリング最適化のテクニック。" },
+      { name: "エッジコンピューティング設計", text: "低遅延のグローバルアプリケーションのためのエッジへのサーバーレス関数デプロイメントのアーキテクチャパターン。" },
+      { name: "ベクトルDBの内部構造", text: "最新のベクトルデータベースのHNSWインデックス、コサイン類似度、分散アーキテクチャの徹底解説。" }
+    ],
+    business: [
+      { name: "Q3 収益分析レポート", text: "第3四半期の業績の財務的内訳、主要な成長分野と運営コスト削減のハイライト。" },
+      { name: "市場参入戦略", text: "競合分析と価格モデルを含む、新興市場へ参入するための戦略的フレームワーク。" },
+      { name: "エンタープライズ SaaS 価格設計", text: "SaaS製品における段階的価格設定、従量課金、エンタープライズ交渉戦術の構築方法。" },
+      { name: "スタートアップ資金調達", text: "シリーズA資金調達、ピッチデック作成、VCからのタームシート評価のガイド。" }
+    ],
+    medical: [
+      { name: "臨床試験デザイン", text: "患者コホート選択と統計的有意性を含む、第III相臨床試験を設計するための方法論。" },
+      { name: "薬物相互作用データベース", text: "一般的な処方薬間の副作用と薬物動態学的相互作用のデータベース。" },
+      { name: "患者データプライバシー", text: "HIPAAおよびGDPR規制下での電子健康記録（EHR）取り扱いのためのコンプライアンスガイドライン。" },
+      { name: "ゲノミクスパイプライン", text: "次世代シーケンシングデータを分析し、遺伝的変異を特定するためのバイオインフォマティクスパイプライン。" }
+    ],
+    general: [
+      { name: "機械学習入門", text: "教師あり学習、ニューラルネットワーク、損失関数などの機械学習の概念の入門。" },
+      { name: "データプライバシー規制", text: "データ保護法の一般的な概要と、企業が個人を特定できる情報を保護する方法。" },
+      { name: "クラウドインフラ構築", text: "スケーラブルなWebアプリケーションとデータベースをホストするためのAWS、Google Cloud、Azureの比較。" }
+    ]
+  }
+};
+
+const CATEGORY_COLORS = {
+  tech: '#3b82f6',
+  business: '#10b981',
+  medical: '#f43f5e',
+  general: '#94a3b8'
+};
+
+const DEFAULT_INTENTS = {
+  en: [
+    { key: 'technology', name: 'Technology', desc: 'Technical & programming focus', icon: '💻', color: 'rgba(59,130,246,0.15)', text: "I want highly technical documentation, software engineering concepts, coding techniques, and system architecture." },
+    { key: 'business', name: 'Business', desc: 'Business & finance focus', icon: '📊', color: 'rgba(16,185,129,0.15)', text: "I am interested in business strategy, financial analysis, startup funding, and enterprise sales tactics." },
+    { key: 'medical', name: 'Medical', desc: 'Healthcare & science focus', icon: '🏥', color: 'rgba(244,63,94,0.15)', text: "Show me medical research, clinical trials, healthcare data compliance, and genomics information." }
+  ],
+  ja: [
+    { key: 'technology', name: 'テクノロジー', desc: '技術とプログラミング重視', icon: '💻', color: 'rgba(59,130,246,0.15)', text: "高度な技術ドキュメント、ソフトウェアエンジニアリングの概念、コーディング手法、システムアーキテクチャが欲しいです。" },
+    { key: 'business', name: 'ビジネス', desc: 'ビジネスと金融重視', icon: '📊', color: 'rgba(16,185,129,0.15)', text: "ビジネス戦略、財務分析、スタートアップ資金調達、エンタープライズ営業戦術に興味があります。" },
+    { key: 'medical', name: '医療', desc: 'ヘルスケアと科学重視', icon: '🏥', color: 'rgba(244,63,94,0.15)', text: "医学研究、臨床試験、ヘルスケアデータコンプライアンス、ゲノミクス情報を見せてください。" }
+  ]
+};
+
+/** Create the full demo state with real warpvector IntentAdapter and real embeddings */
+export async function createDemoState(
+  lang: 'en' | 'ja', 
+  onProgress?: ProgressCallback
+): Promise<DemoState> {
   // Initialize WASM
   const wasmResult = await initWasm();
   const wasmReady = wasmResult !== null;
 
-  const rng = seededRandom(42);
+  // Load Transformers.js model
+  if (onProgress) onProgress('init_model');
+  await preloadModel(onProgress);
 
-  // Category direction vectors (define semantic regions in the vector space)
-  const techDir = randomUnitVector(seededRandom(100), DIM);
-  const bizDir = randomUnitVector(seededRandom(200), DIM);
-  const medDir = randomUnitVector(seededRandom(300), DIM);
-  const genDir = randomUnitVector(seededRandom(400), DIM);
-
-  // Create the REAL IntentAdapter with REAL transformation matrices
-  const techWeights = generateIntentMatrix(seededRandom(1001), DIM, techDir, 0.8);
-  const bizWeights = generateIntentMatrix(seededRandom(1002), DIM, bizDir, 0.8);
-  const medWeights = generateIntentMatrix(seededRandom(1003), DIM, medDir, 0.8);
-
-  const adapter = new IntentAdapter(DIM);
-  adapter.addIntent('technology', { matrix: techWeights.matrix, bias: techWeights.bias });
-  adapter.addIntent('business', { matrix: bizWeights.matrix, bias: bizWeights.bias });
-  adapter.addIntent('medical', { matrix: medWeights.matrix, bias: medWeights.bias });
-
-  // Document names
-  const docNames = lang === 'ja' ? {
-    tech: ["TypeScript WASM ガイド", "React パフォーマンス最適化", "エッジコンピューティング設計", "ベクトルDB の内部構造"],
-    business: ["Q3 収益分析レポート", "市場参入戦略", "エンタープライズ SaaS 価格設計", "スタートアップ資金調達ガイド"],
-    medical: ["臨床試験デザイン", "薬物相互作用データベース", "患者データプライバシー", "ゲノミクスパイプライン"],
-    general: ["機械学習入門", "データプライバシー規制", "クラウドインフラ構築"],
-  } : {
-    tech: ["TypeScript WASM Guide", "React Performance Tips", "Edge Computing Patterns", "Vector Database Internals"],
-    business: ["Q3 Revenue Analysis", "Market Entry Strategy", "Enterprise SaaS Pricing", "Startup Fundraising Guide"],
-    medical: ["Clinical Trial Design", "Drug Interaction Database", "Patient Data Privacy", "Genomics Pipeline"],
-    general: ["Machine Learning Basics", "Data Privacy Compliance", "Cloud Infrastructure"],
-  };
-
-  // Generate document vectors with category-specific directions
-  function makeDocVector(categoryDir: Float32Array, seed: number): Float32Array {
-    const r = seededRandom(seed);
-    const v = new Float32Array(DIM);
-    let norm = 0;
-    for (let i = 0; i < DIM; i++) {
-      v[i] = categoryDir[i] * 0.7 + (r() - 0.5) * 0.6;
-      norm += v[i] * v[i];
+  // Prepare all texts to embed
+  const allDocs: { category: string, name: string, text: string, color: string }[] = [];
+  const sourceData = INITIAL_DATA[lang];
+  for (const cat of Object.keys(sourceData)) {
+    for (const item of sourceData[cat as keyof typeof sourceData]) {
+      allDocs.push({ category: cat, name: item.name, text: item.text, color: CATEGORY_COLORS[cat as keyof typeof CATEGORY_COLORS] });
     }
-    norm = Math.sqrt(norm);
-    for (let i = 0; i < DIM; i++) v[i] /= norm;
-    return v;
   }
 
+  const queryText = lang === 'en' ? "Apple" : "Apple";
+  
+  // Also embed the default intent directions
+  const defaultIntents = DEFAULT_INTENTS[lang];
+  const intentTexts = defaultIntents.map(i => i.text);
+
+  const allTextsToEmbed = [
+    ...allDocs.map(d => d.text),
+    queryText,
+    ...intentTexts
+  ];
+
+  if (onProgress) onProgress('embedding');
+  const embeddings = await getEmbeddings(allTextsToEmbed);
+
+  // Distribute embeddings back
   const docs: DocPoint[] = [];
-  let id = 0;
-
-  // Tech docs
-  for (let i = 0; i < 4; i++) {
+  let eIdx = 0;
+  for (let i = 0; i < allDocs.length; i++) {
+    const emb = embeddings[eIdx++];
     docs.push({
-      id: id++, name: docNames.tech[i], category: 'tech', color: '#3b82f6',
-      baseVector: makeDocVector(techDir, 500 + i),
-      currentVector: new Float32Array(DIM),
-      pos: { x: 0, y: 0 },
-    });
-  }
-  // Business docs
-  for (let i = 0; i < 4; i++) {
-    docs.push({
-      id: id++, name: docNames.business[i], category: 'business', color: '#10b981',
-      baseVector: makeDocVector(bizDir, 600 + i),
-      currentVector: new Float32Array(DIM),
-      pos: { x: 0, y: 0 },
-    });
-  }
-  // Medical docs
-  for (let i = 0; i < 4; i++) {
-    docs.push({
-      id: id++, name: docNames.medical[i], category: 'medical', color: '#f43f5e',
-      baseVector: makeDocVector(medDir, 700 + i),
-      currentVector: new Float32Array(DIM),
-      pos: { x: 0, y: 0 },
-    });
-  }
-  // General docs
-  for (let i = 0; i < 3; i++) {
-    docs.push({
-      id: id++, name: docNames.general[i], category: 'general', color: '#94a3b8',
-      baseVector: makeDocVector(genDir, 800 + i),
-      currentVector: new Float32Array(DIM),
-      pos: { x: 0, y: 0 },
+      id: i,
+      name: allDocs[i].name,
+      category: allDocs[i].category,
+      color: allDocs[i].color,
+      text: allDocs[i].text,
+      baseVector: emb,
+      currentVector: new Float32Array(emb),
+      pos: { x: 0, y: 0 }
     });
   }
 
-  // Query vector (mixture of tech and general — ambiguous)
-  const queryVec = new Float32Array(DIM);
-  for (let i = 0; i < DIM; i++) {
-    queryVec[i] = techDir[i] * 0.3 + bizDir[i] * 0.3 + genDir[i] * 0.3 + (rng() - 0.5) * 0.2;
-  }
-  let qNorm = 0;
-  for (let i = 0; i < DIM; i++) qNorm += queryVec[i] * queryVec[i];
-  qNorm = Math.sqrt(qNorm);
-  for (let i = 0; i < DIM; i++) queryVec[i] /= qNorm;
+  const queryVec = embeddings[eIdx++];
+  
+  // Initialize IntentAdapter
+  const adapter = new IntentAdapter(DIM);
+  const intentsList: DemoState['intentsList'] = [];
 
-  // 2D projection basis (PCA-like: use first two category directions)
+  for (let i = 0; i < defaultIntents.length; i++) {
+    const intentEmb = embeddings[eIdx++];
+    const { matrix, bias } = generateIntentMatrix(DIM, intentEmb, 1.2);
+    adapter.addIntent(defaultIntents[i].key, { matrix, bias });
+    intentsList.push({
+      key: defaultIntents[i].key,
+      name: defaultIntents[i].name,
+      desc: defaultIntents[i].desc,
+      icon: defaultIntents[i].icon,
+      color: defaultIntents[i].color
+    });
+  }
+
+  // Define 2D projection basis (PCA-like using two arbitrary intents to create a 2D plane)
   const basis1 = new Float32Array(DIM);
   const basis2 = new Float32Array(DIM);
-  // Gram-Schmidt orthogonalization
-  for (let i = 0; i < DIM; i++) basis1[i] = techDir[i] - bizDir[i];
-  let b1Norm = 0;
-  for (let i = 0; i < DIM; i++) b1Norm += basis1[i] * basis1[i];
-  b1Norm = Math.sqrt(b1Norm);
-  for (let i = 0; i < DIM; i++) basis1[i] /= b1Norm;
-
+  
+  // We'll use tech and medical intents to define the plane roughly
+  const techEmb = embeddings[allDocs.length + 1]; // First intent
+  const medEmb = embeddings[allDocs.length + 3]; // Third intent
+  
+  for (let i = 0; i < DIM; i++) basis1[i] = techEmb[i];
+  // Gram-Schmidt
   let dot12 = 0;
+  for (let i = 0; i < DIM; i++) dot12 += medEmb[i] * basis1[i];
+  for (let i = 0; i < DIM; i++) basis2[i] = medEmb[i] - dot12 * basis1[i];
+  
+  // Normalize basis vectors
+  let b1Norm = 0, b2Norm = 0;
   for (let i = 0; i < DIM; i++) {
-    basis2[i] = medDir[i] - genDir[i];
-    dot12 += basis2[i] * basis1[i];
+    b1Norm += basis1[i] * basis1[i];
+    b2Norm += basis2[i] * basis2[i];
   }
-  for (let i = 0; i < DIM; i++) basis2[i] -= dot12 * basis1[i];
-  let b2Norm = 0;
-  for (let i = 0; i < DIM; i++) b2Norm += basis2[i] * basis2[i];
+  b1Norm = Math.sqrt(b1Norm);
   b2Norm = Math.sqrt(b2Norm);
-  for (let i = 0; i < DIM; i++) basis2[i] /= b2Norm;
+  for (let i = 0; i < DIM; i++) {
+    basis1[i] /= b1Norm;
+    basis2[i] /= b2Norm;
+  }
 
-  // Set initial positions (no intent = base vectors)
+  // Calculate initial positions
   for (const doc of docs) {
-    doc.currentVector.set(doc.baseVector);
     doc.pos = projectTo2D(doc.baseVector, basis1, basis2);
   }
-
   const queryPos = projectTo2D(queryVec, basis1, basis2);
 
   return {
     docs,
-    query: { vector: queryVec, pos: queryPos },
+    query: { text: queryText, vector: queryVec, pos: queryPos },
     adapter,
     basis1,
     basis2,
     wasmReady,
+    intentsList
   };
+}
+
+/** Update the query dynamically */
+export async function updateQuery(state: DemoState, text: string) {
+  const [newVec] = await getEmbeddings([text]);
+  state.query.text = text;
+  state.query.vector = newVec;
+  state.query.pos = projectTo2D(newVec, state.basis1, state.basis2);
+}
+
+/** Add a new custom intent dynamically */
+export async function addCustomIntent(
+  state: DemoState, 
+  name: string, 
+  text: string, 
+  icon: string, 
+  color: string
+) {
+  const [intentVec] = await getEmbeddings([text]);
+  const key = 'custom_' + Date.now();
+  const { matrix, bias } = generateIntentMatrix(DIM, intentVec, 1.2);
+  state.adapter.addIntent(key, { matrix, bias });
+  
+  state.intentsList.push({
+    key,
+    name,
+    desc: 'Custom intent',
+    icon,
+    color
+  });
+  
+  return key;
 }
 
 /** Transform all document vectors using the REAL IntentAdapter */
@@ -254,7 +381,6 @@ export function transformWithIntent(
 
   for (const doc of state.docs) {
     if (intent && intent !== 'none') {
-      // REAL warpvector IntentAdapter.tune() — uses WASM if available
       doc.currentVector = state.adapter.tune(doc.baseVector, intent);
     } else {
       doc.currentVector = new Float32Array(doc.baseVector);
@@ -264,7 +390,6 @@ export function transformWithIntent(
 
   const latencyMs = performance.now() - t0;
 
-  // Compute rankings by cosine similarity
   const rankings = state.docs.map((doc) => ({
     ...doc,
     score: cosineSim(doc.currentVector, state.query.vector),
@@ -273,12 +398,11 @@ export function transformWithIntent(
   return { latencyMs, rankings };
 }
 
-/** Transform using BLENDED intents — demonstrates tuneBlended() */
+/** Transform using BLENDED intents */
 export function transformWithBlend(
   state: DemoState,
   weights: Record<string, number>,
 ): { latencyMs: number; rankings: RankedDoc[]; codeSnippet: string } {
-  // Filter out zero-weight intents
   const activeWeights: Record<string, number> = {};
   for (const [k, v] of Object.entries(weights)) {
     if (v > 0.01) activeWeights[k] = v;
@@ -289,7 +413,6 @@ export function transformWithBlend(
 
   for (const doc of state.docs) {
     if (hasActive) {
-      // REAL warpvector IntentAdapter.tuneBlended()
       doc.currentVector = state.adapter.tuneBlended(doc.baseVector, activeWeights);
     } else {
       doc.currentVector = new Float32Array(doc.baseVector);
@@ -304,9 +427,8 @@ export function transformWithBlend(
     score: cosineSim(doc.currentVector, state.query.vector),
   })).sort((a, b) => b.score - a.score);
 
-  // Generate the actual code snippet being executed
   const weightsStr = Object.entries(activeWeights)
-    .map(([k, v]) => `  ${k}: ${v.toFixed(2)}`)
+    .map(([k, v]) => `  "${k}": ${v.toFixed(2)}`)
     .join(',\n');
   const codeSnippet = hasActive
     ? `const warped = adapter.tuneBlended(\n  baseVector,\n  {\n${weightsStr}\n  }\n);`
@@ -315,29 +437,30 @@ export function transformWithBlend(
   return { latencyMs, rankings, codeSnippet };
 }
 
-/** Run batch benchmark — demonstrates tuneBatch() performance */
+/** Run batch benchmark */
 export function runBenchmark(
   state: DemoState,
   batchSize: number = 1000,
 ): BenchmarkResult {
-  const dim = 32;
-  const rng = seededRandom(9999);
-
-  // Generate batch vectors
+  // Generate random vectors for benchmarking (to avoid freezing, we use random rather than embedding)
+  // Dim is 384 now!
   const vectors: Float32Array[] = [];
   for (let i = 0; i < batchSize; i++) {
-    vectors.push(randomUnitVector(rng, dim));
+    const v = new Float32Array(DIM);
+    for (let j = 0; j < DIM; j++) v[j] = Math.random() * 2 - 1;
+    vectors.push(v);
   }
 
-  // Benchmark tuneBatch (WASM path)
+  // Need a valid intent key to benchmark
+  const benchIntent = state.intentsList[0].key;
+
   const t0 = performance.now();
-  state.adapter.tuneBatch(vectors, 'technology');
+  state.adapter.tuneBatch(vectors, benchIntent);
   const batchMs = performance.now() - t0;
 
-  // Benchmark individual tune calls
   const t1 = performance.now();
   for (let i = 0; i < batchSize; i++) {
-    state.adapter.tune(vectors[i], 'technology');
+    state.adapter.tune(vectors[i], benchIntent);
   }
   const individualMs = performance.now() - t1;
 
@@ -350,18 +473,3 @@ export function runBenchmark(
     speedup: individualMs / batchMs,
   };
 }
-
-export interface BenchmarkResult {
-  batchSize: number;
-  batchMs: number;
-  individualMs: number;
-  batchOpsPerSec: number;
-  individualOpsPerSec: number;
-  speedup: number;
-}
-
-export interface RankedDoc extends DocPoint {
-  score: number;
-}
-
-export { cosineSim, projectTo2D, DIM };

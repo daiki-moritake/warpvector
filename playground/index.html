@@ -11,6 +11,13 @@
   <link rel="stylesheet" href="./src/style.css">
 </head>
 <body>
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay">
+    <div class="spinner"></div>
+    <div id="loadingText" style="font-weight:600; font-size:16px;">Initializing LLM...</div>
+    <div id="loadingSubtext" style="color:var(--text-secondary); font-size:12px; font-family:'JetBrains Mono', monospace;">First-time model download may take a moment</div>
+  </div>
+
   <div class="bg-grid"></div>
   <div class="bg-glow"></div>
   <div class="app">
@@ -81,60 +88,21 @@ const result = baseVector;</code></pre>
             <!-- Single Intent Panel -->
             <div id="singleIntentPanel">
               <div class="intent-group" id="intentGroup">
-                <button class="intent-btn active" data-intent="none">
-                  <div class="intent-btn__icon" style="background:rgba(100,116,139,0.15);">🔍</div>
-                  <div class="intent-btn__content">
-                    <div class="intent-btn__name">Vanilla Search</div>
-                    <div class="intent-btn__desc">No transformation applied</div>
-                  </div>
-                </button>
-                <button class="intent-btn" data-intent="technology">
-                  <div class="intent-btn__icon" style="background:rgba(59,130,246,0.15);">💻</div>
-                  <div class="intent-btn__content">
-                    <div class="intent-btn__name">Technology</div>
-                    <div class="intent-btn__desc">adapter.tune(vec, "technology")</div>
-                  </div>
-                </button>
-                <button class="intent-btn" data-intent="business">
-                  <div class="intent-btn__icon" style="background:rgba(16,185,129,0.15);">📊</div>
-                  <div class="intent-btn__content">
-                    <div class="intent-btn__name">Business</div>
-                    <div class="intent-btn__desc">adapter.tune(vec, "business")</div>
-                  </div>
-                </button>
-                <button class="intent-btn" data-intent="medical">
-                  <div class="intent-btn__icon" style="background:rgba(244,63,94,0.15);">🏥</div>
-                  <div class="intent-btn__content">
-                    <div class="intent-btn__name">Medical</div>
-                    <div class="intent-btn__desc">adapter.tune(vec, "medical")</div>
-                  </div>
-                </button>
+                <!-- Dynamically generated -->
+              </div>
+
+              <div class="custom-intent-form">
+                <p><strong>Add dynamic intent:</strong> Generates an LLM vector from string and creates a new transformation matrix.</p>
+                <form id="customIntentForm" class="input-form">
+                  <input type="text" id="customIntentInput" placeholder="e.g. I want technical architecture docs" required>
+                  <button type="submit" id="customIntentSubmit">Add</button>
+                </form>
               </div>
             </div>
             <!-- Blend Panel (hidden by default) -->
             <div id="blendPanel" style="display:none;">
-              <div class="blend-group">
-                <div class="blend-item">
-                  <div class="blend-item__header">
-                    <span><span class="blend-icon">💻</span> Technology</span>
-                    <span class="blend-value">0%</span>
-                  </div>
-                  <input type="range" min="0" max="100" value="0" class="blend-slider" data-intent="technology">
-                </div>
-                <div class="blend-item">
-                  <div class="blend-item__header">
-                    <span><span class="blend-icon">📊</span> Business</span>
-                    <span class="blend-value">0%</span>
-                  </div>
-                  <input type="range" min="0" max="100" value="0" class="blend-slider" data-intent="business">
-                </div>
-                <div class="blend-item">
-                  <div class="blend-item__header">
-                    <span><span class="blend-icon">🏥</span> Medical</span>
-                    <span class="blend-value">0%</span>
-                  </div>
-                  <input type="range" min="0" max="100" value="0" class="blend-slider" data-intent="medical">
-                </div>
+              <div class="blend-group" id="blendGroup">
+                <!-- Dynamically generated -->
               </div>
             </div>
           </div>
@@ -149,6 +117,10 @@ const result = baseVector;</code></pre>
             </div>
           </div>
           <div class="card__body">
+            <form id="queryForm" class="input-form">
+              <input type="text" id="queryInput" placeholder="Enter query..." required>
+              <button type="submit" id="querySubmit">Search</button>
+            </form>
             <div class="ranking-list" id="rankingList"></div>
           </div>
         </div>

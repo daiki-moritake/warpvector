@@ -11,6 +11,13 @@
   <link rel="stylesheet" href="./src/style.css">
 </head>
 <body>
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay">
+    <div class="spinner"></div>
+    <div id="loadingText" style="font-weight:600; font-size:16px;">LLMを初期化中...</div>
+    <div id="loadingSubtext" style="color:var(--text-secondary); font-size:12px; font-family:'JetBrains Mono', monospace;">モデルの初回ダウンロードには少し時間がかかります</div>
+  </div>
+
   <div class="bg-grid"></div>
   <div class="bg-glow"></div>
   <div class="app">
@@ -81,60 +88,21 @@ const result = baseVector;</code></pre>
             <!-- Single Intent Panel -->
             <div id="singleIntentPanel">
               <div class="intent-group" id="intentGroup">
-                <button class="intent-btn active" data-intent="none">
-                  <div class="intent-btn__icon" style="background:rgba(100,116,139,0.15);">🔍</div>
-                  <div class="intent-btn__content">
-                    <div class="intent-btn__name">通常検索</div>
-                    <div class="intent-btn__desc">変換なし（ベースライン）</div>
-                  </div>
-                </button>
-                <button class="intent-btn" data-intent="technology">
-                  <div class="intent-btn__icon" style="background:rgba(59,130,246,0.15);">💻</div>
-                  <div class="intent-btn__content">
-                    <div class="intent-btn__name">テクノロジー</div>
-                    <div class="intent-btn__desc">adapter.tune(vec, "technology")</div>
-                  </div>
-                </button>
-                <button class="intent-btn" data-intent="business">
-                  <div class="intent-btn__icon" style="background:rgba(16,185,129,0.15);">📊</div>
-                  <div class="intent-btn__content">
-                    <div class="intent-btn__name">ビジネス</div>
-                    <div class="intent-btn__desc">adapter.tune(vec, "business")</div>
-                  </div>
-                </button>
-                <button class="intent-btn" data-intent="medical">
-                  <div class="intent-btn__icon" style="background:rgba(244,63,94,0.15);">🏥</div>
-                  <div class="intent-btn__content">
-                    <div class="intent-btn__name">医療</div>
-                    <div class="intent-btn__desc">adapter.tune(vec, "medical")</div>
-                  </div>
-                </button>
+                <!-- Dynamically generated -->
+              </div>
+              
+              <div class="custom-intent-form">
+                <p><strong>インテントを動的追加：</strong>文字列からLLMベクトルを生成し、新しい変換行列を作成します。</p>
+                <form id="customIntentForm" class="input-form">
+                  <input type="text" id="customIntentInput" placeholder="例: I want technical architecture docs" required>
+                  <button type="submit" id="customIntentSubmit">追加</button>
+                </form>
               </div>
             </div>
             <!-- Blend Panel (hidden by default) -->
             <div id="blendPanel" style="display:none;">
-              <div class="blend-group">
-                <div class="blend-item">
-                  <div class="blend-item__header">
-                    <span><span class="blend-icon">💻</span> テクノロジー</span>
-                    <span class="blend-value">0%</span>
-                  </div>
-                  <input type="range" min="0" max="100" value="0" class="blend-slider" data-intent="technology">
-                </div>
-                <div class="blend-item">
-                  <div class="blend-item__header">
-                    <span><span class="blend-icon">📊</span> ビジネス</span>
-                    <span class="blend-value">0%</span>
-                  </div>
-                  <input type="range" min="0" max="100" value="0" class="blend-slider" data-intent="business">
-                </div>
-                <div class="blend-item">
-                  <div class="blend-item__header">
-                    <span><span class="blend-icon">🏥</span> 医療</span>
-                    <span class="blend-value">0%</span>
-                  </div>
-                  <input type="range" min="0" max="100" value="0" class="blend-slider" data-intent="medical">
-                </div>
+              <div class="blend-group" id="blendGroup">
+                <!-- Dynamically generated -->
               </div>
             </div>
           </div>
@@ -149,6 +117,10 @@ const result = baseVector;</code></pre>
             </div>
           </div>
           <div class="card__body">
+            <form id="queryForm" class="input-form">
+              <input type="text" id="queryInput" placeholder="クエリを入力..." required>
+              <button type="submit" id="querySubmit">検索</button>
+            </form>
             <div class="ranking-list" id="rankingList"></div>
           </div>
         </div>
