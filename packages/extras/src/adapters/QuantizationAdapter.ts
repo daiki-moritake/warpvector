@@ -217,7 +217,7 @@ export class QuantizationAdapter implements WarpAdapter, FinalStageAdapter {
     return new QuantizationAdapter({
       type: data.type as QuantizationType,
       dim: data.dim as number,
-      dynamic: typeof data.dynamic === "boolean" ? data.dynamic : true,
+      dynamic: typeof data.dynamic === "boolean" ? data.dynamic : false,
     });
   }
 }

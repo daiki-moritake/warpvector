@@ -53,7 +53,6 @@ export interface IntentWeights {
  * 大規模なバッチ処理には自動的にWASM/SIMDによる最適化を利用します。
  */
 export class IntentAdapter implements WarpAdapter {
-  private weightsMap: Map<string, IntentWeights> = new Map();
   private readonly dimension: number;
   private readonly matrices: Map<string, Float32Array>;
   private readonly biases: Map<string, Float32Array>;
@@ -101,7 +100,6 @@ export class IntentAdapter implements WarpAdapter {
    */
   public addIntent(intentName: string, weights: IntentWeights): void {
     const { matrix, bias, routingVector } = weights;
-    this.weightsMap.set(intentName, weights);
 
     // 次元数の整合性チェック
     assertDimension(bias, this.dimension, `Intent '${intentName}' Bias`);
@@ -147,10 +145,9 @@ export class IntentAdapter implements WarpAdapter {
     this.matrices.delete(intentName);
     this.biases.delete(intentName);
     this.routingVectors.delete(intentName);
-    this.weightsMap.delete(intentName);
   }
 
-  // (Private applyAffine was removed in favor of utils.ts applyAffine)
+
 
   /**
    * 複数の意図を指定された重みでブレンドした一時的な行列とバイアスを計算します。
@@ -407,6 +404,7 @@ export class IntentAdapter implements WarpAdapter {
 
     // 4 bytes: dimension (Uint32)
     // 1 byte: hasRouting (Uint8)
+    // 3 bytes: padding (4バイトアラインメント用)
     // dim*dim*4 bytes: matrix
     // dim*4 bytes: bias
     // [dim*4 bytes]: routingVector (optional)

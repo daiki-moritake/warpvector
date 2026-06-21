@@ -6,10 +6,25 @@ import {
 } from "@warpvector/core";
 
 export class ColbertAdapter {
-  private wasm: any;
+  private wasm: WebAssembly.Instance | null;
 
   constructor() {
     this.wasm = getWasmInstance();
+  }
+
+  private getWasmExports(): {
+    memory: WebAssembly.Memory;
+    colbertMaxSimWasm: CallableFunction;
+  } {
+    if (!this.wasm) {
+      throw new Error(
+        "ColbertAdapter requires WASM. Call initWasm() before using ColbertAdapter.",
+      );
+    }
+    return this.wasm.exports as {
+      memory: WebAssembly.Memory;
+      colbertMaxSimWasm: CallableFunction;
+    };
   }
 
   /**
@@ -39,7 +54,7 @@ export class ColbertAdapter {
       );
     }
 
-    const { memory, colbertMaxSimWasm } = this.wasm.exports;
+    const { memory, colbertMaxSimWasm } = this.getWasmExports();
 
     const queryBytes = queryTokens.byteLength;
     const docBytes = documentTokens.byteLength;
@@ -81,7 +96,7 @@ export class ColbertAdapter {
       );
     }
 
-    const { memory, colbertMaxSimWasm } = this.wasm.exports;
+    const { memory, colbertMaxSimWasm } = this.getWasmExports();
 
     // ドキュメントの中で最大の長さを探す
     let maxDocLen = 0;

@@ -1,5 +1,5 @@
 import { ProjectionWeights } from "@warpvector/core";
-import { BaseTrainer, BaseTrainingOptions } from "../trainers/BaseTrainer";
+import { BaseTrainer } from "../trainers/BaseTrainer";
 
 /**
  * 移行用の学習データペア（旧モデルのベクトル -> 新モデルのベクトル）
@@ -11,11 +11,6 @@ export interface MigrationExample {
   /** 移行先のベクトル (例: text-embedding-3-smallの出力) */
   target: number[] | Float32Array;
 }
-
-/**
- * 学習時の最適化オプション
- */
-export interface MigrationOptions extends BaseTrainingOptions {}
 
 /**
  * 異なる埋め込みモデル間（例：1536次元から512次元へ）の

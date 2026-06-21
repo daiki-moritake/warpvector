@@ -19,10 +19,6 @@ export interface TrainingExample {
 }
 
 /**
- * 学習時の最適化オプション
-export interface TrainingOptions extends BaseTrainingOptions {}
-
-/**
  * IntentTrainer のオンライン学習オプション
  */
 export interface IntentOnlineOptions {

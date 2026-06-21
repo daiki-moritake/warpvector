@@ -41,7 +41,10 @@ export function applyActivationToVector(
  */
 export function softmax(values: number[]): number[] {
   if (values.length === 0) return [];
-  const max = Math.max(...values);
+  let max = values[0];
+  for (let i = 1; i < values.length; i++) {
+    if (values[i] > max) max = values[i];
+  }
   let sum = 0;
   const exps = values.map((v) => {
     const e = Math.exp(v - max);
