@@ -108,6 +108,22 @@ const result = baseVector;</code></pre>
                 <label class="radio-btn"><input type="radio" name="quantMode" value="int8"> Int8</label>
                 <label class="radio-btn"><input type="radio" name="quantMode" value="binary"> Binary</label>
               </div>
+
+              <!-- Cost Simulator -->
+              <div class="cost-simulator" style="margin-top: 16px; padding: 12px; background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 8px;">
+                <div style="font-size: 13px; font-weight: 600; color: var(--accent-green); margin-bottom: 8px; display: flex; justify-content: space-between;">
+                  <span>ROI シミュレーター (100万ベクトル)</span>
+                  <span id="costSavingBadge" style="background: rgba(16, 185, 129, 0.15); padding: 2px 8px; border-radius: 12px; font-size: 11px;">$0 削減</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 12px; color: var(--text-secondary);">
+                  <span>推定DBストレージ:</span>
+                  <strong id="costStorage" style="color: var(--text-primary);">6.0 GB</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 12px; color: var(--text-secondary); margin-top: 4px;">
+                  <span>推定月額クラウド費用:</span>
+                  <strong id="costMonthly" style="color: var(--text-primary);">約 $180 / 月</strong>
+                </div>
+              </div>
             </div>
           </div>
         </div>

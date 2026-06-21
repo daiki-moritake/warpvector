@@ -586,13 +586,38 @@ export async function initPlayground(lang: Lang) {
         quantGroup.querySelectorAll('.radio-btn').forEach(l => l.classList.remove('active'));
         target.closest('.radio-btn')?.classList.add('active');
 
-        // Update badge
+        // Update badge and cost simulator
+        const costStorage = document.getElementById('costStorage');
+        const costMonthly = document.getElementById('costMonthly');
+        const costSavingBadge = document.getElementById('costSavingBadge');
+        
+        let storageGB = 6.0;
+        let monthlyCost = 180;
+        let savedCost = 0;
+
         if (state.quantMode === 'none') {
           memoryBadge.textContent = '1536 Bytes/vec';
+          storageGB = 6.0;
+          monthlyCost = 180;
+          savedCost = 0;
         } else if (state.quantMode === 'int8') {
           memoryBadge.textContent = '384 Bytes/vec';
+          storageGB = 1.5;
+          monthlyCost = 45;
+          savedCost = 180 - 45;
         } else if (state.quantMode === 'binary') {
           memoryBadge.textContent = '48 Bytes/vec';
+          storageGB = 0.18;
+          monthlyCost = 5;
+          savedCost = 180 - 5;
+        }
+
+        if (costStorage && costMonthly && costSavingBadge) {
+          costStorage.textContent = storageGB.toFixed(2) + ' GB';
+          costMonthly.textContent = lang === 'ja' ? `約 $${monthlyCost} / 月` : `~$${monthlyCost} / mo`;
+          costSavingBadge.textContent = lang === 'ja' ? `$${savedCost} 削減` : `$${savedCost} saved`;
+          costSavingBadge.style.color = savedCost > 0 ? '#10b981' : 'inherit';
+          costSavingBadge.style.background = savedCost > 0 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.1)';
         }
 
         recomputeBaseRankings();
