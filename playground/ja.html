@@ -20,12 +20,15 @@
       <p><strong>実際の warpvector ライブラリ</strong>が WASM アクセラレーション付きでブラウザ上で動作しています。すべてのドット移動は本物の <code>IntentAdapter.tune()</code> 呼び出しです。</p>
       <p class="header__lang"><a href="./index.html">🌐 English version</a></p>
     </header>
+
     <div class="main-grid">
+      <!-- Left: Canvas -->
       <div class="card animate-in">
         <div class="card__header">
           <div class="card__title">
             <span class="card__title-icon" style="background:rgba(59,130,246,0.15);color:var(--accent-blue);">⬡</span>
-            ベクトル空間（32次元 → 2D 射影）
+            ベクトル空間
+            <span class="dim-badge">32次元 → 2D</span>
           </div>
           <span style="font-size:12px;display:flex;align-items:center;gap:8px;">
             <span class="wasm-badge" id="wasmBadge">読込中…</span>
@@ -55,8 +58,16 @@
               <div class="metric-card__label">順位改善</div>
             </div>
           </div>
+          <!-- Live Code -->
+          <div class="code-panel">
+            <div class="code-label">実行中の API コール</div>
+            <pre><code id="codeSnippet">// No intent applied
+const result = baseVector;</code></pre>
+          </div>
         </div>
       </div>
+
+      <!-- Right: Controls + Rankings -->
       <div style="display:flex;flex-direction:column;gap:24px;">
         <div class="card animate-in">
           <div class="card__header">
@@ -64,40 +75,72 @@
               <span class="card__title-icon" style="background:rgba(139,92,246,0.15);color:var(--accent-purple);">◈</span>
               検索インテント
             </div>
+            <button class="mode-toggle" id="modeToggle">⇄ ブレンドモード</button>
           </div>
           <div class="card__body">
-            <div class="intent-group" id="intentGroup">
-              <button class="intent-btn active" data-intent="none">
-                <div class="intent-btn__icon" style="background:rgba(100,116,139,0.15);">🔍</div>
-                <div class="intent-btn__content">
-                  <div class="intent-btn__name">通常検索</div>
-                  <div class="intent-btn__desc">変換なし（ベースライン）</div>
+            <!-- Single Intent Panel -->
+            <div id="singleIntentPanel">
+              <div class="intent-group" id="intentGroup">
+                <button class="intent-btn active" data-intent="none">
+                  <div class="intent-btn__icon" style="background:rgba(100,116,139,0.15);">🔍</div>
+                  <div class="intent-btn__content">
+                    <div class="intent-btn__name">通常検索</div>
+                    <div class="intent-btn__desc">変換なし（ベースライン）</div>
+                  </div>
+                </button>
+                <button class="intent-btn" data-intent="technology">
+                  <div class="intent-btn__icon" style="background:rgba(59,130,246,0.15);">💻</div>
+                  <div class="intent-btn__content">
+                    <div class="intent-btn__name">テクノロジー</div>
+                    <div class="intent-btn__desc">adapter.tune(vec, "technology")</div>
+                  </div>
+                </button>
+                <button class="intent-btn" data-intent="business">
+                  <div class="intent-btn__icon" style="background:rgba(16,185,129,0.15);">📊</div>
+                  <div class="intent-btn__content">
+                    <div class="intent-btn__name">ビジネス</div>
+                    <div class="intent-btn__desc">adapter.tune(vec, "business")</div>
+                  </div>
+                </button>
+                <button class="intent-btn" data-intent="medical">
+                  <div class="intent-btn__icon" style="background:rgba(244,63,94,0.15);">🏥</div>
+                  <div class="intent-btn__content">
+                    <div class="intent-btn__name">医療</div>
+                    <div class="intent-btn__desc">adapter.tune(vec, "medical")</div>
+                  </div>
+                </button>
+              </div>
+            </div>
+            <!-- Blend Panel (hidden by default) -->
+            <div id="blendPanel" style="display:none;">
+              <div class="blend-group">
+                <div class="blend-item">
+                  <div class="blend-item__header">
+                    <span><span class="blend-icon">💻</span> テクノロジー</span>
+                    <span class="blend-value">0%</span>
+                  </div>
+                  <input type="range" min="0" max="100" value="0" class="blend-slider" data-intent="technology">
                 </div>
-              </button>
-              <button class="intent-btn" data-intent="technology">
-                <div class="intent-btn__icon" style="background:rgba(59,130,246,0.15);">💻</div>
-                <div class="intent-btn__content">
-                  <div class="intent-btn__name">テクノロジー</div>
-                  <div class="intent-btn__desc">技術系ドキュメントを優先</div>
+                <div class="blend-item">
+                  <div class="blend-item__header">
+                    <span><span class="blend-icon">📊</span> ビジネス</span>
+                    <span class="blend-value">0%</span>
+                  </div>
+                  <input type="range" min="0" max="100" value="0" class="blend-slider" data-intent="business">
                 </div>
-              </button>
-              <button class="intent-btn" data-intent="business">
-                <div class="intent-btn__icon" style="background:rgba(16,185,129,0.15);">📊</div>
-                <div class="intent-btn__content">
-                  <div class="intent-btn__name">ビジネス</div>
-                  <div class="intent-btn__desc">ビジネス・金融ドキュメントを優先</div>
+                <div class="blend-item">
+                  <div class="blend-item__header">
+                    <span><span class="blend-icon">🏥</span> 医療</span>
+                    <span class="blend-value">0%</span>
+                  </div>
+                  <input type="range" min="0" max="100" value="0" class="blend-slider" data-intent="medical">
                 </div>
-              </button>
-              <button class="intent-btn" data-intent="medical">
-                <div class="intent-btn__icon" style="background:rgba(244,63,94,0.15);">🏥</div>
-                <div class="intent-btn__content">
-                  <div class="intent-btn__name">医療</div>
-                  <div class="intent-btn__desc">医療・ヘルスケアドキュメントを優先</div>
-                </div>
-              </button>
+              </div>
             </div>
           </div>
         </div>
+
+        <!-- Rankings -->
         <div class="card animate-in">
           <div class="card__header">
             <div class="card__title">
@@ -111,6 +154,42 @@
         </div>
       </div>
     </div>
+
+    <!-- Bottom: Benchmark + How it works -->
+    <div class="bottom-grid">
+      <div class="card animate-in">
+        <div class="card__header">
+          <div class="card__title">
+            <span class="card__title-icon" style="background:rgba(245,158,11,0.15);color:var(--accent-amber);">⚡</span>
+            バッチ処理パフォーマンス
+          </div>
+          <span class="dim-badge">1,000 ベクトル × 32次元</span>
+        </div>
+        <div class="card__body">
+          <button class="bench-btn" id="benchBtn">▶ ベンチマーク実行</button>
+          <div id="benchResult"></div>
+        </div>
+      </div>
+      <div class="card animate-in">
+        <div class="card__header">
+          <div class="card__title">
+            <span class="card__title-icon" style="background:rgba(16,185,129,0.15);color:var(--accent-green);">✦</span>
+            仕組み
+          </div>
+        </div>
+        <div class="card__body" style="font-size:13px;color:var(--text-secondary);line-height:1.7;">
+          <p>このデモは<strong style="color:var(--text-primary);">実際の warpvector ライブラリ</strong>をブラウザ上で実行しています：</p>
+          <ol style="margin-top:10px;padding-left:18px;display:flex;flex-direction:column;gap:6px;">
+            <li>15個のドキュメントを <code style="color:var(--accent-cyan);">Float32Array[32]</code> ベクトルとして生成</li>
+            <li><code style="color:var(--accent-cyan);">IntentAdapter</code> を実際のアフィン変換行列で初期化</li>
+            <li>インテント選択時に <code style="color:var(--accent-cyan);">.tune()</code> や <code style="color:var(--accent-cyan);">.tuneBlended()</code> を呼び出し</li>
+            <li>WASM の <code style="color:var(--accent-cyan);">tuneBatchWasm()</code> が行列乗算を高速化</li>
+            <li>変換後のベクトルを Gram-Schmidt 基底で2Dに射影して描画</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+
     <footer class="footer">
       <p><a href="https://github.com/daiki-moritake/warpvector" target="_blank">WarpVector</a> で構築 — 実際の <code>IntentAdapter.tune()</code> が WASM 経由でブラウザ内で実行されています。</p>
       <p style="margin-top:8px;"><a href="https://github.com/daiki-moritake/warpvector" target="_blank">GitHub</a> · <a href="https://www.npmjs.com/package/warpvector" target="_blank">npm</a></p>
