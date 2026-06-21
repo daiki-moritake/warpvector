@@ -13,7 +13,7 @@ export { AbstractAdamTrainer };
 
 
 /**
- * 確率的勾配降下法 (SGD + Momentum) を用いた学習のための共通基底クラス。
+ * Adam オプティマイザを用いた学習のための共通基底クラス。
  *
  * @template TExample 学習に用いるデータペアの型 (入力と理想の出力のペアなど)
  * @template TResult 最終的に学習結果として出力される重み (行列やバイアス) の型
@@ -65,8 +65,8 @@ export abstract class BaseTrainer<
 
   /**
    * 追加されたサンプルデータを用いて学習を実行します。
-   * 指定されたエポック数だけ SGD + Momentum によるパラメータ更新を行います。
-   * パフォーマンスのため、可能であれば内部で WebAssembly (WASM) を使用します。
+   * 指定されたエポック数だけ Adam によるパラメータ更新を行います。
+   * パフォーマンスのため、内部で WebAssembly (WASM) を使用します。
    *
    * @param {BaseTrainingOptions} [options={}] 学習のハイパーパラメータオプション
    * @returns {Promise<TResult>} 学習済みの重みを返します。
@@ -88,7 +88,6 @@ export abstract class BaseTrainer<
       const lr = options.learningRate ?? 0.01;
       const epochs = options.epochs ?? 100;
       const reg = options.regularization ?? 0.001;
-      const momentum = options.momentum ?? 0.9;
 
       const sDim = this.sourceDimension;
       const tDim = this.targetDimension;
@@ -141,7 +140,6 @@ export abstract class BaseTrainer<
 
     const testEpochs = Math.min(10, options.epochs ?? 100);
     const reg = options.regularization ?? 0.001;
-    const momentum = options.momentum ?? 0.9;
 
     const sDim = this.sourceDimension;
     const tDim = this.targetDimension;
@@ -201,7 +199,7 @@ export abstract class BaseTrainer<
   /**
    * Adam オプティマイザによる1ステップのパラメータ更新を実行します。
    * In-place (破壊的) に `matrix` と `bias` を更新します。
-   * WASM 版の Adam 実装ができるまではネイティブ JS で処理します。
+   * バックワード処理は WASM バックエンドへオフロードされます。
    */
   protected adamStep(
     matrix: Float32Array,

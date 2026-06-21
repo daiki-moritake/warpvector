@@ -9,8 +9,6 @@ export interface BaseTrainingOptions {
   epochs?: number;
   /** L2正則化の強さ。過学習を防ぐために使用します。デフォルト: 0.001 */
   regularization?: number;
-  /** モーメンタム (Momentum)。前回の更新量をどれだけ引き継ぐか。デフォルト: 0.9 */
-  momentum?: number;
   /** trueの場合、事前に数エポックのテストランを行い、最適な学習率を自動探索します。デフォルト: false */
   autoTune?: boolean;
 }

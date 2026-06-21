@@ -208,10 +208,7 @@ export class IntentAdapter implements WarpAdapter {
       throw new Error(`Intent '${intent}' not found.`);
     }
 
-    const result = new Float32Array(this.dimension);
-    applyAffine(matrix, bias, baseVector, result, this.dimension);
-    applyActivationToVector(result, activation); // 活性化関数の適用
-    return result;
+    return this.executeBatchAffine(matrix, bias, [baseVector], activation)[0];
   }
 
   private executeBatchAffine(
@@ -324,11 +321,7 @@ export class IntentAdapter implements WarpAdapter {
 
     // ブレンドされた合成行列とバイアスを一時的に計算
     const { matrix, bias } = this.computeBlendedWeights(blendWeights);
-    const result = new Float32Array(this.dimension);
-
-    applyAffine(matrix, bias, baseVector, result, this.dimension);
-    applyActivationToVector(result, activation);
-    return result;
+    return this.executeBatchAffine(matrix, bias, [baseVector], activation)[0];
   }
 
   /**
