@@ -1,4 +1,4 @@
-import { innerProduct, normalize } from "@warpvector/core";
+import { innerProduct, normalize, getWasmInstance, allocateWasmMemory, withWasmMemoryStack, writeFloat32ArrayToWasm, readFloat32ArrayFromWasm } from "@warpvector/core";
 
 export interface TimeReversalConfig {
   /**
@@ -53,12 +53,14 @@ export class TimeReversalReranker {
   public threshold: number;
   public normalizeGraph: boolean;
   public iterations: number;
+  private wasm: WebAssembly.Instance | null;
 
   constructor(config: TimeReversalConfig = {}) {
     this.tau = config.tau ?? 1.0;
     this.threshold = config.threshold ?? 0.0;
     this.normalizeGraph = config.normalizeGraph ?? true;
     this.iterations = config.iterations ?? 1;
+    this.wasm = getWasmInstance();
 
     if (this.tau < 0) {
       throw new Error("TimeReversalReranker: tau must be non-negative.");
@@ -107,6 +109,137 @@ export class TimeReversalReranker {
       return [{ originalIndex: 0, score: S0[0], initialScore: S0[0], vector: CNorm[0] }];
     }
 
+    if (this.wasm) {
+      const exports = this.wasm.exports as any;
+      if (exports.buildTimeReversalGraphWasm && exports.timeReversalIterationWasm) {
+        const dim = CNorm[0].length;
+        const flatVectors = new Float32Array(N * dim);
+        for (let i = 0; i < N; i++) {
+          flatVectors.set(CNorm[i], i * dim);
+        }
+        return this.rerankWasm(flatVectors, CNorm, S0, N, dim);
+      }
+    }
+
+    return this.rerankJs(CNorm, S0, N);
+  }
+
+  /**
+   * ベクトルが既に平坦化された1次元 Float32Array の状態で提供される場合の、
+   * ゼロコピー最適化版リランク関数。
+   * エッジ環境やベクトルDBから直接バッファを受け取れる場合に極めて高速に動作します。
+   * ※入力される flatCandidates は L2 正規化済みである必要があります。
+   * 
+   * @param query クエリベクトル
+   * @param flatCandidates 平坦化された候補ベクトル群 (サイズ: numDocs * dim)
+   * @param numDocs ドキュメント数
+   * @param dim 次元数
+   * @param initialScores （任意）初期スコア
+   */
+  public rerankFlat(
+    query: Float32Array | number[] | null,
+    flatCandidates: Float32Array,
+    numDocs: number,
+    dim: number,
+    initialScores?: number[]
+  ): RerankerResult[] {
+    const N = numDocs;
+    if (N === 0) return [];
+    if (flatCandidates.length !== N * dim) {
+      throw new Error("TimeReversalReranker: flatCandidates length mismatch.");
+    }
+
+    if (!query && (!initialScores || initialScores.length !== N)) {
+      throw new Error("TimeReversalReranker: Must provide either 'query' or a valid 'initialScores' array.");
+    }
+
+    let S0 = new Float32Array(N);
+    if (initialScores && initialScores.length === N) {
+      S0.set(initialScores);
+    } else if (query) {
+      const qNorm = normalize(new Float32Array(query));
+      for (let i = 0; i < N; i++) {
+        const cNorm = flatCandidates.subarray(i * dim, (i + 1) * dim);
+        S0[i] = innerProduct(qNorm, cNorm);
+      }
+    }
+
+    if (N === 1) {
+      return [{ originalIndex: 0, score: S0[0], initialScore: S0[0], vector: flatCandidates.slice(0, dim) }];
+    }
+
+    if (this.wasm) {
+      const exports = this.wasm.exports as any;
+      if (exports.buildTimeReversalGraphWasm && exports.timeReversalIterationWasm) {
+        return this.rerankWasm(flatCandidates, null, S0, N, dim);
+      }
+    }
+
+    const CNorm: Float32Array[] = [];
+    for (let i = 0; i < N; i++) {
+      CNorm.push(flatCandidates.slice(i * dim, (i + 1) * dim));
+    }
+    return this.rerankJs(CNorm, S0, N);
+  }
+
+  private rerankWasm(
+    flatVectors: Float32Array,
+    CNorm: Float32Array[] | null,
+    S0: Float32Array,
+    N: number,
+    dim: number
+  ): RerankerResult[] {
+    const exports = this.wasm!.exports as any;
+    const memory = exports.memory as WebAssembly.Memory;
+
+    return withWasmMemoryStack(() => {
+      const vectorsPtr = allocateWasmMemory(N * dim * 4);
+      const wMatrixPtr = allocateWasmMemory(N * N * 4);
+      const dArrayPtr = allocateWasmMemory(N * 4);
+      const currentSPtr = allocateWasmMemory(N * 4);
+      const nextSPtr = allocateWasmMemory(N * 4);
+
+      writeFloat32ArrayToWasm(memory, flatVectors, vectorsPtr);
+      writeFloat32ArrayToWasm(memory, S0, currentSPtr);
+
+      exports.buildTimeReversalGraphWasm(
+        vectorsPtr,
+        N,
+        dim,
+        this.threshold,
+        wMatrixPtr,
+        dArrayPtr
+      );
+
+      exports.timeReversalIterationWasm(
+        wMatrixPtr,
+        dArrayPtr,
+        currentSPtr,
+        nextSPtr,
+        N,
+        this.tau,
+        this.iterations,
+        this.normalizeGraph
+      );
+
+      const currentS = readFloat32ArrayFromWasm(memory, currentSPtr, N);
+
+      const results: RerankerResult[] = [];
+      for (let i = 0; i < N; i++) {
+        results.push({
+          originalIndex: i,
+          score: currentS[i],
+          initialScore: S0[i],
+          vector: CNorm ? CNorm[i] : flatVectors.slice(i * dim, (i + 1) * dim)
+        });
+      }
+
+      results.sort((a, b) => b.score - a.score);
+      return results;
+    });
+  }
+
+  private rerankJs(CNorm: Float32Array[], S0: Float32Array, N: number): RerankerResult[] {
     // 2. ドキュメント・マニフォールドの構築（グラフ媒質）
     // W[i][j] = max(0, cos_sim(c_i, c_j) - threshold)
     // 最適化: 1次元配列で管理し、関数呼び出しを減らしたインライン計算

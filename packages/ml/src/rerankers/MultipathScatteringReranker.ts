@@ -125,7 +125,13 @@ export class MultipathScatteringReranker {
     if (this.wasm) {
       const exports = this.wasm.exports as any;
       if (exports.buildMultipathTransitionMatrixWasm && exports.multipathScatteringPowerIterationWasm) {
-        return this.rerankWasm(CNorm, S0, N, initialScores, sumS0);
+        // 候補ベクトルを1次元のFloat32Arrayに平坦化
+        const dim = CNorm[0].length;
+        const flatVectors = new Float32Array(N * dim);
+        for (let i = 0; i < N; i++) {
+          flatVectors.set(CNorm[i], i * dim);
+        }
+        return this.rerankWasm(flatVectors, CNorm, S0, N, dim, initialScores, sumS0);
       }
     }
 
@@ -133,22 +139,92 @@ export class MultipathScatteringReranker {
     return this.rerankJs(CNorm, S0, N, initialScores, sumS0);
   }
 
+  /**
+   * ベクトルが既に平坦化された1次元 Float32Array の状態で提供される場合の、
+   * ゼロコピー最適化版リランク関数。
+   * エッジ環境やベクトルDBから直接バッファを受け取れる場合に極めて高速に動作します。
+   * ※入力される flatCandidates は L2 正規化済みである必要があります。
+   * 
+   * @param query クエリベクトル
+   * @param flatCandidates 平坦化された候補ベクトル群 (サイズ: numDocs * dim)
+   * @param numDocs ドキュメント数
+   * @param dim 次元数
+   * @param initialScores （任意）初期スコア
+   */
+  public rerankFlat(
+    query: Float32Array | number[] | null,
+    flatCandidates: Float32Array,
+    numDocs: number,
+    dim: number,
+    initialScores?: number[]
+  ): MultipathScatteringResult[] {
+    const N = numDocs;
+    if (N === 0) return [];
+    if (flatCandidates.length !== N * dim) {
+      throw new Error("MultipathScatteringReranker: flatCandidates length mismatch.");
+    }
+
+    let S0 = new Float32Array(N);
+    let sumS0 = 0;
+    
+    if (initialScores && initialScores.length === N) {
+      let minScore = Infinity;
+      for (let i = 0; i < N; i++) {
+        if (initialScores[i] < minScore) minScore = initialScores[i];
+      }
+      for (let i = 0; i < N; i++) {
+        const val = initialScores[i] - Math.min(0, minScore);
+        S0[i] = val;
+        sumS0 += val;
+      }
+    } else if (query) {
+      const qNorm = normalize(new Float32Array(query));
+      let minScore = Infinity;
+      for (let i = 0; i < N; i++) {
+        const cNorm = flatCandidates.subarray(i * dim, (i + 1) * dim);
+        const score = innerProduct(qNorm, cNorm);
+        S0[i] = score;
+        if (score < minScore) minScore = score;
+      }
+      for (let i = 0; i < N; i++) {
+        S0[i] = S0[i] - Math.min(0, minScore);
+        sumS0 += S0[i];
+      }
+    }
+
+    if (sumS0 > 0) {
+      for (let i = 0; i < N; i++) S0[i] /= sumS0;
+    } else {
+      const uniform = 1.0 / N;
+      for (let i = 0; i < N; i++) S0[i] = uniform;
+    }
+
+    if (this.wasm) {
+      const exports = this.wasm.exports as any;
+      if (exports.buildMultipathTransitionMatrixWasm && exports.multipathScatteringPowerIterationWasm) {
+        return this.rerankWasm(flatCandidates, null, S0, N, dim, initialScores, sumS0);
+      }
+    }
+
+    // JS フォールバック用に 2D配列化
+    const CNorm: Float32Array[] = [];
+    for (let i = 0; i < N; i++) {
+      CNorm.push(flatCandidates.slice(i * dim, (i + 1) * dim));
+    }
+    return this.rerankJs(CNorm, S0, N, initialScores, sumS0);
+  }
+
   private rerankWasm(
-    CNorm: Float32Array[],
+    flatVectors: Float32Array,
+    CNorm: Float32Array[] | null,
     S0: Float32Array,
     N: number,
+    dim: number,
     initialScores: number[] | undefined,
     sumS0: number
   ): MultipathScatteringResult[] {
-    const dim = CNorm[0].length;
     const exports = this.wasm!.exports as any;
     const memory = exports.memory as WebAssembly.Memory;
-
-    // 候補ベクトルを1次元のFloat32Arrayに平坦化
-    const flatVectors = new Float32Array(N * dim);
-    for (let i = 0; i < N; i++) {
-      flatVectors.set(CNorm[i], i * dim);
-    }
 
     return withWasmMemoryStack(() => {
       // メモリ確保
@@ -194,7 +270,7 @@ export class MultipathScatteringReranker {
           originalIndex: i,
           score: currentS[i],
           initialScore: initialScores && initialScores.length === N ? initialScores[i] : S0[i] * sumS0,
-          vector: CNorm[i]
+          vector: CNorm ? CNorm[i] : flatVectors.slice(i * dim, (i + 1) * dim)
         });
       }
 

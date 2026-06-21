@@ -535,3 +535,183 @@ export function multipathScatteringPowerIterationWasm(
     }
   }
 }
+
+/**
+ * TimeReversalReranker 用の類似度グラフ(W行列)と次数(D)を構築するWASM関数。
+ * 
+ * @param {usize} vectorsPtr - 候補ベクトル群 (N * dim)
+ * @param {i32} numDocs - N
+ * @param {i32} dim - 次元数
+ * @param {f32} threshold - しきい値
+ * @param {usize} wMatrixPtr - W行列の出力先 (N * N)
+ * @param {usize} dArrayPtr - 次数配列(D)の出力先 (N)
+ */
+export function buildTimeReversalGraphWasm(
+  vectorsPtr: usize,
+  numDocs: i32,
+  dim: i32,
+  threshold: f32,
+  wMatrixPtr: usize,
+  dArrayPtr: usize
+): void {
+  // Dを0初期化
+  for (let i = 0; i < numDocs; i++) {
+    store<f32>(dArrayPtr + i * 4, 0.0);
+  }
+
+  for (let i = 0; i < numDocs; i++) {
+    let iOffset = vectorsPtr + i * dim * 4;
+    for (let j = i + 1; j < numDocs; j++) {
+      let jOffset = vectorsPtr + j * dim * 4;
+      let sim = innerProductSimd(iOffset, jOffset, dim);
+      let w = Math.max(0.0 as f64, (sim - threshold) as f64) as f32;
+
+      if (w > 0) {
+        store<f32>(wMatrixPtr + (i * numDocs + j) * 4, w);
+        store<f32>(wMatrixPtr + (j * numDocs + i) * 4, w);
+
+        let d_i = load<f32>(dArrayPtr + i * 4);
+        store<f32>(dArrayPtr + i * 4, d_i + w);
+
+        let d_j = load<f32>(dArrayPtr + j * 4);
+        store<f32>(dArrayPtr + j * 4, d_j + w);
+      } else {
+        store<f32>(wMatrixPtr + (i * numDocs + j) * 4, 0.0);
+        store<f32>(wMatrixPtr + (j * numDocs + i) * 4, 0.0);
+      }
+    }
+    // 対角成分
+    store<f32>(wMatrixPtr + (i * numDocs + i) * 4, 0.0);
+  }
+}
+
+/**
+ * TimeReversalReranker 用のラプラシアン逆拡散ループを実行するWASM関数。
+ * 
+ * @param {usize} wMatrixPtr - 類似度行列 W (N * N)
+ * @param {usize} dArrayPtr - 次数配列 D (N)
+ * @param {usize} currentSPtr - 現在のスコア配列 S (N)
+ * @param {usize} nextSPtr - 次のスコア配列を書き込むバッファ (N)
+ * @param {i32} numDocs - N
+ * @param {f32} tau - 時間反転の強さ（逆拡散パラメータ）
+ * @param {i32} iterations - イテレーション数
+ * @param {boolean} normalizeGraph - グラフ次数による正規化フラグ
+ */
+export function timeReversalIterationWasm(
+  wMatrixPtr: usize,
+  dArrayPtr: usize,
+  currentSPtr: usize,
+  nextSPtr: usize,
+  numDocs: i32,
+  tau: f32,
+  iterations: i32,
+  normalizeGraph: boolean
+): void {
+  for (let iter = 0; iter < iterations; iter++) {
+    for (let i = 0; i < numDocs; i++) {
+      let diffSum: f32 = 0.0;
+      let s_i = load<f32>(currentSPtr + i * 4);
+      let rowOffset = wMatrixPtr + i * numDocs * 4;
+
+      for (let j = 0; j < numDocs; j++) {
+        if (i === j) continue;
+        let w_ij = load<f32>(rowOffset + j * 4);
+        if (w_ij > 0) {
+          let s_j = load<f32>(currentSPtr + j * 4);
+          diffSum += w_ij * (s_i - s_j);
+        }
+      }
+
+      if (normalizeGraph) {
+        let d_i = load<f32>(dArrayPtr + i * 4);
+        if (d_i > 0) {
+          diffSum /= d_i;
+        }
+      }
+
+      let next_s_i = Math.max(0.0 as f64, (s_i + tau * diffSum) as f64) as f32;
+      store<f32>(nextSPtr + i * 4, next_s_i);
+    }
+
+    // copy nextS to currentS
+    for (let i = 0; i < numDocs; i++) {
+      let val = load<f32>(nextSPtr + i * 4);
+      store<f32>(currentSPtr + i * 4, val);
+    }
+  }
+}
+
+/**
+ * ベクトルを Int8 に量子化するWASM関数。
+ * 
+ * @param {usize} vectorPtr - 入力ベクトルのポインタ (f32, サイズ: dim)
+ * @param {usize} outPtr - 出力先のポインタ (i8, サイズ: dynamic ? dim + 4 : dim)
+ * @param {i32} dim - 次元数
+ * @param {boolean} isDynamic - 動的スケールを使用するか
+ */
+export function quantizeToInt8Wasm(
+  vectorPtr: usize,
+  outPtr: usize,
+  dim: i32,
+  isDynamic: boolean
+): void {
+  if (isDynamic) {
+    let maxVal: f32 = 1e-8 as f32;
+    for (let i = 0; i < dim; i++) {
+      let val = Math.abs(load<f32>(vectorPtr + i * 4)) as f32;
+      if (val > maxVal) {
+        maxVal = val;
+      }
+    }
+
+    let scale: f32 = 127.0 as f32 / maxVal;
+    for (let i = 0; i < dim; i++) {
+      let fval = load<f32>(vectorPtr + i * 4) * scale;
+      let ival = Math.round(fval as f64) as i32;
+      if (ival > 127) ival = 127;
+      if (ival < -128) ival = -128;
+      store<i8>(outPtr + i, ival as i8);
+    }
+    // 最後に maxVal を f32 (リトルエンディアン) として dim バイト目から書き込む
+    store<f32>(outPtr + dim, maxVal);
+  } else {
+    for (let i = 0; i < dim; i++) {
+      let fval = load<f32>(vectorPtr + i * 4) * 127.0 as f32;
+      let ival = Math.round(fval as f64) as i32;
+      if (ival > 127) ival = 127;
+      if (ival < -128) ival = -128;
+      store<i8>(outPtr + i, ival as i8);
+    }
+  }
+}
+
+/**
+ * ベクトルを 1-bit バイナリに量子化（パッキング）するWASM関数。
+ * 
+ * @param {usize} vectorPtr - 入力ベクトルのポインタ (f32, サイズ: dim)
+ * @param {usize} outPtr - 出力先のポインタ (u8, サイズ: dim / 8)
+ * @param {i32} dim - 次元数 (8の倍数である必要がある)
+ */
+export function quantizeToBinaryWasm(
+  vectorPtr: usize,
+  outPtr: usize,
+  dim: i32
+): void {
+  let byteIndex = 0;
+  for (let i = 0; i < dim; i += 8) {
+    let byte: u8 = 0;
+    if (load<f32>(vectorPtr + i * 4) > 0) byte |= 128;
+    if (load<f32>(vectorPtr + (i + 1) * 4) > 0) byte |= 64;
+    if (load<f32>(vectorPtr + (i + 2) * 4) > 0) byte |= 32;
+    if (load<f32>(vectorPtr + (i + 3) * 4) > 0) byte |= 16;
+    if (load<f32>(vectorPtr + (i + 4) * 4) > 0) byte |= 8;
+    if (load<f32>(vectorPtr + (i + 5) * 4) > 0) byte |= 4;
+    if (load<f32>(vectorPtr + (i + 6) * 4) > 0) byte |= 2;
+    if (load<f32>(vectorPtr + (i + 7) * 4) > 0) byte |= 1;
+    
+    store<u8>(outPtr + byteIndex, byte);
+    byteIndex++;
+  }
+}
+
+
