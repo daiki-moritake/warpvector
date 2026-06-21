@@ -8,6 +8,7 @@ import {
   assertNumberArray,
   assertObject,
 } from "../src/validation";
+import { WarpValidationError } from "../src/errors";
 
 describe("validation utilities", () => {
   // --- safeJsonParse ---
@@ -18,19 +19,25 @@ describe("validation utilities", () => {
 
     test("throws on invalid JSON with context", () => {
       expect(() => safeJsonParse("{bad}", "TestAdapter")).toThrow(
-        "Failed to parse JSON for TestAdapter",
+        WarpValidationError,
+      );
+      expect(() => safeJsonParse("{bad}", "TestAdapter")).toThrow(
+        "JSONのパースに失敗しました",
       );
     });
 
     test("throws on non-string input", () => {
       expect(() => safeJsonParse(42 as any, "TestAdapter")).toThrow(
-        "expected a JSON string",
+        WarpValidationError,
+      );
+      expect(() => safeJsonParse(42 as any, "TestAdapter")).toThrow(
+        "JSON文字列が必要です",
       );
     });
 
     test("throws on null input", () => {
       expect(() => safeJsonParse(null as any, "TestAdapter")).toThrow(
-        "expected a JSON string",
+        WarpValidationError,
       );
     });
   });
@@ -45,7 +52,10 @@ describe("validation utilities", () => {
 
     test("throws for wrong type", () => {
       expect(() => assertType(42, "string", "myField")).toThrow(
-        "field 'myField' must be string, got number",
+        WarpValidationError,
+      );
+      expect(() => assertType(42, "string", "myField")).toThrow(
+        "string",
       );
     });
   });
@@ -58,25 +68,25 @@ describe("validation utilities", () => {
     });
 
     test("throws for zero", () => {
-      expect(() => assertPositiveInt(0, "dim")).toThrow("positive integer");
+      expect(() => assertPositiveInt(0, "dim")).toThrow("正の整数");
     });
 
     test("throws for negative", () => {
-      expect(() => assertPositiveInt(-1, "dim")).toThrow("positive integer");
+      expect(() => assertPositiveInt(-1, "dim")).toThrow("正の整数");
     });
 
     test("throws for float", () => {
-      expect(() => assertPositiveInt(1.5, "dim")).toThrow("positive integer");
+      expect(() => assertPositiveInt(1.5, "dim")).toThrow("正の整数");
     });
 
     test("throws for string", () => {
       expect(() => assertPositiveInt("3" as any, "dim")).toThrow(
-        "positive integer",
+        "正の整数",
       );
     });
 
     test("throws for NaN", () => {
-      expect(() => assertPositiveInt(NaN, "dim")).toThrow("positive integer");
+      expect(() => assertPositiveInt(NaN, "dim")).toThrow("正の整数");
     });
   });
 
@@ -91,7 +101,7 @@ describe("validation utilities", () => {
     });
 
     test("throws for negative", () => {
-      expect(() => assertNonNegativeInt(-1, "count")).toThrow("non-negative");
+      expect(() => assertNonNegativeInt(-1, "count")).toThrow("非負の整数");
     });
   });
 
@@ -103,9 +113,9 @@ describe("validation utilities", () => {
     });
 
     test("throws for non-array", () => {
-      expect(() => assertArray({}, "arr")).toThrow("must be an array");
-      expect(() => assertArray("str", "arr")).toThrow("must be an array");
-      expect(() => assertArray(null, "arr")).toThrow("must be an array");
+      expect(() => assertArray({}, "arr")).toThrow("配列が必要です");
+      expect(() => assertArray("str", "arr")).toThrow("配列が必要です");
+      expect(() => assertArray(null, "arr")).toThrow("配列が必要です");
     });
   });
 
@@ -120,25 +130,25 @@ describe("validation utilities", () => {
 
     test("throws for array with NaN", () => {
       expect(() => assertNumberArray([1, NaN, 3], "vec")).toThrow(
-        "finite number",
+        "有限な数値ではありません",
       );
     });
 
     test("throws for array with Infinity", () => {
       expect(() => assertNumberArray([1, Infinity], "vec")).toThrow(
-        "finite number",
+        "有限な数値ではありません",
       );
     });
 
     test("throws for array with string", () => {
       expect(() => assertNumberArray([1, "two" as any, 3], "vec")).toThrow(
-        "finite number",
+        "有限な数値ではありません",
       );
     });
 
     test("throws for non-array", () => {
       expect(() => assertNumberArray("not_array" as any, "vec")).toThrow(
-        "must be an array",
+        "配列が必要です",
       );
     });
   });
@@ -151,15 +161,30 @@ describe("validation utilities", () => {
     });
 
     test("throws for null", () => {
-      expect(() => assertObject(null, "obj")).toThrow("non-null object");
+      expect(() => assertObject(null, "obj")).toThrow("非nullオブジェクト");
     });
 
     test("throws for array", () => {
-      expect(() => assertObject([], "obj")).toThrow("non-null object");
+      expect(() => assertObject([], "obj")).toThrow("非nullオブジェクト");
     });
 
     test("throws for string", () => {
-      expect(() => assertObject("str", "obj")).toThrow("non-null object");
+      expect(() => assertObject("str", "obj")).toThrow("非nullオブジェクト");
+    });
+  });
+
+  // --- WarpValidationError properties ---
+  describe("WarpValidationError properties", () => {
+    test("includes component and field", () => {
+      try {
+        assertType(42, "string", "myField", "TestComponent");
+      } catch (e) {
+        expect(e).toBeInstanceOf(WarpValidationError);
+        const err = e as WarpValidationError;
+        expect(err.component).toBe("TestComponent");
+        expect(err.field).toBe("myField");
+        expect(err.code).toBe("VALIDATION_ERROR");
+      }
     });
   });
 });

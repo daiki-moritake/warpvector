@@ -39,16 +39,60 @@ export function ensureWasmMemory(requiredBytes: number): boolean {
 
   const currentPages = wasmMemory.buffer.byteLength / 65536;
   const requiredPages = Math.ceil(requiredBytes / 65536);
+  // 指数的成長戦略: 必要量の2倍、または現在の2倍のうち大きい方を確保
+  // これにより頻繁な grow() 呼び出しを回避し、大規模バッチ処理のパフォーマンスを改善
+  const targetPages = Math.max(requiredPages, currentPages * 2);
   try {
-    wasmMemory.grow(requiredPages - currentPages);
+    wasmMemory.grow(targetPages - currentPages);
     return true;
   } catch (e) {
+    // 2倍が無理な場合は必要最小限で再試行
+    if (targetPages > requiredPages) {
+      try {
+        wasmMemory.grow(requiredPages - currentPages);
+        return true;
+      } catch {
+        console.warn("WASM memory grow failed", e);
+        return false;
+      }
+    }
     console.warn("WASM memory grow failed", e);
     return false;
   }
 }
 
 let globalOffset = 65536; // 最初の64KBはシステム予約領域として保護する
+let peakOffset = 65536;
+
+/**
+ * WASMメモリの使用統計情報
+ */
+export interface WasmMemoryStats {
+  /** 現在使用中のバイト数（アロケータのオフセット） */
+  usedBytes: number;
+  /** WASMメモリの総バイト数（確保済みページ分） */
+  totalBytes: number;
+  /** 過去の最大使用バイト数 */
+  peakBytes: number;
+}
+
+/**
+ * WASMメモリの使用統計を取得します。
+ * 運用中のメモリ監視やデバッグに使用してください。
+ *
+ * @example
+ * ```typescript
+ * const stats = getWasmMemoryStats();
+ * console.log(`Used: ${stats.usedBytes}, Peak: ${stats.peakBytes}, Total: ${stats.totalBytes}`);
+ * ```
+ */
+export function getWasmMemoryStats(): WasmMemoryStats {
+  return {
+    usedBytes: globalOffset,
+    totalBytes: wasmMemory ? wasmMemory.buffer.byteLength : 0,
+    peakBytes: peakOffset,
+  };
+}
 
 /**
  * 競合しないWASMメモリ領域を確保する簡易アロケータ
@@ -59,6 +103,10 @@ export function allocateWasmMemory(bytes: number): number {
   // 4バイトアラインメント
   if (globalOffset % 4 !== 0) {
     globalOffset += 4 - (globalOffset % 4);
+  }
+  // ピーク使用量を更新
+  if (globalOffset > peakOffset) {
+    peakOffset = globalOffset;
   }
   ensureWasmMemory(globalOffset);
   return ptr;

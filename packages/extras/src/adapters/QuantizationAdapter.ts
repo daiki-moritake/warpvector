@@ -6,6 +6,10 @@ import {
   assertObject,
   assertPositiveInt,
   assertType,
+  getWasmInstance,
+  allocateWasmMemory,
+  withWasmMemoryStack,
+  writeFloat32ArrayToWasm
 } from "@warpvector/core";
 
 // ハミング距離計算用のルックアップテーブル (LUT) を作成
@@ -48,11 +52,13 @@ export class QuantizationAdapter implements WarpAdapter, FinalStageAdapter {
   private type: QuantizationType;
   private dim: number;
   private dynamic: boolean;
+  private wasm: WebAssembly.Instance | null;
 
   constructor(config: QuantizationConfig) {
     this.type = config.type;
     this.dim = config.dim;
     this.dynamic = config.dynamic ?? false;
+    this.wasm = getWasmInstance();
 
     if (this.type === "binary" && this.dim % 8 !== 0) {
       throw new Error(
@@ -64,6 +70,48 @@ export class QuantizationAdapter implements WarpAdapter, FinalStageAdapter {
   public tune(vector: number[] | Float32Array): Int8Array | Uint8Array {
     assertDimension(vector, this.dim, "QuantizationAdapter.tune");
 
+    if (this.wasm) {
+      const exports = this.wasm.exports as any;
+      if (exports.quantizeToInt8Wasm && exports.quantizeToBinaryWasm) {
+        return this.tuneWasm(vector, exports);
+      }
+    }
+
+    return this.tuneJs(vector);
+  }
+
+  private tuneWasm(vector: number[] | Float32Array, exports: any): Int8Array | Uint8Array {
+    const memory = exports.memory as WebAssembly.Memory;
+
+    return withWasmMemoryStack(() => {
+      const vectorPtr = allocateWasmMemory(this.dim * 4);
+      writeFloat32ArrayToWasm(memory, vector, vectorPtr);
+
+      if (this.type === "int8") {
+        const outLen = this.dynamic ? this.dim + 4 : this.dim;
+        const outPtr = allocateWasmMemory(outLen);
+
+        exports.quantizeToInt8Wasm(vectorPtr, outPtr, this.dim, this.dynamic);
+
+        const i8view = new Int8Array(memory.buffer, outPtr, outLen);
+        const result = new Int8Array(outLen);
+        result.set(i8view);
+        return result;
+      } else {
+        const outLen = this.dim / 8;
+        const outPtr = allocateWasmMemory(outLen);
+
+        exports.quantizeToBinaryWasm(vectorPtr, outPtr, this.dim);
+
+        const u8view = new Uint8Array(memory.buffer, outPtr, outLen);
+        const result = new Uint8Array(outLen);
+        result.set(u8view);
+        return result;
+      }
+    });
+  }
+
+  private tuneJs(vector: number[] | Float32Array): Int8Array | Uint8Array {
     if (this.type === "int8") {
       if (this.dynamic) {
         // 動的量子化: ベクトルの絶対値の最大値を求める (ゼロ除算防止のため最小閾値 1e-8)

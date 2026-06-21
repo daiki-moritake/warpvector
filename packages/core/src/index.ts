@@ -7,6 +7,8 @@ export * from "./pipeline/WarpPipeline";
 export * from "./pipeline/AdapterRegistry";
 export * from "./pipeline/FormatRegistry";
 export * from "./adapters/VectorDBAdapter";
+export * from "./errors";
+export * from "./metrics";
 export * from "./utils";
 export * from "./validation";
 
@@ -22,7 +24,9 @@ export {
   setWasmAllocatorOffset,
   writeFloat32ArrayToWasm,
   readFloat32ArrayFromWasm,
+  getWasmMemoryStats,
   WasmMutex,
   wasmMutex,
   withWasmMemoryStack,
 } from "./wasm/wasm-loader";
+export type { WasmMemoryStats } from "./wasm/wasm-loader";

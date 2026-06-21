@@ -66,6 +66,59 @@ export class IntentTrainer extends BaseTrainer<TrainingExample, IntentWeights> {
     return { source: example.input, target: example.target };
   }
 
+  protected calculateLoss(
+    matrix: Float32Array,
+    bias: Float32Array,
+    example: TrainingExample
+  ): number {
+    const dim = this.dimension;
+    const pred = new Float32Array(dim);
+    applyAffine(matrix, bias, example.input, pred, dim, dim);
+    
+    let loss = 0;
+    for (let i = 0; i < dim; i++) {
+      const diff = pred[i] - example.target[i];
+      loss += diff * diff;
+    }
+    return loss;
+  }
+
+  protected adamStep(
+    matrix: Float32Array,
+    bias: Float32Array,
+    mMatrix: Float32Array,
+    vMatrix: Float32Array,
+    mBias: Float32Array,
+    vBias: Float32Array,
+    example: TrainingExample,
+    lr: number,
+    reg: number,
+    t: number
+  ): void {
+    const dim = this.dimension;
+    const pred = new Float32Array(dim);
+    applyAffine(matrix, bias, example.input, pred, dim, dim);
+
+    const outputGradients = new Float32Array(dim);
+    for (let i = 0; i < dim; i++) {
+      outputGradients[i] = pred[i] - example.target[i];
+    }
+
+    this.applyAdamToAffine(
+      matrix,
+      bias,
+      mMatrix,
+      vMatrix,
+      mBias,
+      vBias,
+      example.input,
+      outputGradients,
+      lr,
+      reg,
+      t
+    );
+  }
+
   /**
    * オンライン学習 (フィードバックループ) 用のメソッド。
    * ユーザーのクリックなどの 1 回のフィードバックからリアルタイムに重みを微調整します。

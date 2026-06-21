@@ -11,4 +11,6 @@ export interface BaseTrainingOptions {
   regularization?: number;
   /** trueの場合、事前に数エポックのテストランを行い、最適な学習率を自動探索します。デフォルト: false */
   autoTune?: boolean;
+  /** Lossの改善が見られなかった場合に、学習を早期終了 (Early Stopping) するまでのエポック数 (例: 5) */
+  patience?: number;
 }
