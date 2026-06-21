@@ -11,6 +11,9 @@
     "forceConsistentCasingInFileNames": true,
     "outDir": "./dist",
     "baseUrl": ".",
+    "paths": {
+      "@warpvector/*": ["./packages/*/src"]
+    },
     "types": ["bun"]
   },
   "include": ["src/**/*"],
