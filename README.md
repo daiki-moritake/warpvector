@@ -136,6 +136,18 @@ npm install warpvector
 bun add warpvector
 ```
 
+コア機能（IntentAdapter, MlpAdapter, WhiteningAdapter, 各Trainer, 量子化, VSA 等）は**ゼロ依存**で動作します。
+
+Prisma や LangChain との統合機能を使う場合は、それぞれの依存を追加でインストールしてください：
+
+```bash
+# Prisma 統合（pgvector）
+npm install @prisma/client sql-template-tag
+
+# LangChain / LlamaIndex 統合
+npm install @langchain/core
+```
+
 ---
 
 ## 🛠 クイックスタート

@@ -1,6 +1,6 @@
 {
   "name": "@warpvector/langchain",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "LangChain and LlamaIndex integration adapters for WarpVector",
   "main": "src/index.ts",
   "module": "src/index.ts",
