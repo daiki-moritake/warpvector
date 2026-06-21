@@ -3,14 +3,14 @@ name: Publish to npm
 on:
   release:
     types: [published]
-  # GitHubの画面から手動で実行できるようにする
+  # GitHub の画面から手動で実行できるようにする
   workflow_dispatch:
 
 jobs:
   publish:
     runs-on: ubuntu-latest
-    
-    # npm provenance (Trusted Publishing) のための権限設定
+
+    # npm Trusted Publishing (OIDC) のための権限設定
     permissions:
       contents: read
       id-token: write
@@ -41,8 +41,6 @@ jobs:
         run: bun run build
 
       - name: Publish to npm
-        # --provenance フラグを付けることで Trusted Publishing を有効化します
-        run: npm publish --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
+        # Trusted Publishing (OIDC) により NPM_TOKEN 不要
+        # --provenance で「このパッケージはこのリポジトリからビルドされた」証明を付与
+        run: npm publish --provenance --access public
