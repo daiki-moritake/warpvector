@@ -3,7 +3,7 @@ title: "Pythonなしで検索のパーソナライズを実装する：TypeScrip
 emoji: "🧠"
 type: "tech"
 topics: ["typescript", "machinelearning", "rag", "personalization", "wasm"]
-published: false
+published: true
 ---
 
 ## はじめに
@@ -102,7 +102,7 @@ const updatedWeights = await trainer.updateOnline(
   {
     learningRate: 0.001,
     temperature: 0.1, // InfoNCE のスケーリング温度
-  }
+  },
 );
 ```
 
@@ -179,13 +179,13 @@ graph TB
 
 ## まとめ
 
-| 従来のアプローチ | WarpVector |
-| --- | --- |
-| Python + PyTorch で学習サーバーを構築 | TypeScript + WASM でエッジ完結 |
-| ラベル付きデータセットが必要 | クリックログから自動生成 |
-| 学習に数時間〜数日 | リアルタイム（ミリ秒単位） |
-| MLOps パイプラインが必要 | `npm install warpvector` で即導入 |
-| LLMの再学習が必要 | ミドルウェア層の行列だけを更新 |
+| 従来のアプローチ                      | WarpVector                        |
+| ------------------------------------- | --------------------------------- |
+| Python + PyTorch で学習サーバーを構築 | TypeScript + WASM でエッジ完結    |
+| ラベル付きデータセットが必要          | クリックログから自動生成          |
+| 学習に数時間〜数日                    | リアルタイム（ミリ秒単位）        |
+| MLOps パイプラインが必要              | `npm install warpvector` で即導入 |
+| LLMの再学習が必要                     | ミドルウェア層の行列だけを更新    |
 
 検索のパーソナライズは、もはや大規模なMLインフラを必要としません。TypeScriptのエコシステムの中で、**フロントエンドエンジニアでも実装できるレベル**にまで簡素化されています。
 
