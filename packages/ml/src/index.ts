@@ -2,11 +2,11 @@
 import { WarpPipeline } from "@warpvector/core";
 import { MlpAdapter } from "./adapters/MlpAdapter";
 import { WhiteningAdapter } from "./adapters/WhiteningAdapter";
-import { InverseDiffusionAdapter } from "./adapters/InverseDiffusionAdapter";
+import { SoftWhiteningAdapter } from "./adapters/SoftWhiteningAdapter";
 
 export * from "./adapters/MlpAdapter";
 export * from "./adapters/WhiteningAdapter";
-export * from "./adapters/InverseDiffusionAdapter";
+export * from "./adapters/SoftWhiteningAdapter";
 export * from "./rerankers/TimeReversalReranker";
 export * from "./trainers/BaseTrainer";
 export * from "./trainers/IntentTrainer";
@@ -24,6 +24,6 @@ WarpPipeline.registerAdapter("MlpAdapter", (state) =>
 WarpPipeline.registerAdapter("WhiteningAdapter", (state) =>
   WhiteningAdapter.importState(state as string),
 );
-WarpPipeline.registerAdapter("InverseDiffusionAdapter", (state) =>
-  InverseDiffusionAdapter.importState(state as string),
+WarpPipeline.registerAdapter("SoftWhiteningAdapter", (state) =>
+  SoftWhiteningAdapter.importState(state as string),
 );

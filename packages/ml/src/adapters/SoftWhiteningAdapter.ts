@@ -17,7 +17,7 @@ import {
   assertArray,
 } from "@warpvector/core";
 
-export interface InverseDiffusionConfig {
+export interface SoftWhiteningConfig {
   /**
    * 学習率 (0.0 ~ 1.0)
    * 平均と主成分、固有値を更新する際の指数移動平均の重み。
@@ -48,12 +48,12 @@ export interface InverseDiffusionConfig {
 }
 
 /**
- * InverseDiffusionAdapter は、ストリーミングデータに対して
+ * SoftWhiteningAdapter は、ストリーミングデータに対して
  * 固有空間での逆熱方程式（Inverse Heat Equation）に基づくスペクトルフィルタリングを実行し、
  * LLM特有の「意味の拡散（コンテキストの混ざり合い）」を解消して、
  * 真の意図（シャープな特徴）を抽出するアダプターです。
  */
-export class InverseDiffusionAdapter implements WarpAdapter {
+export class SoftWhiteningAdapter implements WarpAdapter {
   public dim: number;
   public mean: Float32Array;
   public components: Float32Array[];
@@ -70,11 +70,11 @@ export class InverseDiffusionAdapter implements WarpAdapter {
   }
 
   /**
-   * 新しい InverseDiffusionAdapter を作成します。
+   * 新しい SoftWhiteningAdapter を作成します。
    * @param dim ベクトルの次元数
    * @param config 設定オプション
    */
-  constructor(dim: number, config: InverseDiffusionConfig = {}) {
+  constructor(dim: number, config: SoftWhiteningConfig = {}) {
     this.dim = dim;
     this.learningRate = config.learningRate ?? 0.01;
     this.numComponents = config.numComponents ?? 5;
@@ -82,10 +82,10 @@ export class InverseDiffusionAdapter implements WarpAdapter {
     this.normalizeOutput = config.normalizeOutput ?? true;
 
     if (this.tau < 0) {
-      throw new Error("InverseDiffusionAdapter: tau must be non-negative.");
+      throw new Error("SoftWhiteningAdapter: tau must be non-negative.");
     }
     if (this.numComponents <= 0) {
-      throw new Error("InverseDiffusionAdapter: numComponents must be positive.");
+      throw new Error("SoftWhiteningAdapter: numComponents must be positive.");
     }
 
     this.mean = new Float32Array(dim);
@@ -110,7 +110,7 @@ export class InverseDiffusionAdapter implements WarpAdapter {
    * @param vector 学習用の入力ベクトル
    */
   public update(vector: number[] | Float32Array): void {
-    assertDimension(vector, this.dim, "InverseDiffusionAdapter.update");
+    assertDimension(vector, this.dim, "SoftWhiteningAdapter.update");
 
     // 1. オンライン平均の更新 (指数移動平均)
     if (this.count === 0) {
@@ -204,7 +204,7 @@ export class InverseDiffusionAdapter implements WarpAdapter {
    * @returns シャープニングされた新しいベクトル
    */
   public tune(vector: number[] | Float32Array): Float32Array {
-    assertDimension(vector, this.dim, "InverseDiffusionAdapter.tune");
+    assertDimension(vector, this.dim, "SoftWhiteningAdapter.tune");
 
     let result = new Float32Array(this.dim);
 
@@ -263,7 +263,7 @@ export class InverseDiffusionAdapter implements WarpAdapter {
 
     for (let i = 0; i < batchSize; i++) {
       const vec = vectors[i];
-      assertDimension(vec, this.dim, "InverseDiffusionAdapter.tuneBatch");
+      assertDimension(vec, this.dim, "SoftWhiteningAdapter.tuneBatch");
 
       const result = new Float32Array(this.dim);
       for (let j = 0; j < this.dim; j++) {
@@ -319,11 +319,11 @@ export class InverseDiffusionAdapter implements WarpAdapter {
   }
 
   /**
-   * シリアライズされた学習状態から InverseDiffusionAdapter を復元します。
+   * シリアライズされた学習状態から SoftWhiteningAdapter を復元します。
    */
-  public static importState(stateJson: string): InverseDiffusionAdapter {
+  public static importState(stateJson: string): SoftWhiteningAdapter {
     const data = assertObject(
-      safeJsonParse(stateJson, "InverseDiffusionAdapter"),
+      safeJsonParse(stateJson, "SoftWhiteningAdapter"),
       "root",
     );
     const dim = assertPositiveInt(data.dim, "dim");
@@ -340,7 +340,7 @@ export class InverseDiffusionAdapter implements WarpAdapter {
     const eigenvalues = assertNumberArray(data.eigenvalues, "eigenvalues");
     const components = assertArray(data.components, "components");
 
-    const adapter = new InverseDiffusionAdapter(dim, {
+    const adapter = new SoftWhiteningAdapter(dim, {
       learningRate,
       numComponents,
       tau,

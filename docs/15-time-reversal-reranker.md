@@ -86,11 +86,11 @@ results は以下の形式でスコア降順にソートされています:
 
 ---
 
-## `InverseDiffusionAdapter` との違い
+## `SoftWhiteningAdapter` との違い
 
-WarpVector には、よく似た名前の `InverseDiffusionAdapter` が存在します。
+WarpVector には、よく似た名前の `SoftWhiteningAdapter` が存在します。
 
-- **`InverseDiffusionAdapter`**: 
+- **`SoftWhiteningAdapter`**: 
   - **ストリーミング学習**により、モデル全体の「空間の偏り」を時間反転（逆熱方程式）で解消します。
   - クエリベクトル単体を事前に尖らせる「前処理（Pre-processing）」です。
 - **`TimeReversalReranker`**:

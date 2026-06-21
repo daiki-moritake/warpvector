@@ -156,8 +156,7 @@ export class TimeReversalReranker {
         if (this.normalizeGraph && D[i] > 0) {
           diffSum /= D[i]; // ランダムウォーク・ラプラシアン (ハブネス対策)
         }
-
-        nextS[i] = currentS[i] + tau * diffSum;
+        nextS[i] = Math.max(0, currentS[i] + tau * diffSum);
       }
       
       // スワップ

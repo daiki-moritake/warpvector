@@ -126,7 +126,7 @@ const restoredPipeline = WarpPipeline.importState(stateJson);
    - `MlpAdapter` を用いた多層パーセプトロンと非線形活性化関数
 3. **[オンライン等方化・PCA (Whitening)](./docs/3-whitening-pca.md)**
    - 空間的偏り (異方性) のストリーミング学習による除去
-3.5 **[意味の逆拡散・シャープニング (Inverse Diffusion)](#35-意味の逆拡散シャープニング-inverse-diffusion)**
+3.5 **[意味の逆拡散・シャープニング (Inverse Diffusion)](#35-意味の逆拡散シャープニング-soft-whitening)**
    - 逆熱方程式によるコンテキストの混ざり合いの解消と、鋭い意図の抽出
 4. **[量子化と圧縮 (Quantization)](./docs/4-quantization.md)**
    - `Int8` (1/4圧縮) および `Binary` (1/32圧縮) による高速化と省メモリ化
@@ -148,7 +148,7 @@ const restoredPipeline = WarpPipeline.importState(stateJson);
     - ベクトルのバインド・バンドル・アンバインドによるメタデータ埋め込み演算
 13. **[フィードバックループと連合学習 (Feedback & Federated Learning)](./docs/13-feedback-loop.md)**
     - ユーザーログからのオンライン学習データ生成と複数クライアントの重み集約 (FedAvg)
-14. **[意味の逆拡散・シャープニング (Inverse Diffusion)](./docs/14-inverse-diffusion.md)**
+14. **[意味の逆拡散・シャープニング (Inverse Diffusion)](./docs/14-soft-whitening.md)**
     - 逆熱方程式によるコンテキストの混ざり合いの解消と、鋭い意図の抽出
 15. **[時間反転波リランカー (Time-Reversal Reranker)](./docs/15-time-reversal-reranker.md)**
     - 時間反転鏡(TRM)の原理を用い、検索候補グラフ上で波を逆再生して真のソースドキュメントを特定
@@ -246,11 +246,11 @@ const whitenedVector = adapter.tune(searchVector);
 LLMによって複数の文脈が混ざり合い「拡散（Blur）」してしまったベクトルから、逆熱方程式（Inverse Heat Equation）の公式を用いて、波源となる「鋭い意図（Sharp Source）」を抽出・復元します。
 
 ```typescript
-import { InverseDiffusionAdapter } from 'warpvector';
+import { SoftWhiteningAdapter } from 'warpvector';
 
 // 固有空間の分散（固有値）をトラッキングし、逆拡散フィルタを適用するアダプタ
 // tau: 巻き戻し時間（シャープネスの強さ）。大きいほど強く拡散成分を抑制する。
-const adapter = new InverseDiffusionAdapter(1536, { tau: 2.0, numComponents: 5 });
+const adapter = new SoftWhiteningAdapter(1536, { tau: 2.0, numComponents: 5 });
 
 // ユーザーのログ等からストリーミング学習
 adapter.update(vectorA);

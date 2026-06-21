@@ -1,14 +1,14 @@
 import { expect, test, describe, beforeAll } from "bun:test";
-import { InverseDiffusionAdapter } from "../src/adapters/InverseDiffusionAdapter";
+import { SoftWhiteningAdapter } from "../src/adapters/SoftWhiteningAdapter";
 import { initWasm, innerProduct, normalize } from "@warpvector/core";
 
-describe("InverseDiffusionAdapter", () => {
+describe("SoftWhiteningAdapter", () => {
   beforeAll(async () => {
     await initWasm();
   });
 
   test("should initialize correctly", () => {
-    const adapter = new InverseDiffusionAdapter(10, {
+    const adapter = new SoftWhiteningAdapter(10, {
       learningRate: 0.05,
       numComponents: 3,
       tau: 2.0,
@@ -22,12 +22,12 @@ describe("InverseDiffusionAdapter", () => {
   });
 
   test("should throw error for invalid parameters", () => {
-    expect(() => new InverseDiffusionAdapter(10, { tau: -1.0 })).toThrow("non-negative");
-    expect(() => new InverseDiffusionAdapter(10, { numComponents: 0 })).toThrow("positive");
+    expect(() => new SoftWhiteningAdapter(10, { tau: -1.0 })).toThrow("non-negative");
+    expect(() => new SoftWhiteningAdapter(10, { numComponents: 0 })).toThrow("positive");
   });
 
   test("should track eigenvalues and update components online", () => {
-    const adapter = new InverseDiffusionAdapter(5, {
+    const adapter = new SoftWhiteningAdapter(5, {
       learningRate: 0.1,
       numComponents: 2,
     });
@@ -53,7 +53,7 @@ describe("InverseDiffusionAdapter", () => {
   });
 
   test("should sharpen vector smoothly using inverse heat kernel (tau)", () => {
-    const adapter = new InverseDiffusionAdapter(4, {
+    const adapter = new SoftWhiteningAdapter(4, {
       learningRate: 0.1,
       numComponents: 1,
       tau: 5.0, // High tau for strong sharpening
@@ -89,7 +89,7 @@ describe("InverseDiffusionAdapter", () => {
   });
 
   test("should serialize and deserialize state", () => {
-    const adapter = new InverseDiffusionAdapter(3, {
+    const adapter = new SoftWhiteningAdapter(3, {
       learningRate: 0.05,
       numComponents: 2,
       tau: 1.5,
@@ -99,7 +99,7 @@ describe("InverseDiffusionAdapter", () => {
     adapter.update([-1, 0, 1]);
 
     const stateStr = adapter.exportState();
-    const restored = InverseDiffusionAdapter.importState(stateStr);
+    const restored = SoftWhiteningAdapter.importState(stateStr);
 
     expect(restored.dim).toBe(adapter.dim);
     expect(restored.tau).toBe(adapter.tau);
@@ -109,7 +109,7 @@ describe("InverseDiffusionAdapter", () => {
     expect(restored.components.length).toBe(adapter.components.length);
   });
   test("should normalize output when normalizeOutput is true", () => {
-    const adapter = new InverseDiffusionAdapter(4, {
+    const adapter = new SoftWhiteningAdapter(4, {
       tau: 1.0,
       numComponents: 1,
       normalizeOutput: true,
@@ -123,7 +123,7 @@ describe("InverseDiffusionAdapter", () => {
   });
 
   test("tuneBatch should produce identical results to tune in loop", () => {
-    const adapter = new InverseDiffusionAdapter(3, {
+    const adapter = new SoftWhiteningAdapter(3, {
       tau: 2.0,
       numComponents: 2,
       normalizeOutput: true,
