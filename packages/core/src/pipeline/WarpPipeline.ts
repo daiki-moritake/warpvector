@@ -245,6 +245,41 @@ export class WarpPipeline {
   }
 
   /**
+   * ストリームやイテレータから順次ベクトルを受け取り、バッチ処理と組み合わせてパイプライン推論を実行します。
+   * メモリに巨大な配列を保持しないため、数百万件のベクトルでも OOM (メモリ枯渇) せずに高速変換可能です。
+   *
+   * @param vectorStream 変換元のベクトルの非同期イテレータ または イテレータ
+   * @param options コンテキストやバッチサイズのオプション
+   * @returns 変換されたベクトルの非同期ジェネレータ
+   */
+  public async *runStream(
+    vectorStream: AsyncIterable<InputVector> | Iterable<InputVector>,
+    options?: { context?: RunContext; batchSize?: number },
+  ): AsyncGenerator<OutputVector, void, unknown> {
+    const batchSize = options?.batchSize ?? 128;
+    const context = options?.context;
+    let buffer: InputVector[] = [];
+
+    for await (const vector of vectorStream) {
+      buffer.push(vector);
+      if (buffer.length >= batchSize) {
+        const results = this.runBatch(buffer, context);
+        for (const res of results) {
+          yield res;
+        }
+        buffer = [];
+      }
+    }
+
+    if (buffer.length > 0) {
+      const results = this.runBatch(buffer, context);
+      for (const res of results) {
+        yield res;
+      }
+    }
+  }
+
+  /**
    * ベクトル変換から特定データベース向けのフォーマットまでを1回の呼び出しで行います。
    *
    * @param vector 変換元のベースベクトル

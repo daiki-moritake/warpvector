@@ -25,6 +25,22 @@ export class AnomalyDetectionAdapter implements WarpAdapter {
   private maxValue: number;
 
   constructor(config: AnomalyDetectionConfig = {}) {
+    if (arguments.length > 1) {
+      throw new Error(
+        "[WarpVector DX Error] AnomalyDetectionAdapter のコンストラクタ引数が変更されました。\n" +
+        "次元数 (dim) などを第1引数に渡す必要はありません。すべての設定は1つのオブジェクトで渡してください。\n" +
+        "例: new AnomalyDetectionAdapter({ mode: 'safe', maxValue: 3.0 })"
+      );
+    }
+    
+    // threshold のような古いプロパティ名への警告
+    if (config && 'threshold' in config) {
+      throw new Error(
+        "[WarpVector DX Error] AnomalyDetectionAdapter のプロパティ 'threshold' は 'maxValue' に変更されました。\n" +
+        "例: new AnomalyDetectionAdapter({ maxValue: 3.0 })"
+      );
+    }
+
     this.mode = config.mode || "strict";
     this.maxValue = config.maxValue || 100.0;
   }

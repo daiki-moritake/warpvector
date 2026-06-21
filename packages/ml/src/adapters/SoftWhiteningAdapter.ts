@@ -75,6 +75,21 @@ export class SoftWhiteningAdapter implements WarpAdapter {
    * @param config 設定オプション
    */
   constructor(dim: number, config: SoftWhiteningConfig = {}) {
+    if (arguments.length > 2) {
+      throw new Error(
+        "[WarpVector DX Error] SoftWhiteningAdapter のコンストラクタ引数が変更されました。\n" +
+        "次元数 (dim) を第1引数、設定オブジェクトを第2引数として渡してください（引数は最大2つです）。\n" +
+        "例: new SoftWhiteningAdapter(1536, { tau: 0.5 })"
+      );
+    }
+    
+    if (typeof dim !== "number" || dim <= 0) {
+      throw new Error(
+        "[WarpVector DX Error] SoftWhiteningAdapter の第1引数 'dim' (次元数) は正の数値である必要があります。\n" +
+        "もし設定オブジェクトのみを渡している場合は、必ず第1引数に次元数を指定してください。"
+      );
+    }
+
     this.dim = dim;
     this.learningRate = config.learningRate ?? 0.01;
     this.numComponents = config.numComponents ?? 5;

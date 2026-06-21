@@ -20,6 +20,28 @@ export class SafeQuantizationAdapter implements WarpAdapter {
   private options: SafeQuantizationOptions;
 
   constructor(options: SafeQuantizationOptions) {
+    if (arguments.length > 1) {
+      throw new Error(
+        "[WarpVector DX Error] SafeQuantizationAdapter のコンストラクタ引数が変更されました。\n" +
+        "次元数 (dim) などを第1引数に渡す必要はありません。すべての設定は1つのオブジェクトで渡してください。\n" +
+        "例: new SafeQuantizationAdapter({ type: 'int8', dim: 1536, dynamic: true })"
+      );
+    }
+    
+    // 古いプロパティ名への警告
+    if (options && 'levels' in options) {
+      throw new Error(
+        "[WarpVector DX Error] SafeQuantizationAdapter のプロパティ 'levels' は廃止されました。\n" +
+        "'type': 'int8' または 'binary' を使用してください。"
+      );
+    }
+    if (options && 'adaptiveRange' in options) {
+      throw new Error(
+        "[WarpVector DX Error] SafeQuantizationAdapter のプロパティ 'adaptiveRange' は 'dynamic' に変更されました。\n" +
+        "例: new SafeQuantizationAdapter({ type: 'int8', dim: 1536, dynamic: true })"
+      );
+    }
+
     this.options = options;
     this.baseAdapter = new QuantizationAdapter(options);
   }
