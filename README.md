@@ -116,6 +116,8 @@ const restoredPipeline = WarpPipeline.importState(stateJson);
 
 各機能のより詳細な仕組み、コードスニペット、ユースケースについては以下の個別ドキュメントをご参照ください。
 
+0. **[エッジコンピューティング クイックスタート (Edge Quickstart)](./docs/edge-quickstart.md)**
+   - Cloudflare Workers や Vercel Edge 等のエッジ環境におけるハイブリッド検索とオンライン学習の最速実装ガイド
 1. **[コアアダプタ (Core Adapters)](./docs/1-core-adapters.md)**
    - `IntentAdapter`, `ProjectionAdapter`, `LoraIntentAdapter` の基本
 2. **[ニューラルネットワーク (Neural Networks)](./docs/2-neural-networks.md)**
