@@ -148,6 +148,10 @@ const restoredPipeline = WarpPipeline.importState(stateJson);
     - ベクトルのバインド・バンドル・アンバインドによるメタデータ埋め込み演算
 13. **[フィードバックループと連合学習 (Feedback & Federated Learning)](./docs/13-feedback-loop.md)**
     - ユーザーログからのオンライン学習データ生成と複数クライアントの重み集約 (FedAvg)
+14. **[意味の逆拡散・シャープニング (Inverse Diffusion)](./docs/14-inverse-diffusion.md)**
+    - 逆熱方程式によるコンテキストの混ざり合いの解消と、鋭い意図の抽出
+15. **[時間反転波リランカー (Time-Reversal Reranker)](./docs/15-time-reversal-reranker.md)**
+    - 時間反転鏡(TRM)の原理を用い、検索候補グラフ上で波を逆再生して真のソースドキュメントを特定
 
 ---
 

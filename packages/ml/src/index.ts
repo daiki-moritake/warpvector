@@ -7,6 +7,7 @@ import { InverseDiffusionAdapter } from "./adapters/InverseDiffusionAdapter";
 export * from "./adapters/MlpAdapter";
 export * from "./adapters/WhiteningAdapter";
 export * from "./adapters/InverseDiffusionAdapter";
+export * from "./rerankers/TimeReversalReranker";
 export * from "./trainers/BaseTrainer";
 export * from "./trainers/IntentTrainer";
 export * from "./trainers/InfoNCETrainer";
