@@ -1,6 +1,6 @@
 {
   "name": "@warpvector/prisma",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "Prisma Client Extension for pgvector integration with WarpVector",
   "main": "src/index.ts",
   "module": "src/index.ts",

@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.7] - 2026-06-21
+
+### Added
+- `FeedbackCollector`, `AdaptiveScheduler`, `FederatedAggregator`: 検索システムにおけるオンライン学習および連合学習（Federated Learning）機能を追加
+
+### Changed
+- `FederatedAggregator`: 内部での配列次元バリデーションおよびフラット化処理を `@warpvector/core` の `getFlatMatrixAndBias` に共通化
+- `AdaptiveScheduler`: `addFeedback` にて、バッファに溜まったデータを一度の呼び出しで全てバッチ処理（ループ処理）するように修正
+
 ## [0.1.4] - 2026-06-21
 
 ### Added
