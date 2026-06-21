@@ -1,6 +1,7 @@
-import { assertDimension } from "@warpvector/core";
-import { WarpAdapter, FinalStageAdapter } from "@warpvector/core";
 import {
+  assertDimension,
+  type WarpAdapter,
+  type FinalStageAdapter,
   safeJsonParse,
   assertObject,
   assertPositiveInt,
