@@ -2,6 +2,7 @@
  * WarpVector Playground — UI Controller
  *
  * Enhanced with Real LLM Embeddings via Transformers.js
+ * And Dynamic PCA Camera Projection
  */
 import {
   createDemoState,
@@ -9,6 +10,7 @@ import {
   transformWithBlend,
   runBenchmark,
   cosineSim,
+  projectTo2D,
   updateQuery,
   addCustomIntent,
   DIM,
@@ -93,10 +95,10 @@ export async function initPlayground(lang: Lang) {
   let state: DemoState;
   try {
     state = await createDemoState(lang, progressCallback);
-    loadingOverlay.style.display = 'none'; // Hide overlay
+    if (loadingOverlay) loadingOverlay.style.display = 'none'; // Hide overlay
   } catch (err) {
-    loadingText.textContent = 'Error loading model';
-    loadingSubtext.textContent = (err as Error).message;
+    if (loadingText) loadingText.textContent = 'Error loading model';
+    if (loadingSubtext) loadingSubtext.textContent = (err as Error).message;
     console.error(err);
     return;
   }
@@ -116,6 +118,7 @@ export async function initPlayground(lang: Lang) {
   function renderIntentButtons() {
     const singlePanel = document.getElementById('intentGroup')!;
     const blendGroup = document.getElementById('blendGroup')!;
+    if (!singlePanel || !blendGroup) return;
     
     singlePanel.innerHTML = `
       <button class="intent-btn ${currentIntent === 'none' ? 'active' : ''}" data-intent="none">
@@ -175,21 +178,32 @@ export async function initPlayground(lang: Lang) {
   let isBlendMode = false;
   let blendWeights: Record<string, number> = {};
 
-  // Animation state
+  // Animation state (Dynamic 384D interpolation)
   let animFrameId: number | null = null;
-  let animStartPositions: { x: number; y: number }[] = [];
-  let animTargetPositions: { x: number; y: number }[] = [];
+  let animStartVectors: Float32Array[] = [];
+  let animStartQueryVector: Float32Array = new Float32Array(DIM);
+  let animTargetVectors: Float32Array[] = [];
+  let animTargetQueryVector: Float32Array = new Float32Array(DIM);
+  
+  let animStartBasis1: Float32Array = new Float32Array(DIM);
+  let animStartBasis2: Float32Array = new Float32Array(DIM);
+  let animTargetBasis1: Float32Array = new Float32Array(DIM);
+  let animTargetBasis2: Float32Array = new Float32Array(DIM);
+
+  // Computed 2D positions for the current frame
   let animCurrentPositions: { x: number; y: number }[] = [];
+  let animCurrentQueryPos: { x: number; y: number } = { x: 0, y: 0 };
 
   // Normalize coordinates for canvas display
-  function normalizePositions(docs: DemoState['docs'], queryPos: { x: number; y: number }) {
-    const allX = [...docs.map(d => d.pos.x), queryPos.x];
-    const allY = [...docs.map(d => d.pos.y), queryPos.y];
+  function normalizePositions(positions: {x:number, y:number}[], queryPos: {x:number, y:number}) {
+    const allX = [...positions.map(p => p.x), queryPos.x];
+    const allY = [...positions.map(p => p.y), queryPos.y];
     const minX = Math.min(...allX), maxX = Math.max(...allX);
     const minY = Math.min(...allY), maxY = Math.max(...allY);
+    // Add small margin so points don't clip
     const rangeX = maxX - minX || 1;
     const rangeY = maxY - minY || 1;
-    const padding = 0.1;
+    const padding = 0.15;
     return {
       normalize: (pos: { x: number; y: number }) => ({
         x: padding + (1 - 2 * padding) * (pos.x - minX) / rangeX,
@@ -198,9 +212,48 @@ export async function initPlayground(lang: Lang) {
     };
   }
 
-  function initDisplayPositions() {
-    const { normalize } = normalizePositions(state.docs, state.query.pos);
-    animCurrentPositions = state.docs.map(d => normalize(d.pos));
+  function initDisplayState() {
+    animTargetVectors = state.docs.map(d => new Float32Array(d.currentVector));
+    animTargetQueryVector = new Float32Array(state.query.vector);
+    animTargetBasis1 = new Float32Array(state.basis1);
+    animTargetBasis2 = new Float32Array(state.basis2);
+    
+    // Copy target to start
+    animStartVectors = animTargetVectors.map(v => new Float32Array(v));
+    animStartQueryVector = new Float32Array(animTargetQueryVector);
+    animStartBasis1 = new Float32Array(animTargetBasis1);
+    animStartBasis2 = new Float32Array(animTargetBasis2);
+    
+    updateCurrentFramePositions(1);
+  }
+
+  function updateCurrentFramePositions(t: number) {
+    const interp = (start: Float32Array, target: Float32Array, out: Float32Array) => {
+      for (let i = 0; i < DIM; i++) {
+        out[i] = start[i] + (target[i] - start[i]) * t;
+      }
+    };
+
+    const b1 = new Float32Array(DIM);
+    const b2 = new Float32Array(DIM);
+    interp(animStartBasis1, animTargetBasis1, b1);
+    interp(animStartBasis2, animTargetBasis2, b2);
+
+    // Normalize interpolated basis (optional but good for consistency)
+    let n1 = 0, n2 = 0;
+    for(let i=0; i<DIM; i++) { n1 += b1[i]*b1[i]; n2 += b2[i]*b2[i]; }
+    n1 = Math.sqrt(n1); n2 = Math.sqrt(n2);
+    if (n1 > 0) for(let i=0; i<DIM; i++) b1[i] /= n1;
+    if (n2 > 0) for(let i=0; i<DIM; i++) b2[i] /= n2;
+
+    const tmpVec = new Float32Array(DIM);
+    animCurrentPositions = [];
+    for (let i = 0; i < state.docs.length; i++) {
+      interp(animStartVectors[i], animTargetVectors[i], tmpVec);
+      animCurrentPositions.push(projectTo2D(tmpVec, b1, b2));
+    }
+    interp(animStartQueryVector, animTargetQueryVector, tmpVec);
+    animCurrentQueryPos = projectTo2D(tmpVec, b1, b2);
   }
 
   // Canvas resize
@@ -223,9 +276,11 @@ export async function initPlayground(lang: Lang) {
     const w = canvas.width / (window.devicePixelRatio || 1);
     const h = canvas.height / (window.devicePixelRatio || 1);
 
+    const { normalize } = normalizePositions(animCurrentPositions, animCurrentQueryPos);
+
     let found = null;
     for (let i = 0; i < state.docs.length; i++) {
-      const pos = animCurrentPositions[i];
+      const pos = normalize(animCurrentPositions[i]);
       const dx = pos.x * w - x;
       const dy = pos.y * h - y;
       if (dx * dx + dy * dy < 100) { // 10px radius
@@ -246,8 +301,8 @@ export async function initPlayground(lang: Lang) {
     const h = canvas.height / (window.devicePixelRatio || 1);
     ctx.clearRect(0, 0, w, h);
 
-    const { normalize } = normalizePositions(state.docs, state.query.pos);
-    const queryDisplayPos = normalize(state.query.pos);
+    const { normalize } = normalizePositions(animCurrentPositions, animCurrentQueryPos);
+    const queryDisplayPos = normalize(animCurrentQueryPos);
 
     // Grid
     ctx.strokeStyle = 'rgba(255,255,255,0.03)';
@@ -263,7 +318,7 @@ export async function initPlayground(lang: Lang) {
     // Connection lines to top-3
     for (let i = 0; i < Math.min(3, currentRankings.length); i++) {
       const doc = currentRankings[i];
-      const pos = animCurrentPositions[doc.id];
+      const pos = normalize(animCurrentPositions[doc.id]);
       const alpha = [0.25, 0.12, 0.06][i];
       ctx.beginPath();
       ctx.moveTo(queryDisplayPos.x * w, queryDisplayPos.y * h);
@@ -277,11 +332,11 @@ export async function initPlayground(lang: Lang) {
 
     // Document dots
     state.docs.forEach((doc, i) => {
-      const pos = animCurrentPositions[i];
+      const pos = normalize(animCurrentPositions[i]);
       const x = pos.x * w, y = pos.y * h;
       const isTop1 = doc.id === top1Id;
       const isHover = doc.id === hoverDocId;
-      const radius = isTop1 ? 7 : (isHover ? 6 : 5);
+      const radius = isTop1 ? 7 : (isHover ? 6 : 4); // Slightly smaller normal dots for more documents
 
       if (isTop1) {
         const grad = ctx.createRadialGradient(x, y, 0, x, y, 24);
@@ -296,11 +351,14 @@ export async function initPlayground(lang: Lang) {
       ctx.fill();
       ctx.strokeStyle = isTop1 ? 'rgba(16, 185, 129, 0.5)' : 'rgba(255,255,255,0.1)';
       ctx.lineWidth = 1.5; ctx.stroke();
-
-      ctx.fillStyle = isTop1 ? '#f1f5f9' : 'rgba(241,245,249,0.5)';
-      ctx.font = `${isTop1 ? 500 : 400} 10px Inter, system-ui`;
-      ctx.textAlign = 'center';
-      ctx.fillText(doc.name, x, y - radius - 6);
+      
+      // Only draw text if top1 or hovered, to avoid clutter with 30-40 items
+      if (isTop1 || isHover) {
+        ctx.fillStyle = isTop1 ? '#f1f5f9' : 'rgba(241,245,249,0.9)';
+        ctx.font = `${isTop1 ? 500 : 400} 11px Inter, system-ui`;
+        ctx.textAlign = 'center';
+        ctx.fillText(doc.name, x, y - radius - 6);
+      }
       
       // Hover tooltip text
       if (isHover) {
@@ -386,28 +444,34 @@ export async function initPlayground(lang: Lang) {
     if (el) el.textContent = code;
   }
 
-  // Animate transition
+  // Animate transition (Dynamic 384D Interpolation)
   function animateTransition(latencyMs: number, rankings: RankedDoc[]) {
-    const { normalize } = normalizePositions(state.docs, state.query.pos);
-    animStartPositions = animCurrentPositions.map(p => ({ ...p }));
-    animTargetPositions = state.docs.map(d => normalize(d.pos));
+    // 1. Copy current TARGETS to STARTS
+    animStartVectors = animTargetVectors.map(v => new Float32Array(v));
+    animStartQueryVector = new Float32Array(animTargetQueryVector);
+    animStartBasis1 = new Float32Array(animTargetBasis1);
+    animStartBasis2 = new Float32Array(animTargetBasis2);
 
-    const duration = 800;
+    // 2. Set new TARGETS from DemoState
+    animTargetVectors = state.docs.map(d => new Float32Array(d.currentVector));
+    animTargetQueryVector = new Float32Array(state.query.vector);
+    animTargetBasis1 = new Float32Array(state.basis1);
+    animTargetBasis2 = new Float32Array(state.basis2);
+
+    const duration = 900; // Slightly longer for a majestic camera rotation feel
     const startTime = performance.now();
 
     function step(timestamp: number) {
       const t = Math.min((timestamp - startTime) / duration, 1);
+      // Smooth easing (cubic out)
       const ease = 1 - Math.pow(1 - t, 3);
 
-      for (let i = 0; i < state.docs.length; i++) {
-        animCurrentPositions[i] = {
-          x: animStartPositions[i].x + (animTargetPositions[i].x - animStartPositions[i].x) * ease,
-          y: animStartPositions[i].y + (animTargetPositions[i].y - animStartPositions[i].y) * ease,
-        };
-      }
-
+      updateCurrentFramePositions(ease);
       drawFrame();
-      if (t < 1) animFrameId = requestAnimationFrame(step);
+
+      if (t < 1) {
+        animFrameId = requestAnimationFrame(step);
+      }
     }
 
     if (animFrameId) cancelAnimationFrame(animFrameId);
@@ -601,7 +665,7 @@ export async function initPlayground(lang: Lang) {
   // Init
   renderIntentButtons();
   resizeCanvas();
-  initDisplayPositions();
+  initDisplayState();
   drawFrame();
   updateRankingsUI(baseRankings, 0);
   updateCodeSnippet(`// No intent applied\nconst result = baseVector;`);
