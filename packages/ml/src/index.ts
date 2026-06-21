@@ -10,6 +10,9 @@ export * from "./trainers/IntentTrainer";
 export * from "./trainers/InfoNCETrainer";
 export * from "./trainers/TripletTrainer";
 export * from "./trainers/MigrationTrainer";
+export * from "./feedback/FeedbackCollector";
+export * from "./feedback/AdaptiveScheduler";
+export * from "./feedback/FederatedAggregator";
 
 // WarpPipeline にml系アダプタを自動登録 (side-effect)
 WarpPipeline.registerAdapter("MlpAdapter", (state) =>
