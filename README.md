@@ -118,6 +118,8 @@ const restoredPipeline = WarpPipeline.importState(stateJson);
 
 0. **[エッジコンピューティング クイックスタート (Edge Quickstart)](./docs/edge-quickstart.md)**
    - Cloudflare Workers や Vercel Edge 等のエッジ環境におけるハイブリッド検索とオンライン学習の最速実装ガイド
+0.5. **[自動学習 実装ガイド (Auto-Learning Guide)](./docs/auto-learning-guide.md)**
+   - 外部サーバー不要で、ユーザーの行動ログから検索空間を自動最適化する学習パイプラインの構築手順
 1. **[コアアダプタ (Core Adapters)](./docs/1-core-adapters.md)**
    - `IntentAdapter`, `ProjectionAdapter`, `LoraIntentAdapter` の基本
 2. **[ニューラルネットワーク (Neural Networks)](./docs/2-neural-networks.md)**
