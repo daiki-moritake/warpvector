@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- `scripts/sync-versions.ts`: ルートの `package.json` から全サブパッケージへバージョンを自動同期するスクリプト
+- `packages/*/tsconfig.build.json`: DTS ビルド専用の tsconfig（`paths` を無効化し `rootDir` エラーを解消）
+- `docs/10-projection-migration.md`: ProjectionAdapter と MigrationTrainer のドキュメント
+- `docs/11-task-arithmetic.md`: TaskArithmetic のドキュメント
+- `docs/12-vsa.md`: VsaAdapter (超次元計算 / Binary VSA) のドキュメント
+- README に §11〜§15（ProjectionAdapter, MigrationTrainer, TaskArithmetic, VsaAdapter, Slerp/Reject）を追加
+
+### Fixed
+- README のコード例を実際の API シグネチャに修正（`addMlp()` → `addStep()`, `quantize()` → `setFinalStage()`, InfoNCETrainer / MlpAdapter の引数）
+- `docs/api-reference.md` を全面更新（存在しないメソッド削除、全12クラス・全型定義を網羅）
+- `docs/7-trainers.md` の TripletTrainer / InfoNCETrainer コード例を実際の API に修正
+
+### Changed
+- 全サブパッケージのビルドスクリプトを `--tsconfig tsconfig.build.json` に変更
+- `build:packages` の先頭で `sync:versions` を自動実行するように変更
+
 ## [0.1.3] - 2026-06-20
 
 ### Added

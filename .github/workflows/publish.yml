@@ -21,7 +21,7 @@ jobs:
 
       # warpvector は Bun と Node.js(npm) の両方を使用するため両方をセットアップします
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v1
+        uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
 
@@ -29,12 +29,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20.x'
+          registry-url: 'https://registry.npmjs.org'
 
       - name: Install dependencies
         run: bun install
 
       - name: Run tests
-        run: bun test
+        run: bun run test
 
       - name: Build the project
         run: bun run build
@@ -42,3 +43,6 @@ jobs:
       - name: Publish to npm
         # --provenance フラグを付けることで Trusted Publishing を有効化します
         run: npm publish --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
