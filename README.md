@@ -250,6 +250,9 @@ console.log(pipeline.metrics.getMetrics());
 | 14 | [Inverse Diffusion](./docs/14-soft-whitening.md) | Semantic sharpening |
 | 15 | [Time-Reversal Reranker](./docs/15-time-reversal-reranker.md) | Wave-inspired reranking |
 | 16 | [Multipath Scattering](./docs/16-multipath-scattering-reranker.md) | Random-walk hub detection |
+| C1 | [E-commerce Search Cookbook](./docs/cookbook/ecommerce-search.md) | Intent-based routing |
+| C2 | [Pinecone RAG Cookbook](./docs/cookbook/rag-with-pinecone.md) | Cost-efficient RAG |
+| C3 | [Cloudflare Edge Cookbook](./docs/cookbook/edge-cloudflare.md) | Edge inference |
 | — | [API Reference](./docs/api-reference.md) | Full API documentation |
 | — | [Troubleshooting](./docs/troubleshooting.md) | Common issues & solutions |
 | — | [Migration Guide](./docs/migration-guide.md) | v0.1 → v0.2 upgrade guide |
