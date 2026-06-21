@@ -16,6 +16,7 @@ export * from "./trainers/BaseTrainer";
 export * from "./trainers/IntentTrainer";
 export * from "./trainers/InfoNCETrainer";
 export * from "./trainers/TripletTrainer";
+export * from "./trainers/CrossEncoderTrainer";
 export * from "./trainers/MigrationTrainer";
 export * from "./feedback/FeedbackCollector";
 export * from "./feedback/AdaptiveScheduler";
