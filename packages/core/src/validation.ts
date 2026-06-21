@@ -64,7 +64,7 @@ export function assertArray(value: unknown, field: string): unknown[] {
 export function assertNumberArray(value: unknown, field: string): number[] {
   const arr = assertArray(value, field);
   for (let i = 0; i < arr.length; i++) {
-    if (typeof arr[i] !== "number" || !isFinite(arr[i] as number)) {
+    if (typeof arr[i] !== "number" || !Number.isFinite(arr[i] as number)) {
       throw new Error(
         `Invalid state: field '${field}[${i}]' must be a finite number, got ${arr[i]}`,
       );

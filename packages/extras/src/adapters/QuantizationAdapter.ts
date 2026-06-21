@@ -7,6 +7,18 @@ import {
   assertType,
 } from "@warpvector/core";
 
+// ハミング距離計算用のルックアップテーブル (LUT) を作成
+const POPCOUNT_LUT = new Uint8Array(256);
+for (let i = 0; i < 256; i++) {
+  let count = 0;
+  let n = i;
+  while (n > 0) {
+    count++;
+    n &= n - 1;
+  }
+  POPCOUNT_LUT[i] = count;
+}
+
 export type QuantizationType = "int8" | "binary";
 
 export interface QuantizationConfig {
@@ -93,16 +105,21 @@ export class QuantizationAdapter implements WarpAdapter, FinalStageAdapter {
       }
     } else if (this.type === "binary") {
       // 1-bit Binary Quantization (ビットパッキング)
-      const bytesLength = this.dim / 8;
+      const bytesLength = this.dim >> 3;
       const result = new Uint8Array(bytesLength);
 
-      for (let i = 0; i < this.dim; i++) {
-        // 値が 0 より大きければ 1、それ以外は 0
-        if (vector[i] > 0) {
-          const byteIndex = Math.floor(i / 8);
-          const bitIndex = i % 8;
-          result[byteIndex] |= 1 << (7 - bitIndex);
-        }
+      // 8要素ごとにループ展開して高速化
+      for (let i = 0, byteIndex = 0; i < this.dim; i += 8, byteIndex++) {
+        let byte = 0;
+        if (vector[i] > 0) byte |= 128;     // 1 << 7
+        if (vector[i + 1] > 0) byte |= 64;  // 1 << 6
+        if (vector[i + 2] > 0) byte |= 32;  // 1 << 5
+        if (vector[i + 3] > 0) byte |= 16;  // 1 << 4
+        if (vector[i + 4] > 0) byte |= 8;   // 1 << 3
+        if (vector[i + 5] > 0) byte |= 4;   // 1 << 2
+        if (vector[i + 6] > 0) byte |= 2;   // 1 << 1
+        if (vector[i + 7] > 0) byte |= 1;   // 1 << 0
+        result[byteIndex] = byte;
       }
       return result;
     }
@@ -118,12 +135,7 @@ export class QuantizationAdapter implements WarpAdapter, FinalStageAdapter {
     if (a.length !== b.length) throw new Error("Length mismatch");
     let distance = 0;
     for (let i = 0; i < a.length; i++) {
-      let xor = a[i] ^ b[i];
-      // ブライアン・カーニハンアルゴリズムで1のビット数を数える
-      while (xor > 0) {
-        distance++;
-        xor &= xor - 1;
-      }
+      distance += POPCOUNT_LUT[a[i] ^ b[i]];
     }
     return distance;
   }
@@ -136,31 +148,29 @@ export class QuantizationAdapter implements WarpAdapter, FinalStageAdapter {
     if (a.length !== b.length) throw new Error("Length mismatch");
 
     // 動的スケーリング埋め込み（dim + 4）かどうかの自動判別
-    const hasScaleBytes = a.length > 4;
     let isDynamic = false;
     let maxA = 1.0;
     let maxB = 1.0;
 
-    if (hasScaleBytes) {
+    if (a.length > 4) {
       const dim = a.length - 4;
-      try {
-        const viewA = new DataView(a.buffer, a.byteOffset, a.byteLength);
-        const viewB = new DataView(b.buffer, b.byteOffset, b.byteLength);
-        maxA = viewA.getFloat32(dim, true);
-        maxB = viewB.getFloat32(dim, true);
-        // 妥当な浮動小数点スケール値であるかの検証 (NaNを除く正数かつ現実的な範囲)
-        if (
-          !isNaN(maxA) &&
-          !isNaN(maxB) &&
-          maxA > 0 &&
-          maxA < 1000.0 &&
-          maxB > 0 &&
-          maxB < 1000.0
-        ) {
-          isDynamic = true;
-        }
-      } catch (e) {
-        isDynamic = false;
+      // 暗黙のtry-catchを避けてDataViewから読み取る。
+      // byteLength と length は TypedArray で等しいため範囲外アクセスは起きない。
+      const viewA = new DataView(a.buffer, a.byteOffset, a.byteLength);
+      const viewB = new DataView(b.buffer, b.byteOffset, b.byteLength);
+      maxA = viewA.getFloat32(dim, true);
+      maxB = viewB.getFloat32(dim, true);
+      
+      // 妥当な浮動小数点スケール値であるかの検証
+      if (
+        Number.isFinite(maxA) &&
+        Number.isFinite(maxB) &&
+        maxA > 0 &&
+        maxA < 1000.0 &&
+        maxB > 0 &&
+        maxB < 1000.0
+      ) {
+        isDynamic = true;
       }
     }
 
