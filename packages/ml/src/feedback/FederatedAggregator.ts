@@ -145,28 +145,46 @@ export class FederatedAggregator {
 
   /**
    * number[] | number[][] | Float32Array を Float32Array に正規化するヘルパー。
+   * 指定された expectedLength と要素数が合わない場合はエラーをスローします。
    */
   private toFloat32(
     arr: number[] | number[][] | Float32Array,
     expectedLength: number,
   ): Float32Array {
     if (arr instanceof Float32Array) {
+      if (arr.length !== expectedLength) {
+        throw new Error(`Dimension mismatch: expected length ${expectedLength}, but got ${arr.length}`);
+      }
       return arr;
     }
+
     const result = new Float32Array(expectedLength);
     // 2D array (number[][]) → flatten
     if (Array.isArray(arr) && arr.length > 0 && Array.isArray(arr[0])) {
+      let totalElements = 0;
+      for (const row of arr as number[][]) {
+        totalElements += row.length;
+      }
+      if (totalElements !== expectedLength) {
+        throw new Error(`Dimension mismatch: expected length ${expectedLength}, but got ${totalElements} elements in 2D array`);
+      }
+
       let idx = 0;
       for (const row of arr as number[][]) {
         for (const val of row) {
-          if (idx < expectedLength) result[idx++] = val;
+          result[idx++] = val;
         }
       }
       return result;
     }
+
     // 1D array (number[])
     const flat = arr as number[];
-    for (let i = 0; i < Math.min(flat.length, expectedLength); i++) {
+    if (flat.length !== expectedLength) {
+      throw new Error(`Dimension mismatch: expected length ${expectedLength}, but got ${flat.length}`);
+    }
+
+    for (let i = 0; i < expectedLength; i++) {
       result[i] = flat[i];
     }
     return result;

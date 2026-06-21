@@ -110,15 +110,17 @@ export class AdaptiveScheduler<TExample> {
       return null;
     }
 
-    // バッチ学習を実行
-    const batch = this.buffer.splice(0, this.batchSize);
     let weights = currentWeights;
 
-    for (const example of batch) {
-      weights = await this.trainer.updateOnline(weights, example, {
-        learningRate: this.currentLearningRate,
-      });
-      this._totalSteps++;
+    // バッファにバッチサイズ以上のデータがある限り、繰り返し学習を行う
+    while (this.buffer.length >= this.batchSize) {
+      const batch = this.buffer.splice(0, this.batchSize);
+      for (const example of batch) {
+        weights = await this.trainer.updateOnline(weights, example, {
+          learningRate: this.currentLearningRate,
+        });
+        this._totalSteps++;
+      }
     }
 
     return weights;
