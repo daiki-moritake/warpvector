@@ -1,6 +1,6 @@
 {
   "name": "@warpvector/extras",
-  "version": "0.1.5",
+  "version": "0.1.7",
   "description": "Extended adapters: ColBERT, Quantization, VSA, Hybrid Search for WarpVector",
   "main": "src/index.ts",
   "module": "src/index.ts",

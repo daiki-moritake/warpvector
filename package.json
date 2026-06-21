@@ -1,6 +1,6 @@
 {
   "name": "warpvector",
-  "version": "0.1.5",
+  "version": "0.1.7",
   "description": "A lightweight, zero-dependency TypeScript middleware for dynamic vector space transformation (affine transformation).",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
@@ -10,6 +10,16 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
       "require": "./dist/index.js"
+    },
+    "./prisma": {
+      "types": "./dist/prisma.d.ts",
+      "import": "./dist/prisma.mjs",
+      "require": "./dist/prisma.js"
+    },
+    "./langchain": {
+      "types": "./dist/langchain.d.ts",
+      "import": "./dist/langchain.mjs",
+      "require": "./dist/langchain.js"
     }
   },
   "files": [
@@ -55,10 +65,18 @@
     "typescript": "^5.0.0"
   },
   "peerDependencies": {
-    "@prisma/client": "^5.0.0 || ^6.0.0 || ^7.0.0"
+    "@prisma/client": "^5.0.0 || ^6.0.0 || ^7.0.0",
+    "sql-template-tag": "^5.0.0",
+    "@langchain/core": "^1.0.0"
   },
   "peerDependenciesMeta": {
     "@prisma/client": {
+      "optional": true
+    },
+    "sql-template-tag": {
+      "optional": true
+    },
+    "@langchain/core": {
       "optional": true
     }
   }

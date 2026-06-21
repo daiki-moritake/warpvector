@@ -1,7 +1,11 @@
 import { defineConfig } from "tsup";
 
 export default defineConfig({
-  entry: ["src/index.ts"],
+  entry: {
+    index: "src/index.ts",
+    prisma: "src/prisma.ts",
+    langchain: "src/langchain.ts",
+  },
   format: ["cjs", "esm"],
   dts: { resolve: [/^@warpvector\//] },
   clean: true,
@@ -10,4 +14,3 @@ export default defineConfig({
   // peerDependencies は外部モジュールのままにする
   external: ["@prisma/client", "@langchain/core", "sql-template-tag"],
 });
-
