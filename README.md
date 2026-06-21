@@ -152,7 +152,8 @@ const restoredPipeline = WarpPipeline.importState(stateJson);
     - 逆熱方程式によるコンテキストの混ざり合いの解消と、鋭い意図の抽出
 15. **[時間反転波リランカー (Time-Reversal Reranker)](./docs/15-time-reversal-reranker.md)**
     - 時間反転鏡(TRM)の原理を用い、検索候補グラフ上で波を逆再生して真のソースドキュメントを特定
-
+16. **[多重経路散乱場リランカー (Multipath Scattering Reranker)](./docs/16-multipath-scattering-reranker.md)**
+    - 波動の多重散乱場理論（ランダムウォーク）を用い、多重経路で支持されている真のハブドキュメントを特定
 ---
 
 ## 📦 インストール
