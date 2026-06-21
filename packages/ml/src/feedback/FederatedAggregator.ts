@@ -1,4 +1,4 @@
-import type { IntentWeights } from "@warpvector/core";
+import { IntentWeights, getFlatMatrixAndBias } from "@warpvector/core";
 
 /**
  * クライアントから送信される重み更新情報。
@@ -87,8 +87,11 @@ export class FederatedAggregator {
     const matrixSize = dim * dim;
 
     // ベースの matrix と bias を取得
-    const baseMatrix = this.toFloat32(this.baseWeights.matrix, matrixSize);
-    const baseBias = this.toFloat32(this.baseWeights.bias, dim);
+    const { flatMatrix: baseMatrix, bias: baseBias } = getFlatMatrixAndBias(
+      this.baseWeights,
+      dim,
+      "FederatedAggregator.baseWeights",
+    );
 
     // 結果用バッファ（ベースからスタート）
     const resultMatrix = new Float32Array(baseMatrix);
@@ -103,8 +106,11 @@ export class FederatedAggregator {
     // 各クライアントの差分を重み付き加算
     for (const update of this.updates) {
       const scale = update.interactionCount / totalCount;
-      const clientMatrix = this.toFloat32(update.weights.matrix, matrixSize);
-      const clientBias = this.toFloat32(update.weights.bias, dim);
+      const { flatMatrix: clientMatrix, bias: clientBias } = getFlatMatrixAndBias(
+        update.weights,
+        dim,
+        "FederatedAggregator.clientUpdate",
+      );
 
       // resultMatrix += scale * (clientMatrix - baseMatrix)
       for (let i = 0; i < matrixSize; i++) {
@@ -141,52 +147,5 @@ export class FederatedAggregator {
    */
   public get clientCount(): number {
     return this.updates.length;
-  }
-
-  /**
-   * number[] | number[][] | Float32Array を Float32Array に正規化するヘルパー。
-   * 指定された expectedLength と要素数が合わない場合はエラーをスローします。
-   */
-  private toFloat32(
-    arr: number[] | number[][] | Float32Array,
-    expectedLength: number,
-  ): Float32Array {
-    if (arr instanceof Float32Array) {
-      if (arr.length !== expectedLength) {
-        throw new Error(`Dimension mismatch: expected length ${expectedLength}, but got ${arr.length}`);
-      }
-      return arr;
-    }
-
-    const result = new Float32Array(expectedLength);
-    // 2D array (number[][]) → flatten
-    if (Array.isArray(arr) && arr.length > 0 && Array.isArray(arr[0])) {
-      let totalElements = 0;
-      for (const row of arr as number[][]) {
-        totalElements += row.length;
-      }
-      if (totalElements !== expectedLength) {
-        throw new Error(`Dimension mismatch: expected length ${expectedLength}, but got ${totalElements} elements in 2D array`);
-      }
-
-      let idx = 0;
-      for (const row of arr as number[][]) {
-        for (const val of row) {
-          result[idx++] = val;
-        }
-      }
-      return result;
-    }
-
-    // 1D array (number[])
-    const flat = arr as number[];
-    if (flat.length !== expectedLength) {
-      throw new Error(`Dimension mismatch: expected length ${expectedLength}, but got ${flat.length}`);
-    }
-
-    for (let i = 0; i < expectedLength; i++) {
-      result[i] = flat[i];
-    }
-    return result;
   }
 }
