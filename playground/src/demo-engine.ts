@@ -497,10 +497,11 @@ export function transformWithIntent(
   }
   state.query.currentVector = applyPipeline(state, state.query.baseVector, intentFunc);
 
-  const allCurrentVecs = [...state.docs.map(d => d.currentVector), state.query.currentVector];
-  const { b1, b2 } = computeDynamicBasis(allCurrentVecs, DIM);
-  state.basis1 = b1;
-  state.basis2 = b2;
+  // Keep the basis fixed for better visualization (do not recalculate)
+  // const allCurrentVecs = [...state.docs.map(d => d.currentVector), state.query.currentVector];
+  // const { b1, b2 } = computeDynamicBasis(allCurrentVecs, DIM);
+  // state.basis1 = b1;
+  // state.basis2 = b2;
 
   for (const doc of state.docs) {
     doc.pos = projectTo2D(doc.currentVector, state.basis1, state.basis2);
@@ -536,10 +537,11 @@ export function transformWithBlend(
   }
   state.query.currentVector = applyPipeline(state, state.query.baseVector, intentFunc);
 
-  const allCurrentVecs = [...state.docs.map(d => d.currentVector), state.query.currentVector];
-  const { b1, b2 } = computeDynamicBasis(allCurrentVecs, DIM);
-  state.basis1 = b1;
-  state.basis2 = b2;
+  // Keep the basis fixed
+  // const allCurrentVecs = [...state.docs.map(d => d.currentVector), state.query.currentVector];
+  // const { b1, b2 } = computeDynamicBasis(allCurrentVecs, DIM);
+  // state.basis1 = b1;
+  // state.basis2 = b2;
 
   for (const doc of state.docs) {
     doc.pos = projectTo2D(doc.currentVector, state.basis1, state.basis2);
