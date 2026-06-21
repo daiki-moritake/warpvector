@@ -20,12 +20,15 @@
       <p>See how vector space transforms in real-time using the <strong>actual warpvector library</strong> with WASM acceleration. Every dot movement is a real <code>IntentAdapter.tune()</code> call.</p>
       <p class="header__lang"><a href="./ja.html">🇯🇵 日本語版</a></p>
     </header>
+
     <div class="main-grid">
+      <!-- Left: Canvas -->
       <div class="card animate-in">
         <div class="card__header">
           <div class="card__title">
             <span class="card__title-icon" style="background:rgba(59,130,246,0.15);color:var(--accent-blue);">⬡</span>
-            Vector Space (32-dim → 2D projection)
+            Vector Space
+            <span class="dim-badge">32-dim → 2D</span>
           </div>
           <span style="font-size:12px;display:flex;align-items:center;gap:8px;">
             <span class="wasm-badge" id="wasmBadge">Loading…</span>
@@ -55,8 +58,16 @@
               <div class="metric-card__label">Rank Improvement</div>
             </div>
           </div>
+          <!-- Live Code -->
+          <div class="code-panel">
+            <div class="code-label">Live API Call</div>
+            <pre><code id="codeSnippet">// No intent applied
+const result = baseVector;</code></pre>
+          </div>
         </div>
       </div>
+
+      <!-- Right: Controls + Rankings -->
       <div style="display:flex;flex-direction:column;gap:24px;">
         <div class="card animate-in">
           <div class="card__header">
@@ -64,40 +75,72 @@
               <span class="card__title-icon" style="background:rgba(139,92,246,0.15);color:var(--accent-purple);">◈</span>
               Search Intent
             </div>
+            <button class="mode-toggle" id="modeToggle">⇄ Blend Mode</button>
           </div>
           <div class="card__body">
-            <div class="intent-group" id="intentGroup">
-              <button class="intent-btn active" data-intent="none">
-                <div class="intent-btn__icon" style="background:rgba(100,116,139,0.15);">🔍</div>
-                <div class="intent-btn__content">
-                  <div class="intent-btn__name">Vanilla Search</div>
-                  <div class="intent-btn__desc">No transformation applied</div>
+            <!-- Single Intent Panel -->
+            <div id="singleIntentPanel">
+              <div class="intent-group" id="intentGroup">
+                <button class="intent-btn active" data-intent="none">
+                  <div class="intent-btn__icon" style="background:rgba(100,116,139,0.15);">🔍</div>
+                  <div class="intent-btn__content">
+                    <div class="intent-btn__name">Vanilla Search</div>
+                    <div class="intent-btn__desc">No transformation applied</div>
+                  </div>
+                </button>
+                <button class="intent-btn" data-intent="technology">
+                  <div class="intent-btn__icon" style="background:rgba(59,130,246,0.15);">💻</div>
+                  <div class="intent-btn__content">
+                    <div class="intent-btn__name">Technology</div>
+                    <div class="intent-btn__desc">adapter.tune(vec, "technology")</div>
+                  </div>
+                </button>
+                <button class="intent-btn" data-intent="business">
+                  <div class="intent-btn__icon" style="background:rgba(16,185,129,0.15);">📊</div>
+                  <div class="intent-btn__content">
+                    <div class="intent-btn__name">Business</div>
+                    <div class="intent-btn__desc">adapter.tune(vec, "business")</div>
+                  </div>
+                </button>
+                <button class="intent-btn" data-intent="medical">
+                  <div class="intent-btn__icon" style="background:rgba(244,63,94,0.15);">🏥</div>
+                  <div class="intent-btn__content">
+                    <div class="intent-btn__name">Medical</div>
+                    <div class="intent-btn__desc">adapter.tune(vec, "medical")</div>
+                  </div>
+                </button>
+              </div>
+            </div>
+            <!-- Blend Panel (hidden by default) -->
+            <div id="blendPanel" style="display:none;">
+              <div class="blend-group">
+                <div class="blend-item">
+                  <div class="blend-item__header">
+                    <span><span class="blend-icon">💻</span> Technology</span>
+                    <span class="blend-value">0%</span>
+                  </div>
+                  <input type="range" min="0" max="100" value="0" class="blend-slider" data-intent="technology">
                 </div>
-              </button>
-              <button class="intent-btn" data-intent="technology">
-                <div class="intent-btn__icon" style="background:rgba(59,130,246,0.15);">💻</div>
-                <div class="intent-btn__content">
-                  <div class="intent-btn__name">Technology</div>
-                  <div class="intent-btn__desc">Boost technical documents</div>
+                <div class="blend-item">
+                  <div class="blend-item__header">
+                    <span><span class="blend-icon">📊</span> Business</span>
+                    <span class="blend-value">0%</span>
+                  </div>
+                  <input type="range" min="0" max="100" value="0" class="blend-slider" data-intent="business">
                 </div>
-              </button>
-              <button class="intent-btn" data-intent="business">
-                <div class="intent-btn__icon" style="background:rgba(16,185,129,0.15);">📊</div>
-                <div class="intent-btn__content">
-                  <div class="intent-btn__name">Business</div>
-                  <div class="intent-btn__desc">Boost business & finance docs</div>
+                <div class="blend-item">
+                  <div class="blend-item__header">
+                    <span><span class="blend-icon">🏥</span> Medical</span>
+                    <span class="blend-value">0%</span>
+                  </div>
+                  <input type="range" min="0" max="100" value="0" class="blend-slider" data-intent="medical">
                 </div>
-              </button>
-              <button class="intent-btn" data-intent="medical">
-                <div class="intent-btn__icon" style="background:rgba(244,63,94,0.15);">🏥</div>
-                <div class="intent-btn__content">
-                  <div class="intent-btn__name">Medical</div>
-                  <div class="intent-btn__desc">Boost healthcare documents</div>
-                </div>
-              </button>
+              </div>
             </div>
           </div>
         </div>
+
+        <!-- Rankings -->
         <div class="card animate-in">
           <div class="card__header">
             <div class="card__title">
@@ -111,6 +154,42 @@
         </div>
       </div>
     </div>
+
+    <!-- Bottom: Benchmark -->
+    <div class="bottom-grid">
+      <div class="card animate-in">
+        <div class="card__header">
+          <div class="card__title">
+            <span class="card__title-icon" style="background:rgba(245,158,11,0.15);color:var(--accent-amber);">⚡</span>
+            Batch Performance
+          </div>
+          <span class="dim-badge">1,000 vectors × 32-dim</span>
+        </div>
+        <div class="card__body">
+          <button class="bench-btn" id="benchBtn">▶ Run Benchmark</button>
+          <div id="benchResult"></div>
+        </div>
+      </div>
+      <div class="card animate-in">
+        <div class="card__header">
+          <div class="card__title">
+            <span class="card__title-icon" style="background:rgba(16,185,129,0.15);color:var(--accent-green);">✦</span>
+            How It Works
+          </div>
+        </div>
+        <div class="card__body" style="font-size:13px;color:var(--text-secondary);line-height:1.7;">
+          <p>This demo runs the <strong style="color:var(--text-primary);">actual warpvector library</strong> in your browser:</p>
+          <ol style="margin-top:10px;padding-left:18px;display:flex;flex-direction:column;gap:6px;">
+            <li>15 documents are generated as <code style="color:var(--accent-cyan);">Float32Array[32]</code> vectors</li>
+            <li><code style="color:var(--accent-cyan);">IntentAdapter</code> is initialized with real affine matrices</li>
+            <li>Clicking an intent calls <code style="color:var(--accent-cyan);">.tune()</code> or <code style="color:var(--accent-cyan);">.tuneBlended()</code></li>
+            <li>WASM <code style="color:var(--accent-cyan);">tuneBatchWasm()</code> accelerates matrix multiplication</li>
+            <li>Transformed vectors are projected to 2D via Gram-Schmidt basis</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+
     <footer class="footer">
       <p>Powered by <a href="https://github.com/daiki-moritake/warpvector" target="_blank">WarpVector</a> — real <code>IntentAdapter.tune()</code> running via WASM in your browser.</p>
       <p style="margin-top:8px;"><a href="https://github.com/daiki-moritake/warpvector" target="_blank">GitHub</a> · <a href="https://www.npmjs.com/package/warpvector" target="_blank">npm</a></p>

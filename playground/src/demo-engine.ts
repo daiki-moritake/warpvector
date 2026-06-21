@@ -273,8 +273,95 @@ export function transformWithIntent(
   return { latencyMs, rankings };
 }
 
+/** Transform using BLENDED intents — demonstrates tuneBlended() */
+export function transformWithBlend(
+  state: DemoState,
+  weights: Record<string, number>,
+): { latencyMs: number; rankings: RankedDoc[]; codeSnippet: string } {
+  // Filter out zero-weight intents
+  const activeWeights: Record<string, number> = {};
+  for (const [k, v] of Object.entries(weights)) {
+    if (v > 0.01) activeWeights[k] = v;
+  }
+
+  const hasActive = Object.keys(activeWeights).length > 0;
+  const t0 = performance.now();
+
+  for (const doc of state.docs) {
+    if (hasActive) {
+      // REAL warpvector IntentAdapter.tuneBlended()
+      doc.currentVector = state.adapter.tuneBlended(doc.baseVector, activeWeights);
+    } else {
+      doc.currentVector = new Float32Array(doc.baseVector);
+    }
+    doc.pos = projectTo2D(doc.currentVector, state.basis1, state.basis2);
+  }
+
+  const latencyMs = performance.now() - t0;
+
+  const rankings = state.docs.map((doc) => ({
+    ...doc,
+    score: cosineSim(doc.currentVector, state.query.vector),
+  })).sort((a, b) => b.score - a.score);
+
+  // Generate the actual code snippet being executed
+  const weightsStr = Object.entries(activeWeights)
+    .map(([k, v]) => `  ${k}: ${v.toFixed(2)}`)
+    .join(',\n');
+  const codeSnippet = hasActive
+    ? `const warped = adapter.tuneBlended(\n  baseVector,\n  {\n${weightsStr}\n  }\n);`
+    : `// No intent applied\nconst result = baseVector;`;
+
+  return { latencyMs, rankings, codeSnippet };
+}
+
+/** Run batch benchmark — demonstrates tuneBatch() performance */
+export function runBenchmark(
+  state: DemoState,
+  batchSize: number = 1000,
+): BenchmarkResult {
+  const dim = 32;
+  const rng = seededRandom(9999);
+
+  // Generate batch vectors
+  const vectors: Float32Array[] = [];
+  for (let i = 0; i < batchSize; i++) {
+    vectors.push(randomUnitVector(rng, dim));
+  }
+
+  // Benchmark tuneBatch (WASM path)
+  const t0 = performance.now();
+  state.adapter.tuneBatch(vectors, 'technology');
+  const batchMs = performance.now() - t0;
+
+  // Benchmark individual tune calls
+  const t1 = performance.now();
+  for (let i = 0; i < batchSize; i++) {
+    state.adapter.tune(vectors[i], 'technology');
+  }
+  const individualMs = performance.now() - t1;
+
+  return {
+    batchSize,
+    batchMs,
+    individualMs,
+    batchOpsPerSec: Math.round(batchSize / (batchMs / 1000)),
+    individualOpsPerSec: Math.round(batchSize / (individualMs / 1000)),
+    speedup: individualMs / batchMs,
+  };
+}
+
+export interface BenchmarkResult {
+  batchSize: number;
+  batchMs: number;
+  individualMs: number;
+  batchOpsPerSec: number;
+  individualOpsPerSec: number;
+  speedup: number;
+}
+
 export interface RankedDoc extends DocPoint {
   score: number;
 }
 
-export { cosineSim, projectTo2D };
+export { cosineSim, projectTo2D, DIM };
