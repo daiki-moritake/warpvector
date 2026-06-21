@@ -7,6 +7,8 @@ export * from "./pipeline/WarpPipeline";
 export * from "./pipeline/AdapterRegistry";
 export * from "./pipeline/FormatRegistry";
 export * from "./adapters/VectorDBAdapter";
+export * from "./errors";
+export * from "./metrics";
 export * from "./utils";
 export * from "./validation";
 

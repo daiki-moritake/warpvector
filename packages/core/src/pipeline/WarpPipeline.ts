@@ -17,6 +17,9 @@ import {
 import { VectorDBAdapter } from "../adapters/VectorDBAdapter";
 import { AdapterRegistry } from "./AdapterRegistry";
 import { FormatRegistry } from "./FormatRegistry";
+import { WarpPipelineError } from "../errors";
+import { MetricsCollector, type PipelineMetrics } from "../metrics";
+import { wasmMutex } from "../wasm/wasm-loader";
 
 export interface PipelineStep {
   type: string;
@@ -46,6 +49,36 @@ export interface FormatOptions {
 }
 
 /**
+ * WarpPipeline の初期化オプション。
+ */
+export interface PipelineOptions {
+  /**
+   * true にすると、run() / runBatch() の初回呼び出し時に自動で init() を実行します。
+   * デフォルト: true
+   *
+   * @example
+   * ```typescript
+   * // init() を呼ばなくても初回 run() で自動初期化される
+   * const pipeline = new WarpPipeline(1536, { autoInit: true });
+   * const result = await pipeline.run(vector); // 内部で init() が呼ばれる
+   * ```
+   */
+  autoInit?: boolean;
+}
+
+/**
+ * dryRun() が返す各ステップの中間結果。
+ */
+export interface DryRunStepResult {
+  /** ステップの型名 */
+  step: string;
+  /** ステップの出力ベクトル */
+  output: OutputVector;
+  /** ステップの実行時間（ミリ秒） */
+  durationMs: number;
+}
+
+/**
  * WarpPipeline (統一インターフェース)
  *
  * 複数の WarpAdapter を直感的なビルダーパターンで数珠つなぎ（チェーン）し、
@@ -54,6 +87,25 @@ export interface FormatOptions {
 export class WarpPipeline {
   private steps: PipelineStep[] = [];
   private finalStage?: { type: string; adapter: FinalStageAdapter };
+  private _initialized: boolean = false;
+  private _autoInit: boolean;
+  private _initPromise: Promise<void> | null = null;
+  private _metrics: MetricsCollector = new MetricsCollector();
+
+  /**
+   * パイプラインのメトリクス収集コレクターを取得します。
+   * デフォルトでは無効です。`pipeline.metrics.enable()` で有効にしてください。
+   *
+   * @example
+   * ```typescript
+   * pipeline.metrics.enable();
+   * pipeline.run(vector);
+   * console.log(pipeline.metrics.getMetrics());
+   * ```
+   */
+  public get metrics(): MetricsCollector {
+    return this._metrics;
+  }
 
   /**
    * カスタムアダプタをパイプラインのレジストリに登録します。
@@ -83,7 +135,16 @@ export class WarpPipeline {
     FormatRegistry.register(format, formatFn);
   }
 
-  constructor(public inputDim: number) {}
+  /**
+   * @param inputDim 入力ベクトルの次元数
+   * @param options パイプラインの初期化オプション
+   */
+  constructor(
+    public inputDim: number,
+    options?: PipelineOptions,
+  ) {
+    this._autoInit = options?.autoInit ?? true;
+  }
 
   /**
    * 量子化などの最終変換（FinalStageAdapter）をパイプライン末尾に設定します。
@@ -154,11 +215,26 @@ export class WarpPipeline {
    * それらを一括でセットアップします。
    */
   public async init(): Promise<void> {
+    if (this._initialized) return;
     for (const step of this.steps) {
       if (typeof step.adapter.init === "function") {
         await step.adapter.init();
       }
     }
+    this._initialized = true;
+  }
+
+  /**
+   * autoInit が有効な場合、初回呼び出しで自動的に init() を実行します。
+   * すでに初期化済みの場合は何もしません。
+   */
+  private async ensureInitialized(): Promise<void> {
+    if (this._initialized) return;
+    if (!this._autoInit) return;
+    if (!this._initPromise) {
+      this._initPromise = this.init();
+    }
+    await this._initPromise;
   }
 
   /**
@@ -174,24 +250,52 @@ export class WarpPipeline {
       return vector instanceof Float32Array ? vector : new Float32Array(vector);
     }
 
+    const stopRun = this._metrics.startRun();
+
     let currentVector: Float32Array =
       vector instanceof Float32Array ? vector : new Float32Array(vector);
 
-    for (const step of this.steps) {
-      // 全てのアダプタにコンテキストを渡す（不要なアダプタは内部で無視する）
-      const result = step.adapter.tune(
-        currentVector,
-        context?.intent || "default",
-      );
-      // WarpAdapter の中間段は常に Float32Array を返すことを期待
-      currentVector = result as Float32Array;
+    for (let i = 0; i < this.steps.length; i++) {
+      const step = this.steps[i];
+      const stopStep = this._metrics.startStep(step.type);
+      try {
+        // 全てのアダプタにコンテキストを渡す（不要なアダプタは内部で無視する）
+        const result = step.adapter.tune(
+          currentVector,
+          context?.intent || "default",
+        );
+        // WarpAdapter の中間段は常に Float32Array を返すことを期待
+        currentVector = result as Float32Array;
+      } catch (e) {
+        throw new WarpPipelineError(
+          (e as Error).message,
+          i,
+          step.type,
+          { cause: e },
+        );
+      }
+      stopStep?.();
     }
 
     // 最終段（量子化等）が設定されている場合、encode() を適用
     if (this.finalStage) {
-      return this.finalStage.adapter.encode(currentVector);
+      const stopFinal = this._metrics.startStep(this.finalStage.type);
+      try {
+        const result = this.finalStage.adapter.encode(currentVector);
+        stopFinal?.();
+        stopRun?.();
+        return result;
+      } catch (e) {
+        throw new WarpPipelineError(
+          (e as Error).message,
+          this.steps.length,
+          this.finalStage.type,
+          { cause: e },
+        );
+      }
     }
 
+    stopRun?.();
     return currentVector;
   }
 
@@ -208,39 +312,66 @@ export class WarpPipeline {
     context?: RunContext,
   ): OutputVector[] {
     const batchSize = vectors.length;
+    const stopBatch = this._metrics.startBatchRun(batchSize);
+
     let currentVectors = new Array<Float32Array>(batchSize);
     for (let i = 0; i < batchSize; i++) {
       const v = vectors[i];
       currentVectors[i] = v instanceof Float32Array ? v : new Float32Array(v);
     }
 
-    for (const step of this.steps) {
-      if (typeof step.adapter.tuneBatch === "function") {
-        // tuneBatch メソッドがある場合は一括処理を委譲
-        currentVectors = step.adapter.tuneBatch(
-          currentVectors,
-          context?.intent || "default",
-        ) as Float32Array[];
-      } else {
-        // tuneBatch がない場合は通常のループ処理へフォールバック
-        for (let i = 0; i < batchSize; i++) {
-          currentVectors[i] = step.adapter.tune(
-            currentVectors[i],
+    for (let si = 0; si < this.steps.length; si++) {
+      const step = this.steps[si];
+      const stopStep = this._metrics.startStep(step.type);
+      try {
+        if (typeof step.adapter.tuneBatch === "function") {
+          // tuneBatch メソッドがある場合は一括処理を委譲
+          currentVectors = step.adapter.tuneBatch(
+            currentVectors,
             context?.intent || "default",
-          ) as Float32Array;
+          ) as Float32Array[];
+        } else {
+          // tuneBatch がない場合は通常のループ処理へフォールバック
+          for (let i = 0; i < batchSize; i++) {
+            currentVectors[i] = step.adapter.tune(
+              currentVectors[i],
+              context?.intent || "default",
+            ) as Float32Array;
+          }
         }
+      } catch (e) {
+        throw new WarpPipelineError(
+          (e as Error).message,
+          si,
+          step.type,
+          { cause: e },
+        );
       }
+      stopStep?.();
     }
 
     // 最終段（量子化等）が設定されている場合、encode() を適用
     if (this.finalStage) {
-      const results = new Array<OutputVector>(batchSize);
-      for (let i = 0; i < batchSize; i++) {
-        results[i] = this.finalStage!.adapter.encode(currentVectors[i]);
+      const stopFinal = this._metrics.startStep(this.finalStage.type);
+      try {
+        const results = new Array<OutputVector>(batchSize);
+        for (let i = 0; i < batchSize; i++) {
+          results[i] = this.finalStage!.adapter.encode(currentVectors[i]);
+        }
+        stopFinal?.();
+        stopBatch?.();
+        return results;
+      } catch (e) {
+        throw new WarpPipelineError(
+          (e as Error).message,
+          this.steps.length,
+          this.finalStage.type,
+          { cause: e },
+        );
       }
-      return results;
     }
 
+    stopBatch?.();
     return currentVectors;
   }
 
@@ -254,8 +385,11 @@ export class WarpPipeline {
    */
   public async *runStream(
     vectorStream: AsyncIterable<InputVector> | Iterable<InputVector>,
-    options?: { context?: RunContext; batchSize?: number },
+    options?: { context?: RunContext; batchSize?: number; maxBufferBatches?: number },
   ): AsyncGenerator<OutputVector, void, unknown> {
+    // 自動初期化
+    await this.ensureInitialized();
+
     const batchSize = options?.batchSize ?? 128;
     const context = options?.context;
     let buffer: InputVector[] = [];
@@ -263,16 +397,22 @@ export class WarpPipeline {
     for await (const vector of vectorStream) {
       buffer.push(vector);
       if (buffer.length >= batchSize) {
-        const results = this.runBatch(buffer, context);
+        // WASMメモリの排他制御付きでバッチ処理
+        const batch = buffer;
+        buffer = [];
+        const results = await wasmMutex.runExclusive(() =>
+          this.runBatch(batch, context),
+        );
         for (const res of results) {
           yield res;
         }
-        buffer = [];
       }
     }
 
     if (buffer.length > 0) {
-      const results = this.runBatch(buffer, context);
+      const results = await wasmMutex.runExclusive(() =>
+        this.runBatch(buffer, context),
+      );
       for (const res of results) {
         yield res;
       }
@@ -381,6 +521,107 @@ export class WarpPipeline {
     }
 
     return pipeline;
+  }
+
+  /**
+   * FinalStageAdapter をレジストリに登録します。
+   */
+  /**
+   * パイプラインの構成を人間が読める文字列として返します。
+   * デバッグ時にパイプラインの構成を確認するのに便利です。
+   *
+   * @example
+   * ```typescript
+   * console.log(pipeline.inspect());
+   * // Pipeline [1536-dim]
+   * //   Step 0: MlpAdapter
+   * //   Step 1: IntentAdapter
+   * //   Final: QuantizationAdapter
+   * ```
+   */
+  public inspect(): string {
+    const lines: string[] = [`Pipeline [${this.inputDim}-dim]`];
+    for (let i = 0; i < this.steps.length; i++) {
+      lines.push(`  Step ${i}: ${this.steps[i].type}`);
+    }
+    if (this.finalStage) {
+      lines.push(`  Final: ${this.finalStage.type}`);
+    }
+    if (this.steps.length === 0 && !this.finalStage) {
+      lines.push("  (empty pipeline)");
+    }
+    return lines.join("\n");
+  }
+
+  /**
+   * パイプラインの各ステップの中間出力と実行時間を返すデバッグ用メソッド。
+   * 本番環境ではなく、開発中のデバッグ・動作確認にのみ使用してください。
+   *
+   * @param vector 変換元のベースベクトル
+   * @param context コンテキスト情報
+   * @returns 各ステップの出力と実行時間の配列
+   *
+   * @example
+   * ```typescript
+   * const results = pipeline.dryRun(testVector, { intent: "tech" });
+   * results.forEach(r => {
+   *   console.log(`${r.step}: ${r.durationMs.toFixed(2)}ms, dim=${r.output.length}`);
+   * });
+   * ```
+   */
+  public dryRun(
+    vector: InputVector,
+    context?: RunContext,
+  ): DryRunStepResult[] {
+    const results: DryRunStepResult[] = [];
+
+    let currentVector: Float32Array =
+      vector instanceof Float32Array ? vector : new Float32Array(vector);
+
+    for (let i = 0; i < this.steps.length; i++) {
+      const step = this.steps[i];
+      const start = performance.now();
+      try {
+        const result = step.adapter.tune(
+          currentVector,
+          context?.intent || "default",
+        );
+        currentVector = result as Float32Array;
+        results.push({
+          step: step.type,
+          output: result,
+          durationMs: performance.now() - start,
+        });
+      } catch (e) {
+        throw new WarpPipelineError(
+          (e as Error).message,
+          i,
+          step.type,
+          { cause: e },
+        );
+      }
+    }
+
+    if (this.finalStage) {
+      const start = performance.now();
+      try {
+        const result = this.finalStage.adapter.encode(currentVector);
+        results.push({
+          step: this.finalStage.type,
+          output: result,
+          durationMs: performance.now() - start,
+        });
+      } catch (e) {
+        throw new WarpPipelineError(
+          (e as Error).message,
+          this.steps.length,
+          this.finalStage.type,
+          { cause: e },
+        );
+      }
+    }
+
+    return results;
   }
 
   /**
