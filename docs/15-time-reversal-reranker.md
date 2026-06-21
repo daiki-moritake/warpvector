@@ -1,60 +1,60 @@
-# 15. 時間反転波 (Time-Reversal Wave) リランカー
+# 15. Time-Reversal Wave Reranker
 
-`TimeReversalReranker` は、物理学における「時間反転鏡（Time-Reversal Mirror）」の原理をベクトル検索に応用した、全く新しいパラダイムの再ランク付け（Re-ranking）モジュールです。
+`TimeReversalReranker` is a re-ranking module introducing a completely new paradigm, applying the principles of a "Time-Reversal Mirror" from physics to vector search.
 
-RAG（検索拡張生成）などで「類似したドキュメントが大量にヒットしてしまい、本当に必要だった1件（真のソース）が特定できない」という課題を解決します。
+It solves the problem in RAG (Retrieval-Augmented Generation) and elsewhere where "too many similar documents are hit, making it impossible to identify the single document (the true source) that was actually needed."
 
-## 概念: なぜ時間反転なのか？
+## Concept: Why Time Reversal?
 
-通常のベクトル検索では、クエリの「意図」が埋め込み空間上で複数のドキュメントに **拡散 (Diffusion)** してしまいます。そのため、本当に探したかった「ソースドキュメント」だけでなく、その周辺にある「たまたま文脈が似ているドキュメント」も高いスコアを持ってしまいます。
+In typical vector search, the "intent" of the query **diffuses** across multiple documents in the embedding space. As a result, not only the "source document" you truly wanted to find, but also surrounding "documents with coincidentally similar contexts" end up with high scores.
 
-時間反転リランカーは、以下のプロセスでこれを解決します。
+The Time-Reversal Reranker solves this through the following process:
 
-1. **媒質の観測**: 検索でヒットした上位ドキュメント群（例えば Top-50件）同士の相互類似度を計算し、「意味がどう拡散するか」のネットワーク（マニフォールド）を構築します。
-2. **初期波面の観測**: クエリと各ドキュメントの類似度を「観測された波の振幅」とみなします。
-3. **時間反転・逆再生**: 構築したネットワーク上で、グラフラプラシアンを用いて波を「逆再生（Inverse Graph Diffusion）」します。
-4. **集光**: 拡散によってスコアを得ていた周辺ドキュメントのスコアは急激に減衰し、波源となった**「真の潜在ドキュメント」**にスコアが集中（シャープニング）します。
+1. **Medium Observation**: Calculates the mutual similarity among the top documents hit by the search (e.g., Top-50) and builds a network (manifold) of "how the meaning diffuses."
+2. **Initial Wavefront Observation**: Treats the similarity between the query and each document as the "amplitude of the observed wave."
+3. **Time-Reversal / Rewind**: "Rewinds" the wave on the constructed network using a Graph Laplacian (Inverse Graph Diffusion).
+4. **Focusing**: The scores of surrounding documents that gained points through diffusion sharply decay, while the score strongly concentrates (sharpens) on the **"true latent document"** that was the source of the wave.
 
 ---
 
-## 使い方
+## Usage
 
-通常の `WarpAdapter` とは異なり、リランカーは「クエリ」と「候補群」のペアに対して実行します。
-ベクトルDBでTop-K検索を行った後の Post-processing として使用します。特に、ベクトルDBからすでにスコア（コサイン類似度）が返却されている場合は、`initialScores` を渡すことで無駄な再計算を省略できます。
+Unlike normal `WarpAdapter`s, the reranker executes on a pair of "Query" and "Candidate Group".
+It is used as a post-processing step after performing a Top-K search in a Vector DB. Particularly, if the Vector DB has already returned scores (cosine similarity), you can omit unnecessary recalculations by passing them via `initialScores`.
 
 ```typescript
 import { TimeReversalReranker } from 'warpvector';
 
-// リランカーの初期化
+// Initialize the reranker
 const reranker = new TimeReversalReranker({
-  tau: 1.5,             // 時間反転の強さ（シャープネス）
-  threshold: 0.1,       // 候補間のグラフを疎にするための類似度しきい値
-  normalizeGraph: true, // ハブネス問題を防ぐグラフ正規化（デフォルト: true）
-  iterations: 3         // 反復計算回数（デフォルト: 1）
+  tau: 1.5,             // Strength of time reversal (sharpness)
+  threshold: 0.1,       // Similarity threshold to make the graph between candidates sparser
+  normalizeGraph: true, // Graph normalization to prevent the hubness problem (Default: true)
+  iterations: 3         // Number of iterations (Default: 1)
 });
 
-// ベクトルDB等から取得した上位候補のベクトル群
+// A group of top candidate vectors retrieved from a Vector DB, etc.
 const candidates = [
   new Float32Array([...]), // doc 1
   new Float32Array([...]), // doc 2
   // ...
 ];
 
-// パターンA: クエリベクトルを渡してスコアを計算させる場合
+// Pattern A: When passing a query vector and having it calculate the scores
 const queryVector = new Float32Array([...]);
 const resultsA = reranker.rerank(queryVector, candidates);
 
-// パターンB: DB側の検索スコアを再利用する場合（推奨・最速）
+// Pattern B: When reusing the search scores from the DB side (Recommended/Fastest)
 const initialScores = [0.95, 0.82, ...]; 
 const resultsB = reranker.rerank(null, candidates, initialScores);
 
 /*
-results は以下の形式でスコア降順にソートされています:
+results is sorted in descending order of score in the following format:
 [
   { 
     originalIndex: 1, 
-    score: 0.99,         // 時間反転後のシャープなスコア
-    initialScore: 0.82,  // 初期のコサイン類似度
+    score: 0.99,         // Sharp score after time reversal
+    initialScore: 0.82,  // Initial cosine similarity
     vector: Float32Array 
   },
   ...
@@ -64,37 +64,37 @@ results は以下の形式でスコア降順にソートされています:
 
 ---
 
-## パラメータのチューニング
+## Parameter Tuning
 
-### `tau` (時間反転の強さ)
-- デフォルトは `1.0` です。
-- **大きくする (例: 2.0 ~ 5.0)**: シャープネスが強くなります。ソースと周辺ドキュメントのスコア差が劇的に開きます。ただし、大きすぎると数値が発散気味になり、ノイズ（誤ったソース）を増幅するリスクがあります。
-- **小さくする (例: 0.1 ~ 0.5)**: マイルドな補正になります。
+### `tau` (Strength of Time Reversal)
+- Default is `1.0`.
+- **Increase (e.g., 2.0 ~ 5.0)**: Sharpness becomes stronger. The score gap between the source and surrounding documents widens dramatically. However, if set too large, numbers may diverge, risking the amplification of noise (incorrect sources).
+- **Decrease (e.g., 0.1 ~ 0.5)**: Results in a milder correction.
 
-### `iterations` (反復回数)
-- デフォルトは `1` です。
-- `tau` を大きくしすぎるとオーバーシュート（スコアの逆転現象）が起きる場合があります。これを防ぐために、`tau` を小さめ（例: `0.5`）に設定し、`iterations` を `3` に増やすことで、より滑らかで安全に焦点を結ばせることができます。
+### `iterations` (Number of Iterations)
+- Default is `1`.
+- If `tau` is too large, overshoot (score inversion) may occur. To prevent this, setting a smaller `tau` (e.g., `0.5`) and increasing `iterations` to `3` allows the focus to converge more smoothly and safely.
 
-### `normalizeGraph` (グラフの正規化)
-- デフォルトは `true` です。
-- ランダムウォーク・ラプラシアンによる正規化を行います。「他の多くのドキュメントと似ている（ハブである）」ドキュメントが不当に高いスコアを吸い上げる現象（ハブネス問題）を抑制し、計算を安定させます。特別な理由がない限り `true` のまま使用してください。
+### `normalizeGraph` (Graph Normalization)
+- Default is `true`.
+- Performs normalization using the Random Walk Laplacian. This suppresses the phenomenon where documents that are "similar to many other documents (hubs)" unfairly siphon up high scores (the hubness problem), stabilizing the calculation. Leave it as `true` unless you have a specific reason not to.
 
-### `threshold` (エッジの足切りしきい値)
-- デフォルトは `0.0` です。
-- 候補間のコサイン類似度がこの値未満の場合、グラフ上で「繋がっていない（拡散しない）」とみなします。
-- ノイズとなる微小な類似度をカットし、計算を安定させるために `0.1` や `0.2` を設定するのが有効なケースがあります。
+### `threshold` (Edge Cutoff Threshold)
+- Default is `0.0`.
+- If the cosine similarity between candidates is less than this value, they are considered "unconnected (waves do not diffuse)" on the graph.
+- Setting it to `0.1` or `0.2` is often effective to cut out minute similarities that act as noise, thereby stabilizing the calculation.
 
 ---
 
-## `SoftWhiteningAdapter` との違い
+## Differences from `SoftWhiteningAdapter`
 
-WarpVector には、よく似た名前の `SoftWhiteningAdapter` が存在します。
+WarpVector has a similarly named `SoftWhiteningAdapter`.
 
 - **`SoftWhiteningAdapter`**: 
-  - **ストリーミング学習**により、モデル全体の「空間の偏り」を時間反転（逆熱方程式）で解消します。
-  - クエリベクトル単体を事前に尖らせる「前処理（Pre-processing）」です。
+  - Resolves the "spatial bias" of the entire model via **streaming learning** using time reversal (Inverse Heat Equation).
+  - It is a "Pre-processing" step that sharpens a single query vector beforehand.
 - **`TimeReversalReranker`**:
-  - **局所的なドキュメントグラフ**を用いて、ヒットしたドキュメント群の中での「意味の拡散」を逆再生します。
-  - 検索結果をシャープにする「後処理（Post-processing / Reranking）」です。
+  - Rewinds the "semantic diffusion" among the hit documents using a **local document graph**.
+  - It is a "Post-processing / Reranking" step that sharpens the search results.
 
-実稼働のRAGシステムにおいて、これらを**組み合わせる**（アダプターでクエリを尖らせ、さらにリランカーでソースを特定する）ことで、極めて高い精度の文書特定が可能になります。
+In a production RAG system, **combining these** (sharpening the query with the adapter, then identifying the source with the reranker) enables extremely precise document identification.

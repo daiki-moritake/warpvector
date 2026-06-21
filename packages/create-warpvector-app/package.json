@@ -1,0 +1,23 @@
+{
+  "name": "create-warpvector-app",
+  "version": "0.2.0",
+  "description": "CLI to scaffold a WarpVector application",
+  "bin": {
+    "create-warpvector-app": "./bin/cli.js"
+  },
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch"
+  },
+  "dependencies": {
+    "commander": "^11.0.0",
+    "picocolors": "^1.0.0",
+    "prompts": "^2.4.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/prompts": "^2.4.4",
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0"
+  }
+}

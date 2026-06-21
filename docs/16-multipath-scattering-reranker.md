@@ -1,48 +1,48 @@
-# 16. 多重経路散乱場リランカー (Multipath Scattering Reranker)
+# 16. Multipath Scattering Reranker
 
-`MultipathScatteringReranker` は、物理学における「波動の多重経路散乱場理論」にインスパイアされた、全く新しいパラダイムの再ランク付け（Re-ranking）モジュールです。
+`MultipathScatteringReranker` is a re-ranking module introducing a completely new paradigm inspired by the "Multipath Scattering Theory of Waves" from physics.
 
-ベクトル検索において「孤立した偶然のノイズ」を排除し、「多くの関連ドキュメントを経由して繋がっている（多重反射によって支持されている）真のソース・ハブ」を特定します。
+In vector search, it eliminates "isolated accidental noise" and identifies "true source hubs connected through (and supported by multiple reflections from) many relevant documents."
 
-## 概念: なぜ多重経路散乱なのか？
+## Concept: Why Multipath Scattering?
 
-検索された上位ドキュメント群は、意味的な「ネットワーク（散乱の媒質）」を形成しています。
-通常の検索（クエリとドキュメントの直接の類似度）は、波源から「1回の反射」で返ってくる情報しか見ていません。
+The top group of searched documents forms a semantic "network (scattering medium)."
+Normal search (direct similarity between query and document) only sees information returned from the wave source via a "single reflection."
 
-しかし、本当に重要な情報（ハブ）は、他の多くの関連ドキュメントとも強く結びついています。
-このリランカーは、検索結果のグラフ上で波が何度も跳ね返る（ランダムウォークする）シミュレーションを行い、**「無限回の多重経路を経て到達する定常確率（Random Walk with Restart / Personalized PageRank）」**を計算することで、真の散乱源を逆算（特定）します。
+However, truly important information (hubs) is strongly tied to many other relevant documents as well.
+This reranker simulates waves bouncing multiple times (random walking) across the graph of search results, and by calculating the **"stationary probability reached after infinitely many multipath routes (Random Walk with Restart / Personalized PageRank),"** it inversely calculates (identifies) the true scattering source.
 
 ---
 
-## 使い方
+## Usage
 
-ベクトルDB等でTop-K検索を行った後の Post-processing（後処理）として使用します。
+It is used as a Post-processing step after performing a Top-K search in a Vector DB, etc.
 
 ```typescript
 import { MultipathScatteringReranker } from 'warpvector';
 
-// リランカーの初期化
+// Initialize the reranker
 const reranker = new MultipathScatteringReranker({
-  alpha: 0.85,          // 多重散乱の減衰率（テレポート確率の逆数）
-  threshold: 0.1,       // グラフを疎にするための類似度しきい値
-  maxIterations: 20,    // 多重反射の最大追跡回数
-  tolerance: 1e-6       // 収束判定
+  alpha: 0.85,          // Attenuation rate of multipath scattering (inverse of teleport probability)
+  threshold: 0.1,       // Similarity threshold to make the graph sparser
+  maxIterations: 20,    // Maximum number of times to track multiple reflections
+  tolerance: 1e-6       // Convergence criterion
 });
 
-// ベクトルDB等から取得した上位候補のベクトル群と初期スコア
+// Group of top candidate vectors and initial scores obtained from a Vector DB, etc.
 const candidates = [ /* ... Float32Array[] ... */ ];
 const initialScores = [ 0.95, 0.82, 0.77 /* ... */ ];
 
-// 多重経路を用いたリランキングを実行
+// Execute reranking using multiple paths
 const results = reranker.rerank(null, candidates, initialScores);
 
 /*
-results は以下の形式でスコア降順にソートされています:
+results is sorted in descending order of score in the following format:
 [
   { 
     originalIndex: 1, 
-    score: 0.15,         // 多重散乱場理論に基づく新しいスコア（定常確率）
-    initialScore: 0.82,  // 初期のコサイン類似度
+    score: 0.15,         // New score based on multipath scattering theory (Stationary probability)
+    initialScore: 0.82,  // Initial cosine similarity
     vector: Float32Array 
   },
   ...
@@ -52,31 +52,31 @@ results は以下の形式でスコア降順にソートされています:
 
 ---
 
-## パラメータのチューニング
+## Parameter Tuning
 
-### `alpha` (多重散乱の減衰率 / 伝播の深さ)
-- デフォルトは `0.85` です。これは PageRank アルゴリズムにおける減衰係数（Damping Factor）に相当します。
-- **大きくする (例: 0.9 ~ 0.95)**: 波が遠くまで減衰せずに伝わります。ネットワーク全体の構造（巨大なハブ）が重視され、クエリの直接の類似度（初期スコア）の影響が相対的に弱まります。
-- **小さくする (例: 0.1 ~ 0.5)**: 波がすぐに減衰（吸収）されます。初期のコサイン類似度に近く、ごく近傍のドキュメントの支持だけを考慮するマイルドな補正になります。
-- `0.0` にすると、全く散乱せず初期スコアのままになります。
+### `alpha` (Multipath Scattering Attenuation Rate / Depth of Propagation)
+- Default is `0.85`. This corresponds to the Damping Factor in the PageRank algorithm.
+- **Increase (e.g., 0.9 ~ 0.95)**: Waves propagate far without attenuating. The structure of the entire network (massive hubs) is emphasized, and the influence of the direct similarity of the query (initial score) becomes relatively weaker.
+- **Decrease (e.g., 0.1 ~ 0.5)**: Waves attenuate (absorb) quickly. This results in a mild correction closer to the initial cosine similarity, considering only the support of immediately neighboring documents.
+- Setting it to `0.0` means no scattering at all, leaving the initial scores as they are.
 
-### `threshold` (エッジの足切りしきい値)
-- デフォルトは `0.0` です。
-- 候補間のコサイン類似度がこの値未満の場合、グラフ上で「繋がっていない（波が散乱しない）」とみなします。
-- `0.1` 〜 `0.3` 程度を設定することで、意味の薄いノイズとなる散乱経路をカットし、よりシャープな集約が可能になります。
+### `threshold` (Edge Cutoff Threshold)
+- Default is `0.0`.
+- If the cosine similarity between candidates is less than this value, they are considered "unconnected (waves do not scatter)" on the graph.
+- Setting it around `0.1` ~ `0.3` cuts off semantically weak noise scattering paths, enabling sharper aggregation.
 
 ---
 
-## `TimeReversalReranker` との使い分け
+## Differentiating from `TimeReversalReranker`
 
-WarpVector には、物理学のアナロジーを用いたもう一つのリランカー `TimeReversalReranker` が存在します。
+WarpVector includes another reranker using a physics analogy: `TimeReversalReranker`.
 
-| 特徴 | TimeReversalReranker | MultipathScatteringReranker |
+| Feature | TimeReversalReranker | MultipathScatteringReranker |
 | :--- | :--- | :--- |
-| **物理学のアナロジー** | 時間反転鏡（逆熱方程式・波の巻き戻し） | 多重経路散乱・干渉（ランダムウォークの定常場） |
-| **数学的モデル** | グラフラプラシアンの前進オイラー法 | マルコフ連鎖上の Random Walk with Restart |
-| **挙動** | ピークが周辺のスコアを「吸い上げる」 | 多くのノードから「流れ込む」ハブを見つける |
-| **適した用途** | 類似度が全体にぼやけている時の「シャープニング」 | 孤立した外れ値を落とし、「権威ある情報」を探す時 |
+| **Physics Analogy** | Time-Reversal Mirror (Inverse Heat Equation / Wave Rewinding) | Multipath Scattering & Interference (Stationary field of Random Walk) |
+| **Mathematical Model** | Forward Euler Method on Graph Laplacian | Random Walk with Restart on a Markov Chain |
+| **Behavior** | Peaks "siphon up" surrounding scores | Finds hubs where scores "flow in" from many nodes |
+| **Suitable Use Case** | "Sharpening" when similarities are blurry overall | When you want to drop isolated outliers and find "authoritative information" |
 
-* 「とにかく最も尖った1件を見つけたい」場合は `TimeReversalReranker`。
-* 「関連する多くの情報から支持されている確かな情報を見つけたい」場合は `MultipathScatteringReranker` が適しています。
+* Use `TimeReversalReranker` if you "just want to find the single sharpest item."
+* Use `MultipathScatteringReranker` if you "want to find solid information supported by a lot of relevant information."

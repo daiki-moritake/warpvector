@@ -1,56 +1,56 @@
 # Edge Computing Search Quickstart
 
-Warpvector を用いて、Cloudflare Workers や Vercel Edge などのエッジ環境（サーバーレス環境）で、高度な検索機能（ハイブリッド検索、量子化、オンライン学習）を構築するためのクイックスタートガイドです。
+This is a quickstart guide for building advanced search features (hybrid search, quantization, online learning) in edge environments (serverless environments) like Cloudflare Workers and Vercel Edge using Warpvector.
 
-## 1. インストール
-Warpvectorはゼロ依存でTypeScriptネイティブに作られているため、エッジ環境でも追加の設定なしに動作します。
+## 1. Installation
+Because Warpvector is built zero-dependency and is TypeScript native, it runs in edge environments without any additional configuration.
 
 ```bash
 npm install warpvector
 ```
 
-## 2. エッジワーカーでの検索処理（ベクトル変換＋ハイブリッド検索）
-エッジ関数内でリクエストを受け取り、ベクトル変換からハイブリッド検索の統合までを完結させる実装例です。
+## 2. Search Processing in Edge Workers (Vector Transformation + Hybrid Search)
+This is an implementation example that receives a request within an edge function and completes everything from vector transformation to integrating hybrid search.
 
 ```typescript
 import { WarpPipeline, rrf, QuantizationAdapter } from 'warpvector';
 
-// パイプラインはエッジのグローバルスコープで初期化（コールドスタート対策）
-// WASMの初期化もここで行われます。
+// Initialize the pipeline in the edge's global scope (to mitigate cold starts)
+// WASM initialization also happens here.
 const pipeline = new WarpPipeline(1536)
   .addIntent({ "tech_domain": techWeights })
   .setFinalStage("Quantization", new QuantizationAdapter({ type: "int8", dim: 1536 }));
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    // 1. WASMの準備（すでに初期化済みの場合は即座にスキップされます）
+    // 1. Prepare WASM (if already initialized, this is instantly skipped)
     await pipeline.init(); 
 
     const url = new URL(request.url);
     const query = url.searchParams.get("q");
     
-    // 2. OpenAI 等のAPIを叩いてクエリの生のベクトルを取得
+    // 2. Call OpenAI or similar APIs to get the raw vector of the query
     const rawVector = await fetchEmbedding(query, env.OPENAI_API_KEY);
 
-    // 3. エッジ上でベクトルを意図（tech_domain）に合わせてワープ＆Int8に圧縮
+    // 3. Warp the vector to match the intent (tech_domain) and compress to Int8 on the edge
     const optimizedQuery = pipeline.run(rawVector, { intent: "tech_domain" });
 
-    // 4. 外部のベクトルDB（Pinecone等）に検索リクエストを送信
+    // 4. Send the search request to an external vector DB (like Pinecone)
     const pineconeQuery = pipeline.runAndFormat(
       optimizedQuery, 
       { format: "pinecone", topK: 10 }
     );
     const denseResultsPromise = fetchPinecone(pineconeQuery, env.PINECONE_KEY);
     
-    // 5. 同時にキーワード検索（Elasticsearch等）を実行
+    // 5. Execute keyword search (Elasticsearch, etc.) simultaneously
     const sparseResultsPromise = fetchKeywordSearch(query);
 
-    // 6. 両方の検索結果を待ち合わせ
+    // 6. Wait for both search results
     const [denseResults, sparseResults] = await Promise.all([
       denseResultsPromise, sparseResultsPromise
     ]);
 
-    // 7. エッジ上で RRF (Reciprocal Rank Fusion) によるハイブリッド検索結果の統合
+    // 7. Integrate hybrid search results on the edge using RRF (Reciprocal Rank Fusion)
     const finalResults = rrf([denseResults, sparseResults]);
 
     return new Response(JSON.stringify(finalResults), {
@@ -60,22 +60,22 @@ export default {
 };
 ```
 
-## 3. エッジでのオンライン学習（フィードバックループ）の組み込み
-ユーザーのクリックログを収集し、エッジワーカー上で直接リアルタイムに空間最適化の学習を行う設定です。
+## 3. Integrating Online Learning (Feedback Loops) at the Edge
+This is a configuration to collect user click logs and perform real-time spatial optimization learning directly on the edge worker.
 
 ```typescript
 import { FeedbackCollector, AdaptiveScheduler, TripletTrainer } from 'warpvector/ml';
 
-// 滞在時間3秒以上をポジティブとみなすコレクター
+// A collector that considers a dwell time of 3 seconds or more as positive
 const collector = new FeedbackCollector({ dwellThresholdMs: 3000 });
 const trainer = new TripletTrainer(1536);
-// バッチサイズ5で自動学習を発火させるスケジューラー
+// A scheduler that triggers automatic learning at a batch size of 5
 const scheduler = new AdaptiveScheduler(trainer, { batchSize: 5 });
 
 export async function handleUserAction(request: Request, env: Env) {
   const { queryVec, resultVecs, clickedIndex } = await request.json();
   
-  // 1. クリックログからTriplet（正解・不正解の組）を生成
+  // 1. Generate a Triplet (a correct/incorrect pair) from the click logs
   const impId = collector.recordImpression({
     queryVector: queryVec, 
     resultVectors: resultVecs, 
@@ -89,14 +89,14 @@ export async function handleUserAction(request: Request, env: Env) {
   
   const examples = collector.toTripletExamples();
   
-  // 2. 最新の重みをエッジのストレージから取得
+  // 2. Fetch the latest weights from edge storage
   const currentWeights = await env.KV_STORE.get("model_weights", "json"); 
   
-  // 3. バッチサイズ(5)に達した場合、WASMで高速に学習を実行し、重みを更新
+  // 3. Once the batch size (5) is reached, execute high-speed learning with WASM and update weights
   const updatedWeights = await scheduler.addFeedback(currentWeights, examples);
   
   if (updatedWeights) {
-    // 4. 更新された重みを保存し、次回の検索（ワープ）処理に反映
+    // 4. Save the updated weights to apply to the next search (warp) process
     await env.KV_STORE.put("model_weights", JSON.stringify(updatedWeights)); 
   }
   
@@ -104,6 +104,6 @@ export async function handleUserAction(request: Request, env: Env) {
 }
 ```
 
-## 次のステップ
-- より高度な非線形推論については [Neural Networks](./2-neural-networks.md) を参照
-- ローカルで学習した重みをサーバー側で全ユーザー分集約する `FedAvg` の仕組みについては [Feedback Loop](./13-feedback-loop.md) を参照
+## Next Steps
+- For more advanced non-linear inference, see [Neural Networks](./2-neural-networks.md)
+- For the `FedAvg` mechanism that aggregates locally learned weights for all users on the server side, see [Feedback Loop](./13-feedback-loop.md)

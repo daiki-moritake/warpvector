@@ -1,155 +1,155 @@
-# §13 フィードバックループ学習
+# §13 Feedback Loop Learning
 
-WarpVector は「使えば使うほど賢くなる」フライホイール学習機構を提供します。ユーザーの検索行動（クリック、スキップ、滞在時間）を自動的に学習データに変換し、ベクトル空間をリアルタイムに最適化します。
+WarpVector provides a flywheel learning mechanism that makes it "smarter the more it's used." It automatically converts users' search behaviors (clicks, skips, dwell time) into learning data, optimizing the vector space in real-time.
 
 ---
 
-## 概要: 3層の学習ループ
+## Overview: 3-Layer Learning Loop
 
 ```mermaid
 graph TD
-    subgraph Layer1 [Layer 1: フィードバック収集]
+    subgraph Layer1 [Layer 1: Feedback Collection]
         A[FeedbackCollector]
-        Note1[クリック/スキップを<br>Triplet/InfoNCEに変換] -.-> A
+        Note1[Convert clicks/skips<br>into Triplet/InfoNCE] -.-> A
     end
 
-    subgraph Layer2 [Layer 2: スケジュール制御]
+    subgraph Layer2 [Layer 2: Schedule Control]
         B[AdaptiveScheduler]
-        Note2[学習率を自動減衰し<br>バッチ学習を制御] -.-> B
+        Note2[Automatically decay LR<br>and control batch learning] -.-> B
     end
 
-    subgraph Layer3 [Layer 3: グローバル最適化]
+    subgraph Layer3 [Layer 3: Global Optimization]
         C[FederatedAggregator]
-        Note3[全ユーザーの重みを<br>集約しベースライン更新] -.-> C
+        Note3[Aggregate weights of all users<br>and update baseline] -.-> C
     end
 
-    A -->|学習データ| B
-    B -->|ローカル学習済み重み| C
+    A -->|Training Data| B
+    B -->|Locally Learned Weights| C
 ```
 
 ---
 
 ## FeedbackCollector
 
-ユーザーの暗黙的フィードバックを収集し、学習データに自動変換します。
+Collects implicit user feedback and automatically converts it into learning data.
 
-### 基本的な使い方
+### Basic Usage
 
 ```typescript
 import { FeedbackCollector } from "@warpvector/ml";
 
 const collector = new FeedbackCollector({
-  dwellThresholdMs: 3000,  // 3秒以上の閲覧 = positive
-  maxImpressions: 200,     // 最大保持数
+  dwellThresholdMs: 3000,  // Viewing for 3 seconds or more = positive
+  maxImpressions: 200,     // Maximum holding capacity
 });
 
-// 1. 検索結果を表示した時にインプレッションを記録
+// 1. Record an impression when search results are displayed
 const impressionId = collector.recordImpression({
-  queryVector: queryEmbedding,      // 検索クエリのベクトル
-  resultVectors: [doc1Vec, doc2Vec, doc3Vec], // 表示された結果
+  queryVector: queryEmbedding,      // The search query's vector
+  resultVectors: [doc1Vec, doc2Vec, doc3Vec], // The displayed results
   timestamp: Date.now(),
 });
 
-// 2. ユーザーのアクションを記録
-// クリック
+// 2. Record the user's action
+// Click
 collector.recordFeedback({
   impressionId,
   resultIndex: 0,
   type: "click",
 });
 
-// スキップ（表示されたが無視された）
+// Skip (displayed but ignored)
 collector.recordFeedback({
   impressionId,
   resultIndex: 2,
   type: "skip",
 });
 
-// 滞在時間
+// Dwell time
 collector.recordFeedback({
   impressionId,
   resultIndex: 1,
   type: "dwell",
-  value: 5000,  // 5秒間閲覧
+  value: 5000,  // Viewed for 5 seconds
 });
 ```
 
-### 学習データへの変換
+### Conversion to Training Data
 
 ```typescript
-// TripletTrainer 用に変換
+// Convert for TripletTrainer
 const triplets = collector.toTripletExamples();
-// → [{ anchor: queryVec, positive: clickedDoc, negative: skippedDoc }, ...]
+// -> [{ anchor: queryVec, positive: clickedDoc, negative: skippedDoc }, ...]
 
-// InfoNCETrainer 用に変換（複数 negative をまとめる）
+// Convert for InfoNCETrainer (Groups multiple negatives together)
 const infoNCE = collector.toInfoNCEExamples();
-// → [{ anchor: queryVec, positive: clickedDoc, negatives: [skip1, skip2] }, ...]
+// -> [{ anchor: queryVec, positive: clickedDoc, negatives: [skip1, skip2] }, ...]
 
-// 変換後にバッファをクリア
+// Clear the buffer after conversion
 collector.flush();
 ```
 
-### 変換ルール
+### Conversion Rules
 
-| フィードバック | 分類 | 条件 |
+| Feedback | Classification | Condition |
 |---|---|---|
-| `click` | ✅ positive | 常に |
+| `click` | ✅ positive | Always |
 | `dwell` | ✅ positive | `value >= dwellThresholdMs` |
 | `dwell` | ❌ negative | `value < dwellThresholdMs` |
-| `skip` | ❌ negative | 常に |
-| (未操作) | ❌ negative | positive が存在する場合 |
+| `skip` | ❌ negative | Always |
+| (No action) | ❌ negative | If a positive exists |
 
 ---
 
 ## AdaptiveScheduler
 
-学習率の自動減衰とバッチ学習のタイミング制御を行います。
+Performs automatic decay of the learning rate and controls the timing of batch learning.
 
 ```typescript
 import { TripletTrainer, AdaptiveScheduler } from "@warpvector/ml";
 
 const trainer = new TripletTrainer(1536);
 const scheduler = new AdaptiveScheduler(trainer, {
-  initialLearningRate: 0.01,   // 初期学習率
-  minLearningRate: 0.0001,     // 最小学習率
-  decayRate: 0.001,            // 減衰率
-  batchSize: 5,                // 5件溜まったら自動学習
-  maxBufferSize: 100,          // バッファ上限
+  initialLearningRate: 0.01,   // Initial learning rate
+  minLearningRate: 0.0001,     // Minimum learning rate
+  decayRate: 0.001,            // Decay rate
+  batchSize: 5,                // Auto-train when 5 items accumulate
+  maxBufferSize: 100,          // Buffer limit
 });
 
-// フィードバック → 学習データ → スケジューラーに投入
+// Feedback -> Training Data -> Feed to Scheduler
 const examples = collector.toTripletExamples();
 const updated = await scheduler.addFeedback(currentWeights, examples);
 
 if (updated) {
-  // batchSize に達して学習が実行された
+  // batchSize was reached and learning executed
   currentWeights = updated;
   console.log(`LR: ${scheduler.currentLearningRate}`);
   console.log(`Total steps: ${scheduler.totalSteps}`);
 }
 ```
 
-### 学習率の減衰
+### Learning Rate Decay
 
 ```
 lr(n) = max(minLR, initialLR / (1 + decayRate × n))
 ```
 
-| 学習回数 (n) | 学習率 (デフォルト設定) |
+| Iterations (n) | Learning Rate (Default Settings) |
 |---|---|
 | 0 | 0.0100 |
 | 100 | 0.0091 |
 | 1,000 | 0.0050 |
-| 10,000 | 0.0001 (下限) |
+| 10,000 | 0.0001 (Lower limit) |
 
-### 状態の永続化
+### State Persistence
 
 ```typescript
-// エクスポート（totalSteps とハイパーパラメータを保存）
+// Export (saves totalSteps and hyperparameters)
 const schedulerState = scheduler.exportState();
 localStorage.setItem("scheduler", schedulerState);
 
-// インポート（学習率の継続性を保つ）
+// Import (Maintains continuity of the learning rate)
 const restored = AdaptiveScheduler.importState(
   trainer,
   localStorage.getItem("scheduler")!,
@@ -160,42 +160,42 @@ const restored = AdaptiveScheduler.importState(
 
 ## FederatedAggregator
 
-複数ユーザーの学習結果を FedAvg で集約し、グローバルベースラインを更新します。
+Aggregates the learning results of multiple users using FedAvg to update the global baseline.
 
 ```typescript
 import { FederatedAggregator } from "@warpvector/ml";
 
 const aggregator = new FederatedAggregator(globalBaseWeights, 1536);
 
-// 各クライアントの学習済み重みを登録
+// Register each client's learned weights
 aggregator.submitUpdate({
   weights: clientAWeights,
-  interactionCount: 100,  // 100回学習 → 信頼度高
+  interactionCount: 100,  // Learned 100 times -> High confidence
 });
 
 aggregator.submitUpdate({
   weights: clientBWeights,
-  interactionCount: 25,   // 25回学習 → 信頼度低
+  interactionCount: 25,   // Learned 25 times -> Low confidence
 });
 
-// FedAvg で集約
+// Aggregate using FedAvg
 const newGlobalBase = aggregator.aggregate();
 
-// 次のラウンドの準備
+// Prepare for the next round
 aggregator.reset(newGlobalBase);
 ```
 
-### 集約アルゴリズム (FedAvg)
+### Aggregation Algorithm (FedAvg)
 
 ```
 W_new = W_base + Σ (count_i / total_count) × (W_i − W_base)
 ```
 
-`interactionCount` が多いクライアントほど、集約結果への寄与が大きくなります。
+Clients with a higher `interactionCount` contribute more to the aggregated result.
 
 ---
 
-## 実践例: E コマース検索の全体フロー
+## Practical Example: E-Commerce Search Overall Flow
 
 ```typescript
 import {
@@ -205,7 +205,7 @@ import {
 } from "@warpvector/ml";
 import { IntentAdapter } from "@warpvector/core";
 
-// 初期化
+// Initialization
 const dim = 1536;
 const collector = new FeedbackCollector();
 const trainer = new TripletTrainer(dim);
@@ -214,21 +214,21 @@ const adapter = new IntentAdapter(dim);
 
 let weights = loadWeightsFromStorage() ?? adapter.getIdentityWeights();
 
-// --- ユーザーが検索するたび ---
+// --- Every time a user searches ---
 
-// 1. 検索結果を表示
+// 1. Display search results
 const impId = collector.recordImpression({
   queryVector: await embed(query),
   resultVectors: results.map(r => r.vector),
   timestamp: Date.now(),
 });
 
-// 2. クリックイベント
+// 2. Click event
 onResultClick((index) => {
   collector.recordFeedback({ impressionId: impId, resultIndex: index, type: "click" });
 });
 
-// 3. 定期的に学習
+// 3. Learn periodically
 async function learnFromFeedback() {
   const examples = collector.toTripletExamples();
   if (examples.length === 0) return;
@@ -242,6 +242,6 @@ async function learnFromFeedback() {
   collector.flush();
 }
 
-// 4. 30秒ごとに学習を実行
+// 4. Execute learning every 30 seconds
 setInterval(learnFromFeedback, 30_000);
 ```

@@ -1,58 +1,57 @@
+# Task Vector Arithmetic (Task Arithmetic)
 
-# タスクベクトル演算 (Task Arithmetic)
+## Overview
 
-## 概要
+Task Arithmetic is a technique that adds or subtracts the weights (`IntentWeights`) of multiple pre-trained adapters as "task vectors" to synthesize a new, static adapter matrix with zero overhead at inference time.
 
-Task Arithmetic は、複数の学習済みアダプタの重み（`IntentWeights`）を「タスクベクトル」として加減算し、新しい静的アダプタ行列を推論時ゼロオーバーヘッドで合成する手法です。
-
-数式:
+Formula:
 $$W_{\text{new}} = W_{\text{base}} + \sum_i \text{scale}_i \cdot (W_i - W_{\text{base}})$$
 
-これにより、推論時に複数のアダプタを順番に適用する必要なく、単一のマージ済み行列で即座に変換できます。
+This allows you to instantly transform using a single merged matrix, rather than needing to sequentially apply multiple adapters during inference.
 
-## ユースケース
+## Use Cases
 
-1. **マルチドメイン検索**: 法律・金融・医療など個別に学習した重みを、指定の割合でマージ
-2. **A/B テスト**: 異なるドメイン適応の重みを混ぜ合わせて検索品質を評価
-3. **負のスケール**: `scale: -0.5` で特定ドメインの影響を逆方向に打ち消す
+1. **Multi-domain Search**: Merge separately learned weights for law, finance, medicine, etc., at specified ratios.
+2. **A/B Testing**: Mix weights from different domain adaptations to evaluate search quality.
+3. **Negative Scaling**: Cancel out the influence of a specific domain in the opposite direction using `scale: -0.5`.
 
-## 使い方
+## Usage
 
-### 基本的なマージ
+### Basic Merging
 
 ```typescript
 import { TaskArithmetic } from '@warpvector/extras';
 
-// 「法律ドメイン」と「金融ドメイン」の学習済み重みをマージ
+// Merge pre-trained weights from the "Legal Domain" and "Finance Domain"
 const mergedWeights = TaskArithmetic.merge([
-  { weights: legalWeights, scale: 0.7 },   // 法律を70%
-  { weights: financeWeights, scale: 0.3 },  // 金融を30%
+  { weights: legalWeights, scale: 0.7 },   // 70% Legal
+  { weights: financeWeights, scale: 0.3 },  // 30% Finance
 ]);
 
-// マージされた重みは通常の IntentWeights として即座に使用可能
+// The merged weights can be used immediately as normal IntentWeights
 adapter.addIntent("legal_finance", mergedWeights);
 ```
 
-### ベース意図を指定したマージ
+### Merging with a Specified Base Intent
 
 ```typescript
-// カスタムのベース意図を基準に、差分を合成
+// Synthesize the differences relative to a custom base intent
 const mergedWeights = TaskArithmetic.merge(
   [
     { weights: specializedWeights1, scale: 0.5 },
     { weights: specializedWeights2, scale: 0.5 },
   ],
-  baseWeights // ベースとなる意図の重み (省略時は恒等行列)
+  baseWeights // The weights of the base intent (defaults to the identity matrix if omitted)
 );
 ```
 
-### 負のスケール（タスクの打ち消し）
+### Negative Scaling (Task Cancellation)
 
 ```typescript
-// 「雑音」タスクの影響を反転させて打ち消す
+// Invert and cancel out the influence of a "noise" task
 const denoisedWeights = TaskArithmetic.merge([
   { weights: goodTaskWeights, scale: 1.0 },
-  { weights: noiseTaskWeights, scale: -0.3 }, // マイナススケールで打ち消し
+  { weights: noiseTaskWeights, scale: -0.3 }, // Cancel out with a negative scale
 ]);
 ```
 
@@ -60,14 +59,14 @@ const denoisedWeights = TaskArithmetic.merge([
 
 ### `TaskArithmetic.merge(tasks, baseIntent?)`
 
-| 引数 | 型 | 説明 |
+| Argument | Type | Description |
 |---|---|---|
-| `tasks` | `TaskConfig[]` | 合成するタスクのリスト |
-| `baseIntent` | `IntentWeights?` | 基準となる重み。省略時は恒等行列 + ゼロバイアス |
+| `tasks` | `TaskConfig[]` | List of tasks to synthesize |
+| `baseIntent` | `IntentWeights?` | Baseline weights. If omitted, uses the identity matrix + zero bias |
 
 #### `TaskConfig`
 
-| フィールド | 型 | 説明 |
+| Field | Type | Description |
 |---|---|---|
-| `weights` | `IntentWeights` | 学習済みの重み |
-| `scale` | `number` | スケール係数。1.0 が標準、マイナスで逆効果 |
+| `weights` | `IntentWeights` | Pre-trained weights |
+| `scale` | `number` | Scaling factor. 1.0 is standard, negative values have the opposite effect |

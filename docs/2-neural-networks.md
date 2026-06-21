@@ -1,65 +1,65 @@
-# ニューラルネットワーク (Neural Networks)
+# Neural Networks
 
-WarpVector は、単なる線形変換（行列の掛け算）だけでなく、**多層パーセプトロン (MLP: Multi-Layer Perceptron)** や **非線形活性化関数** による高度な空間変形をサポートしています。
+WarpVector supports not only simple linear transformations (matrix multiplications) but also advanced spatial deformations using **Multi-Layer Perceptrons (MLP)** and **Non-linear Activation Functions**.
 
 ## 1. MlpAdapter
 
-`MlpAdapter` は、事前学習済みモデルの出力を、複数の層と非線形な関数を用いて複雑に曲げ込み、より高次な意味の切り分けを可能にします。
-WASM (WebAssembly) に最適化されており、TensorFlow.js や PyTorch のような重い機械学習フレームワークを読み込むことなく、ブラウザやエッジ環境で爆速のニューラルネット推論を実行できます。
+`MlpAdapter` takes the output from a pre-trained model and bends it intricately using multiple layers and non-linear functions, allowing for the segmentation of higher-order meanings.
+Optimized for WASM (WebAssembly), it allows you to run blazing-fast neural network inference in browsers or edge environments without loading heavy machine learning frameworks like TensorFlow.js or PyTorch.
 
-### 特徴
-- **任意層のネットワーク構築**: 入力層から出力層まで、任意の次元数と活性化関数を組み合わせて定義可能。
-- **シームレスな統合**: 他の `WarpAdapter` と同じ `tune()` インターフェースを持つため、PrismaやLangChainのプラグインとして透過的に動きます。
-- **WASM 駆動**: ネットワーク全体がひとつの WASM モジュール内で完結して実行されるため、JSのガベージコレクションによる遅延が発生しません。
+### Features
+- **Arbitrary Layer Network Construction**: Define any combination of dimensions and activation functions from the input layer to the output layer.
+- **Seamless Integration**: Has the same `tune()` interface as other `WarpAdapter`s, so it runs transparently as a plugin for Prisma or LangChain.
+- **WASM-Driven**: The entire network executes completely within a single WASM module, eliminating delays caused by JS garbage collection.
 
-### 基本的な使い方
+### Basic Usage
 
 ```typescript
 import { MlpAdapter } from 'warpvector';
 
-// 1536次元の入力を受け取り、128次元の中間層を経て、2次元（例：座標）に出力する2層ニューラルネットワーク
+// A 2-layer neural network that takes a 1536-dimensional input, passes through a 128-dimensional hidden layer, and outputs 2 dimensions (e.g., coordinates)
 const mlp = new MlpAdapter([
   { inputDim: 1536, outputDim: 128, activation: "relu" },
   { inputDim: 128, outputDim: 2, activation: "linear" }
 ]);
 
-// 第1層 (1536 -> 128) の重みを設定
+// Set the weights for the 1st layer (1536 -> 128)
 mlp.setLayerWeights(0, matrixLayer1, biasLayer1);
 
-// 第2層 (128 -> 2) の重みを設定
+// Set the weights for the 2nd layer (128 -> 2)
 mlp.setLayerWeights(1, matrixLayer2, biasLayer2);
 
-const baseVector = /* OpenAI等から取得した1536次元ベクトル */;
+const baseVector = /* 1536-dimensional vector obtained from OpenAI, etc. */;
 
-// 超高速非線形推論 (WASM内での一貫処理)
+// Ultra-fast non-linear inference (consistent processing inside WASM)
 const outputVector = mlp.tune(baseVector); // Float32Array(2)
 ```
 
-## 2. 非線形活性化関数 (Activation Functions)
+## 2. Non-linear Activation Functions
 
-線形変換だけでは表現しきれない「空間の歪み」を表現するために、各コアアダプタ（`IntentAdapter` や `MlpAdapter` 等）は変換後の非線形活性化関数の適用をサポートしています。
+To express "spatial distortions" that cannot be fully captured by linear transformations alone, each core adapter (such as `IntentAdapter` and `MlpAdapter`) supports the application of non-linear activation functions after the transformation.
 
-### サポートされている関数
+### Supported Functions
 
-- **`relu`**: 負の値を0にする（特徴のスパース化）
-- **`sigmoid`**: 値を 0.0 〜 1.0 の範囲に滑らかに収める
-- **`tanh`**: 値を -1.0 〜 1.0 の範囲に滑らかに収める
-- **`linear`** (デフォルト): 何も変換しない
+- **`relu`**: Sets negative values to 0 (sparsifies features)
+- **`sigmoid`**: Smoothly squashes values into the 0.0 to 1.0 range
+- **`tanh`**: Smoothly squashes values into the -1.0 to 1.0 range
+- **`linear`** (default): No transformation applied
 
-### 例: IntentAdapter での活性化関数の使用
+### Example: Using an Activation Function with IntentAdapter
 
-`tune` や `tuneBatch` メソッドの第3引数として活性化関数を指定するだけで、自動的に適用されます。WASM利用時はWASM内部でインライン展開されて処理されるため、オーバーヘッドがゼロです。
+Just specify the activation function as the third argument in the `tune` or `tuneBatch` methods, and it will be applied automatically. When using WASM, it is expanded and processed inline within WASM, meaning there is zero overhead.
 
 ```typescript
 import { IntentAdapter } from 'warpvector';
 
 const adapter = new IntentAdapter(myIntents);
 
-// ReLU関数を通して負のノイズ成分をカットする
+// Cuts off negative noise components by passing them through the ReLU function
 const activatedVector = adapter.tune(baseVector, "riskAnalysis", "relu");
 ```
 
-### なぜ非線形変換が必要か？
+### Why are Non-linear Transformations Necessary?
 
-単純な検索ではコサイン類似度が一般的ですが、文書が「肯定か否定か」といった鋭い境界線を持つ場合、線形な空間のままでは綺麗に分離できないことがあります。
-MLPや非線形活性化関数を使うことで、空間を曲げて特定のクラスタ同士を引き離し、意図した検索結果だけを「手前に引き寄せる」高度な検索チューニングが可能になります。
+In simple searches, cosine similarity is common. However, when documents have sharp boundaries such as "positive vs. negative", a linear space might not be able to separate them cleanly.
+By using MLPs or non-linear activation functions, you can bend the space to pull specific clusters apart, enabling advanced search tuning that "draws" only the intended search results closer.

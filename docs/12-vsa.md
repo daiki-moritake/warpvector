@@ -1,52 +1,51 @@
+# Hyperdimensional Computing / VSA (Vector Symbolic Architecture)
 
-# 超次元計算 / VSA (Vector Symbolic Architecture)
+## Overview
 
-## 概要
+`VsaAdapter` provides operations for Vector Symbolic Architecture (VSA) / Hyperdimensional Computing.
 
-`VsaAdapter` は、ベクトル・シンボリック・アーキテクチャ (VSA) / 超次元計算 (Hyperdimensional Computing) の演算を提供します。
+By logically and mathematically combining (binding) or aggregating (bundling) vectors together, you can embed keys and values (like metadata) into a single dense vector, allowing you to perform operations directly on the search space.
 
-ベクトル同士を論理的・数学的に結合（バインド）したり束ねたり（バンドル）することで、1つの密ベクトルの中にキーと値（メタデータなど）を埋め込み、検索空間上でそのまま演算を行えるようにします。
+## 3 Basic Operations
 
-## 3つの基本演算
+### 1. Bundle (Superposition)
 
-### 1. バンドル (Bundle / Superposition)
-
-複数のベクトルを足し合わせ（重ね合わせ）、1つのベクトルに統合します。「A と B の両方の概念を含む」ベクトルを作る際に使います。
+Adds (superposes) multiple vectors together to integrate them into a single vector. Used when creating a vector that "contains both concepts A and B".
 
 ```typescript
 import { VsaAdapter } from '@warpvector/extras';
 
-// 「科学」と「技術」の概念を統合
+// Integrate the concepts of "Science" and "Technology"
 const sciTech = VsaAdapter.bundle([scienceVec, technologyVec]);
-// sciTech は両方にコサイン類似度が高い
+// sciTech has high cosine similarity to both
 ```
 
-### 2. バインド (Bind / Hadamard Product)
+### 2. Bind (Hadamard Product)
 
-アダマール積（要素ごとの積）により、2つのベクトルを「結合」します。キー（ユーザーID）と値（好み）を掛け合わせて、特有のベクトルを生成します。
+"Combines" two vectors using the Hadamard product (element-wise product). By multiplying a key (User ID) and a value (Preference), it generates a unique vector.
 
 ```typescript
-// ユーザーIDベクトルと好みベクトルを結合
+// Combine a User ID vector and a Preference vector
 const bound = VsaAdapter.bind(userIdVec, preferenceVec);
 ```
 
-### 3. アンバインド (Unbind)
+### 3. Unbind
 
-バインドされたベクトルから、片方のキーを使って元の値を取り出します。
+Extracts the original value from a bound vector using one of the keys.
 
 ```typescript
-// ユーザーIDベクトルをキーとして、好みベクトルを抽出
+// Extract the Preference vector using the User ID vector as the key
 const recovered = VsaAdapter.unbind(bound, userIdVec);
-// recovered ≈ preferenceVec (近似的に復元)
+// recovered ≈ preferenceVec (Approximately recovered)
 ```
 
-## Binary VSA (XOR演算)
+## Binary VSA (XOR Operations)
 
-`QuantizationAdapter` で 1-bit (Binary) 量子化された `Uint8Array` ベクトルに対する超高速な VSA 演算です。XOR 演算により、極小メモリでの超高速処理が可能です。
+These are ultra-fast VSA operations for `Uint8Array` vectors that have been 1-bit (Binary) quantized using `QuantizationAdapter`. By using XOR operations, extremely high-speed processing with minimal memory is possible.
 
 ### bindBinary / unbindBinary
 
-XOR の自己逆性 (`A ^ B ^ B = A`) を利用して、バインドとアンバインドを実行します。
+Performs binding and unbinding utilizing the self-inverse property of XOR (`A ^ B ^ B = A`).
 
 ```typescript
 const binaryBound = VsaAdapter.bindBinary(binKey, binValue);
@@ -54,56 +53,56 @@ const binaryRecovered = VsaAdapter.unbindBinary(binaryBound, binKey);
 // binaryRecovered === binValue
 ```
 
-### bundleBinary (多数決投票)
+### bundleBinary (Majority Vote)
 
-複数のバイナリベクトルを重ね合わせます。各ビット位置で 1 と 0 の多数決 (Majority Vote) により最終ビットを決定します。
+Superposes multiple binary vectors. Determines the final bit through a Majority Vote of 1s and 0s at each bit position.
 
 ```typescript
 const merged = VsaAdapter.bundleBinary([bin1, bin2, bin3]);
 ```
 
-## ユースケース
+## Use Cases
 
-### メタデータの埋め込み検索
+### Embedded Metadata Search
 
-ベクトルにメタデータを埋め込み、検索と属性フィルタリングを同時に実行する例:
+An example of embedding metadata into vectors to perform search and attribute filtering simultaneously:
 
 ```typescript
-// 1. 各属性をキーベクトルとバインド
+// 1. Bind each attribute with a key vector
 const categoryBound = VsaAdapter.bind(categoryKeyVec, categoryValueVec);
 const priceBound = VsaAdapter.bind(priceKeyVec, priceRangeVec);
 
-// 2. 元のベクトルとメタデータをバンドル
+// 2. Bundle the original vector and the metadata
 const enrichedDoc = VsaAdapter.bundle([
   documentVec,
   categoryBound,
   priceBound,
 ]);
 
-// 3. 検索時に特定のメタデータを抽出
+// 3. Extract specific metadata during search
 const extractedCategory = VsaAdapter.unbind(enrichedDoc, categoryKeyVec);
 ```
 
 ## API
 
-### 密ベクトル演算
+### Dense Vector Operations
 
-| メソッド | 説明 |
+| Method | Description |
 |---|---|
-| `VsaAdapter.bundle(vectors, options?)` | 複数ベクトルの重ね合わせ（L2正規化付き） |
-| `VsaAdapter.bind(vec1, vec2, options?)` | アダマール積によるバインド |
-| `VsaAdapter.unbind(boundVec, keyVec, options?)` | 要素ごとの除算によるアンバインド |
+| `VsaAdapter.bundle(vectors, options?)` | Superpose multiple vectors (with L2 normalization) |
+| `VsaAdapter.bind(vec1, vec2, options?)` | Bind via Hadamard Product |
+| `VsaAdapter.unbind(boundVec, keyVec, options?)` | Unbind via element-wise division |
 
-### バイナリベクトル演算
+### Binary Vector Operations
 
-| メソッド | 説明 |
+| Method | Description |
 |---|---|
-| `VsaAdapter.bindBinary(bin1, bin2)` | XOR によるバイナリバインド |
-| `VsaAdapter.unbindBinary(boundBin, keyBin)` | XOR の自己逆性による抽出 |
-| `VsaAdapter.bundleBinary(bins)` | 多数決投票によるバイナリバンドル |
+| `VsaAdapter.bindBinary(bin1, bin2)` | Binary bind via XOR |
+| `VsaAdapter.unbindBinary(boundBin, keyBin)` | Extract via XOR's self-inverse property |
+| `VsaAdapter.bundleBinary(bins)` | Binary bundle via Majority Vote |
 
 ### VsaOptions
 
-| フィールド | 型 | デフォルト | 説明 |
+| Field | Type | Default | Description |
 |---|---|---|---|
-| `shouldNormalize` | `boolean` | `true` | 結果をL2正規化するか |
+| `shouldNormalize` | `boolean` | `true` | Whether to L2 normalize the result |

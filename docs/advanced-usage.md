@@ -1,82 +1,82 @@
-# Advanced Usage (高度な使い方)
+# Advanced Usage
 
-`warpvector` に備わっているより高度なユースケースや、パフォーマンスを極限まで引き出すための機能を紹介します。
+This section introduces more advanced use cases of `warpvector` and features designed to maximize performance.
 
 ---
 
-## 1. 非線形活性化関数 (Non-linear Activations)
+## 1. Non-linear Activations
 
-単純なアフィン変換（線形）だけでは表現しきれない複雑な概念の切り分けを行うため、`tune` などの関数にはオプションで **非線形活性化関数** を指定できます。
+Because simple affine transformations (linear) cannot fully separate complex concepts, functions like `tune` allow you to optionally specify a **non-linear activation function**.
 
 ```typescript
-// 負の値を0に切り捨てる (ReLU)
+// Truncate negative values to 0 (ReLU)
 const reluVector = adapter.tune(baseVector, "riskAnalysis", "relu");
 
-// 空間を 0.0 〜 1.0 の範囲に圧縮する (Sigmoid)
+// Compress the space into the 0.0 ~ 1.0 range (Sigmoid)
 const sigmoidVector = adapter.tune(baseVector, "riskAnalysis", "sigmoid");
 
-// 空間を -1.0 〜 1.0 の範囲に圧縮する (Tanh)
+// Compress the space into the -1.0 ~ 1.0 range (Tanh)
 const tanhVector = adapter.tune(baseVector, "riskAnalysis", "tanh");
 ```
 
 ---
 
-## 2. 自己アテンション型動的ブレンド (Auto-blending)
+## 2. Auto-blending
 
-ユーザーが「リスク分析を70%、経済影響を30%で検索したい」と明示しなくても、入力されたクエリベクトル自身の意味合いから、自動で最も適したインテント比率を推論・合成することができます。
+Even if the user doesn't explicitly state "I want to search with 70% risk analysis and 30% economic impact," the system can automatically infer and synthesize the most appropriate intent ratio directly from the meaning of the input query vector itself.
 
-これを利用するには、各インテントの初期化時に `routingVector`（そのインテントを代表するベクトル）を設定します。
+To use this, you set a `routingVector` (a representative vector for that intent) when initializing each intent.
 
 ```typescript
 const adapter = new IntentAdapter({
   intentA: {
     matrix: [...], bias: [...],
-    routingVector: [1.0, 0.0, 0.0] // intentA を表す代表ベクトル
+    routingVector: [1.0, 0.0, 0.0] // Representative vector for intentA
   },
   intentB: {
     matrix: [...], bias: [...],
-    routingVector: [0.0, 1.0, 0.0] // intentB を表す代表ベクトル
+    routingVector: [0.0, 1.0, 0.0] // Representative vector for intentB
   }
 });
 
-// クエリベクトルの中身に基づいて、自動的に intentA と intentB の比率を
-// コサイン類似度 + Softmax で計算し、ブレンド変換を適用する
+// Automatically calculates the ratio of intentA and intentB using Cosine Similarity + Softmax 
+// based on the query vector's content, and applies the blended transformation
 const autoTuned = adapter.tuneAutoBlended(queryVector);
 ```
 
 ---
 
-## 3. WASM / SIMD による超高速バッチ処理
+## 3. Ultra-fast Batch Processing with WASM / SIMD
 
-Pinecone などのベクトルデータベースから10,000件のデータを取得し、フロントエンドやエッジサーバーで再ランキング（リランキング）するようなユースケースにおいて、`for`ループによる単一変換はボトルネックになる可能性があります。
+In use cases where you retrieve 10,000 records from a vector database like Pinecone and re-rank them on the frontend or edge server, single transformations using a `for` loop can become a bottleneck.
 
-`warpvector` では `tuneBatch` や `tuneBatchBlended` を呼び出すと、内部で自動的に WebAssembly (WASM) モジュールが呼び出されます。
+In `warpvector`, calling `tuneBatch` or `tuneBatchBlended` automatically invokes the WebAssembly (WASM) module internally.
 
 ```typescript
-// ベクトルの配列（バッチ）
+// Array of vectors (batch)
 const batchVectors = [
   [0.1, 0.2, 0.3],
   [0.4, 0.5, 0.6],
-  // ... 10,000件のデータ
+  // ... 10,000 records
 ];
 
-// 内部でWASMの共有メモリに一括転送され、Float32による最適化された計算が実行される
+// Internally transferred in bulk to WASM shared memory, executing optimized Float32 calculations
 const tunedBatch = adapter.tuneBatch(batchVectors, "riskAnalysis");
 ```
-ユーザー側でWASMのロードやメモリ管理を意識する必要はありません。ブラウザでも、Node.jsでも、Cloudflare Workersでもシームレスに動作します。
+You don't need to worry about loading WASM or managing memory on the user side. It works seamlessly in the browser, Node.js, and Cloudflare Workers.
 
 ---
 
-## 4. LoRA アダプターによる超高次元ベクトルの最適化
+## 4. Optimizing Ultra-High Dimensional Vectors with LoRA Adapters
 
-OpenAIの `text-embedding-3-small` (1536次元) のような超高次元ベクトルの場合、通常の `IntentAdapter` では `1536 x 1536`（約2.36百万パラメータ）のフルマトリックスが必要となり、メモリと計算量が増加します。
+For ultra-high dimensional vectors like OpenAI's `text-embedding-3-small` (1536 dimensions), a normal `IntentAdapter` requires a full matrix of `1536 x 1536` (about 2.36 million parameters), increasing memory and computational complexity.
 
-`LoraIntentAdapter` は、このフルマトリックスを「低ランク」の行列A・行列Bに分解（例：ランク16）することで、表現力を維持したままパラメータ数を 1536 * 16 * 2 = 49,152（約98%削減）に圧縮します。
+`LoraIntentAdapter` decompresses this full matrix into "low-rank" matrices A and B (e.g., rank 16), maintaining expressive power while compressing the parameter count to 1536 * 16 * 2 = 49,152 (about a 98% reduction).
 
 ```typescript
 import { LoraIntentAdapter } from 'warpvector';
 
-// 次元数 1536, ランク 16 で初期化
+// Initialize with 1536 dimensions, rank 16
 const loraAdapter = new LoraIntentAdapter(1536, 16);
 
 loraAdapter.addIntent("myContext", {
@@ -87,128 +87,128 @@ loraAdapter.addIntent("myContext", {
 
 const tuned = loraAdapter.tune(baseVector, "myContext");
 ```
-大規模言語モデル（LLM）のファインチューニングで使われる手法を、そのままインメモリのベクトル検索空間に応用しています。
+This applies the techniques used in Large Language Model (LLM) fine-tuning directly to in-memory vector search spaces.
 
 ---
 
-## 5. IntentTrainer による意図行列の自動学習 (Auto-training)
+## 5. Auto-training Intent Matrices with IntentTrainer
 
-巨大な変換行列を手動で定義することは困難です。`IntentTrainer` を使えば、「この入力ベクトルには、この結果ベクトルを返してほしい」という少量のサンプルデータから、**最適な意図行列（IntentWeights）を自動的に学習**することができます。
+Manually defining massive transformation matrices is difficult. By using `IntentTrainer`, you can **automatically learn the optimal intent matrix (IntentWeights)** from a small amount of sample data representing "for this input vector, I want this result vector returned."
 
 ```typescript
 import { IntentTrainer } from 'warpvector';
 
-// 1. 次元数を指定してトレーナーを初期化
+// 1. Initialize the trainer by specifying the dimensionality
 const trainer = new IntentTrainer(1536);
 
-// 2. 学習データ（正例）を追加
+// 2. Add training data (positive examples)
 trainer.addExample({
-  input: [...],  // 検索クエリのベクトル
-  target: [...]  // 理想的なドキュメントのベクトル
+  input: [...],  // Search query vector
+  target: [...]  // Ideal document vector
 });
 
-// 3. 確率的勾配降下法(SGD)で最適な行列(W)とバイアス(b)を学習
+// 3. Learn the optimal matrix (W) and bias (b) using Stochastic Gradient Descent (SGD)
 const learnedWeights = trainer.train({
   learningRate: 0.05,
   epochs: 200,
   regularization: 0.001
 });
 
-// 4. 学習した行列をアダプターに組み込む
+// 4. Integrate the learned matrix into the adapter
 adapter.addIntent("user_personalized_intent", learnedWeights);
 ```
 
-### オンライン学習 (フィードバックループ)
-ユーザーが検索結果をクリックするたびに、リアルタイムで行列を微調整（学習）することも可能です。
+### Online Learning (Feedback Loop)
+It is also possible to fine-tune (learn) the matrix in real-time every time a user clicks on a search result.
 
 ```typescript
-// ユーザーがクリックした結果のベクトル (理想のベクトル)
+// The vector of the result the user clicked (Ideal vector)
 const clickedVector = [...];
 
-// 現在の意図行列を1ステップだけ更新（微調整）
+// Update (fine-tune) the current intent matrix by just one step
 const updatedWeights = trainer.updateOnline(
-  currentWeights, // 現在の IntentWeights
-  queryVector,    // 入力したクエリ
-  clickedVector,  // クリックした対象
-  0.01            // 学習率 (小さめに設定)
+  currentWeights, // Current IntentWeights
+  queryVector,    // Input query
+  clickedVector,  // Clicked target
+  0.01            // Learning rate (set low)
 );
 
-// 更新された意図を適用
+// Apply the updated intent
 adapter.addIntent("user_personalized_intent", updatedWeights);
 ```
-これにより、システムを使えば使うほど、個人の意図（コンテキスト）に寄り添って検索空間が賢くなる体験を提供できます。
+With this, the more the system is used, the smarter the search space becomes, closely aligning with individual intents (contexts).
 
 ---
 
-## 6. バイナリ・シリアライズ (超軽量保存と復元)
+## 6. Binary Serialization (Ultra-lightweight Save and Restore)
 
-学習した巨大な意図行列をJSONとして保存するとファイルサイズが膨大になり、パース処理（`JSON.parse`）でメモリと時間を大量に消費します。`warpvector` は超軽量の **バイナリフォーマット (Uint8Array)** による高速なシリアライズをサポートしています。
+Saving a massive learned intent matrix as JSON results in huge file sizes, consuming massive memory and time during parsing (`JSON.parse`). `warpvector` supports ultra-fast serialization using a highly lightweight **binary format (Uint8Array)**.
 
-### エクスポート (保存)
+### Export (Save)
 ```typescript
-// 学習済み、または定義済みの意図をバイナリとして抽出
+// Extract a learned or predefined intent as binary
 const binaryData: Uint8Array = adapter.exportIntentBinary("user_personalized_intent");
 
-// (Node.js/Bun 環境の場合、ファイルシステムへ保存)
+// (For Node.js/Bun environments, save to the file system)
 import * as fs from "fs";
 fs.writeFileSync("user_intent.wrpv", binaryData);
 ```
 
-### インポート (復元)
+### Import (Restore)
 ```typescript
 import { IntentAdapter } from "warpvector";
 
-// (Node.js/Bun 環境の場合、ファイルから読み込み)
+// (For Node.js/Bun environments, read from file)
 import * as fs from "fs";
 const loadedBinary = fs.readFileSync("user_intent.wrpv");
 
-// 次元数だけを指定して空の Adapter を作成
+// Create an empty adapter specifying only the dimensionality
 const adapter = new IntentAdapter(1536);
 
-// バイナリデータをロードし、新しい意図として登録（JSONパース不要で超高速）
+// Load the binary data and register it as a new intent (Ultra-fast, no JSON parsing required)
 adapter.importIntentBinary("restored_intent", loadedBinary);
 
-// すぐに推論に使用可能
+// Ready for inference immediately
 const result = adapter.tune(queryVector, "restored_intent");
 ```
-この機能は、エッジ環境（Cloudflare Workers など）にユーザーのパーソナライズデータを高速で読み込ませたい場合に絶大な威力を発揮します。
+This feature is immensely powerful when you want to load a user's personalized data at high speed in edge environments (like Cloudflare Workers).
 
 ---
 
-## 7. MigrationTrainer による異なる埋め込みモデル間の移行
+## 7. Migration Between Different Embedding Models via MigrationTrainer
 
-AI開発において、埋め込みモデルのアップデート（例: `text-embedding-ada-002` から `text-embedding-3-small` へ移行）は、数千万件のデータをAPIに投げ直す必要があり、コストと時間の大きな壁となります。
+In AI development, updating an embedding model (e.g., migrating from `text-embedding-ada-002` to `text-embedding-3-small`) requires resending tens of millions of records to the API, creating a massive barrier in cost and time.
 
-`MigrationTrainer` は、**「古いモデルの空間」から「新しいモデルの空間」への翻訳行列（プロジェクション）**を自動で学習します。共通のテキストを両方のモデルでベクトル化した少数のペアデータ（アンカー）を用意するだけで、既存のデータベースのベクトルを「新しいモデルの空間」にインメモリでワープさせることができます。
+`MigrationTrainer` automatically learns a **translation matrix (projection) from the "old model's space" to the "new model's space"**. By simply preparing a small number of pair data (anchors) that vectorize common text with both models, you can warp the vectors in your existing database into the "new model's space" in memory.
 
-### 移行行列の学習
+### Learning the Migration Matrix
 ```typescript
 import { MigrationTrainer, ProjectionAdapter } from "warpvector";
 
-// 旧モデル(例: 1536次元) から 新モデル(例: 512次元) へのマイグレーション
+// Migration from the Old Model (e.g., 1536 dim) to the New Model (e.g., 512 dim)
 const trainer = new MigrationTrainer(1536, 512);
 
-// 少数のアンカーとなるベクトルペアを追加
+// Add a small number of anchor vector pairs
 trainer.addExample({
-  source: [...], // 旧モデル (ada-002) でエンコードしたベクトル
-  target: [...]  // 新モデル (3-small) でエンコードしたベクトル
+  source: [...], // Vector encoded with the old model (ada-002)
+  target: [...]  // Vector encoded with the new model (3-small)
 });
 
-// Momentum-SGD で翻訳行列を学習
+// Learn the translation matrix using Momentum-SGD
 const learnedWeights = trainer.train({
   learningRate: 0.05,
   epochs: 300
 });
 
 // ---------------------------------------------------------
-// 学習した重みを ProjectionAdapter にセットして使用
+// Set the learned weights into a ProjectionAdapter and use
 // ---------------------------------------------------------
 const adapter = new ProjectionAdapter(1536, 512);
 adapter.addProjection("migrate_to_v3", learnedWeights);
 
-// 古いデータベースから取得したベクトルを、新しいモデルの空間へワープ変換！
+// Warp-transform vectors fetched from the old database into the new model's space!
 const oldVector = db.get("document_id"); 
 const newVector = adapter.project(oldVector, "migrate_to_v3");
 ```
 
-この機能により、APIコストをかけることなく、即座に新しいモデルの検索精度や特性を既存システムに統合できるようになります。
+This feature allows you to instantly integrate the search accuracy and characteristics of a new model into your existing system without incurring API costs.

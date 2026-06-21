@@ -1,34 +1,34 @@
-# コアアダプタ (Core Adapters)
+# Core Adapters
 
-WarpVector の中核をなすのは、ベクトルを特定の意図（コンテキスト）に合わせて動的に変形させる「コアアダプタ」群です。
-これらは共通の `WarpAdapter` インターフェースを実装しており、どの環境やエコシステムでも透過的に利用できます。
+At the core of WarpVector is a set of "Core Adapters" that dynamically deform vectors to match specific intents (contexts).
+These implement a common `WarpAdapter` interface, making them transparently usable in any environment or ecosystem.
 
 ## 1. IntentAdapter
 
-`IntentAdapter` は、**線形のアフィン変換（$W \cdot x + b$）** を用いて、元のベクトル空間を歪めたりシフトさせたりする基本アダプタです。
-例えば、「リスク分析」という意図と「経済的影響」という意図で、同じデータのベクトル（埋め込み）を全く異なる方向に変換します。
+`IntentAdapter` is the base adapter that distorts and shifts the original vector space using a **linear affine transformation ($W \cdot x + b$)**.
+For example, it transforms the same data vector (embedding) into completely different directions for a "risk analysis" intent versus an "economic impact" intent.
 
 ```mermaid
 graph LR
-    X[入力ベクトル x] -->|W * x| M(行列乗算: 空間の歪み/回転)
-    M -->|+ b| B(バイアス加算: 空間のシフト)
-    B --> Y[ワープ済ベクトル x']
+    X[Input Vector x] -->|W * x| M(Matrix Multiplication: Spatial Distortion/Rotation)
+    M -->|+ b| B(Bias Addition: Spatial Shift)
+    B --> Y[Warped Vector x']
     
     style M fill:#f9f2f4,stroke:#d0a9b5
     style B fill:#f2f9f4,stroke:#a9d0b5
 ```
 
-### 特徴
-- **高速性**: 内部の行列演算は SIMD/WASM により最適化されており、大量のベクトル処理（バッチ処理）を数ミリ秒で完了します。
-- **ブレンド**: 複数の意図を重み付けして合成する `tuneBlended` をサポート。
-- **動的ルーティング**: クエリベクトルと意図の代表ベクトルの類似度から自動でブレンド比率を決定する `tuneAutoBlended` を搭載。
+### Features
+- **High Speed**: Internal matrix operations are optimized via SIMD/WASM, completing massive vector processing (batch processing) in milliseconds.
+- **Blending**: Supports `tuneBlended` to synthesize multiple intents with weights.
+- **Dynamic Routing**: Features `tuneAutoBlended`, which automatically determines the blend ratio based on the similarity between the query vector and the representative vectors of the intents.
 
-### 基本的な使い方
+### Basic Usage
 
 ```typescript
 import { IntentAdapter } from 'warpvector';
 
-// インテント(意図)とその変換行列・バイアスを定義
+// Define intents and their transformation matrices and biases
 const myIntents = {
   riskAnalysis: {
     matrix: [
@@ -37,72 +37,72 @@ const myIntents = {
       [0.3, -0.2, 1.1],
     ],
     bias: [0.05, -0.1, 0.2],
-    routingVector: [0.8, -0.1, 0.3] // 動的ブレンド用
+    routingVector: [0.8, -0.1, 0.3] // For dynamic blending
   }
 };
 
 const adapter = new IntentAdapter(myIntents);
 const baseVector = [0.15, -0.23, 0.88];
 
-// 指定した意図に合わせてベクトルをワープ
+// Warp the vector according to the specified intent
 const warpedVector = adapter.tune(baseVector, "riskAnalysis");
 ```
 
 ## 2. ProjectionAdapter
 
-`ProjectionAdapter` は、**次元削減（Dimensionality Reduction）** に特化したアダプタです。
-1536次元のような高次元ベクトルを、256次元や512次元といったより扱いやすい低次元に圧縮します。
-これにより、ベクトルDBの保存コストやメモリ消費を大幅に削減しつつ、必要な意味的距離を保つことができます。
+`ProjectionAdapter` is an adapter specialized for **Dimensionality Reduction**.
+It compresses high-dimensional vectors, such as 1536 dimensions, down to more manageable low dimensions like 256 or 512.
+This significantly reduces the storage costs and memory consumption of Vector DBs while maintaining necessary semantic distances.
 
 ```mermaid
 graph LR
-    X[高次元ベクトル<br>1536 dim] -->|射影行列 P| M(圧縮・特徴抽出)
-    M --> Y[低次元ベクトル<br>256 dim]
+    X[High-dim Vector<br>1536 dim] -->|Projection Matrix P| M(Compression/Feature Extraction)
+    M --> Y[Low-dim Vector<br>256 dim]
     
     style X fill:#e1f5fe,stroke:#81d4fa
     style Y fill:#fff3e0,stroke:#ffb74d
 ```
 
-### 基本的な使い方
+### Basic Usage
 
 ```typescript
 import { ProjectionAdapter } from 'warpvector';
 
-// 1536次元から256次元へ圧縮する行列
+// A matrix that compresses from 1536 dimensions to 256 dimensions
 const matrix = new Float32Array(256 * 1536); 
-// ... 行列の初期化 ...
+// ... Initialize matrix ...
 
-// 入力1536次元、出力256次元のアダプタを作成
+// Create an adapter with 1536 input dimensions and 256 output dimensions
 const adapter = new ProjectionAdapter(1536, 256);
 adapter.addProjection("compress_256", { matrix });
 
 const compressedVector = adapter.tune(baseVector, "compress_256"); 
-// -> 256次元の Float32Array になる
+// -> Results in a 256-dimensional Float32Array
 ```
 
 ## 3. LoraIntentAdapter
 
-超高次元ベクトル（例: OpenAI の 1536 次元や Cohere の 1024 次元）に対して `IntentAdapter` の完全な行列 ($1536 \times 1536$) を保持すると、メモリ使用量や計算コストが膨大になります。
+For ultra-high-dimensional vectors (e.g., OpenAI's 1536 dimensions or Cohere's 1024 dimensions), retaining the complete matrix for `IntentAdapter` ($1536 \times 1536$) results in massive memory usage and computational costs.
 
-`LoraIntentAdapter` は、**LoRA (Low-Rank Adaptation)** アーキテクチャを採用し、変換行列を「低ランクの2つの行列」に分解して近似します（$W = A \cdot B$）。
-これにより、パラメータ数と計算量を劇的に削減しながら、同等の変換精度を実現します。
+`LoraIntentAdapter` employs the **LoRA (Low-Rank Adaptation)** architecture, decomposing the transformation matrix into two "low-rank matrices" to approximate it ($W = A \cdot B$).
+This drastically reduces the number of parameters and the computational load while achieving equivalent transformation accuracy.
 
 ```mermaid
 graph TD
-    X[入力ベクトル 1536 dim] -->|行列 B| Down(ランク降下: 8 dim)
-    Down -->|行列 A| Up(ランク上昇: 1536 dim)
+    X[Input Vector 1536 dim] -->|Matrix B| Down(Rank Down: 8 dim)
+    Down -->|Matrix A| Up(Rank Up: 1536 dim)
     X -.->|+ bias| Y
-    Up --> Y[ワープ済ベクトル]
+    Up --> Y[Warped Vector]
     
     style Down fill:#fce4ec,stroke:#f48fb1
     style Up fill:#e8eaf6,stroke:#9fa8da
 ```
 
-### メリット
-- メモリ削減: $1536 \times 1536 \approx 2.3M$ パラメータが、ランク $r=8$ の場合 $(1536 \times 8) + (8 \times 1536) \approx 24K$ パラメータ（約1/100）に削減。
-- Edge環境に最適化: Cloudflare Workers などのメモリ制限が厳しい環境で威力を発揮します。
+### Benefits
+- Memory Reduction: $1536 \times 1536 \approx 2.3M$ parameters are reduced to $(1536 \times 8) + (8 \times 1536) \approx 24K$ parameters (about 1/100) when the rank is $r=8$.
+- Optimized for the Edge: Extremely effective in memory-constrained environments like Cloudflare Workers.
 
-### 基本的な使い方
+### Basic Usage
 
 ```typescript
 import { LoraIntentAdapter } from 'warpvector';
@@ -111,13 +111,13 @@ const dimension = 1536;
 const rank = 8;
 const adapter = new LoraIntentAdapter(dimension, rank);
 
-// 低ランク行列A (1536x8) と B (8x1536) を指定
+// Specify the low-rank matrices A (1536x8) and B (8x1536)
 adapter.addIntent("efficient_warp", {
   matrixA: getMatrixA(), 
   matrixB: getMatrixB(),
   bias: getBias()
 });
 
-// 計算は O(d * r) で済むため超高速
+// Ultra-fast because calculation is done in O(d * r)
 const fastWarpedVector = adapter.tune(baseVector, "efficient_warp");
 ```
