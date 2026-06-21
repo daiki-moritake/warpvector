@@ -26,9 +26,12 @@ published: false
 
 WarpVectorは、LLM（OpenAI等）とベクトルデータベースの「中間（ミドルウェア）」に配置する軽量なライブラリです。
 
+![WarpVectorアーキテクチャ概要](https://storage.googleapis.com/zenn-user-upload/placeholder-architecture.png)
+*(※ここにアーキテクチャの概要図を入れる)*
+
 主な機能は以下の2つです。
 
-1. **量子化 (Quantization)**: `Float32`のベクトルを`Int8`や`Binary`に圧縮し、メモリとコストを削減します。
+1. **量子化 (Quantization)**: `Float32`のベクトルを`Int8`や`Binary`に圧縮し、メモリとコストを激減させます。
 2. **動的ワープ (Intent Warping)**: ユーザーの検索意図に合わせて、**LLMの再学習なし**でベクトル空間をリアルタイムに歪ませます。
 
 しかも、重いPythonのMLフレームワークは不要です。**純粋なTypeScriptとWASM（WebAssembly）**で実装されており、Node.jsはもちろん、**Cloudflare Workersなどのエッジ環境でもサブミリ秒で動作**します。
@@ -64,6 +67,9 @@ const compressedVector = quantizer.tune(baseVector);
 通常のベクトル検索では、一度生成されたベクトルの距離は絶対的です。しかし、ECサイトで「靴」と検索したユーザーが「ランニングシューズ」を探しているのか、「革靴」を探しているのかは、コンテキストによって異なります。
 
 WarpVectorの `IntentAdapter` を使えば、WASMによる超高速なアフィン変換を用いて、ベクトルを特定の「インテント（意図）」の方向に動的に引き寄せることができます。
+
+![Intent切り替えの動作GIF](https://storage.googleapis.com/zenn-user-upload/placeholder-intent-demo.gif)
+*(※ここにPlayground等で意図を切り替えた瞬間に検索結果が変わるGIFを入れる)*
 
 ### 実装例
 
