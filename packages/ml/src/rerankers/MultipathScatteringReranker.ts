@@ -1,4 +1,4 @@
-import { innerProduct, normalize } from "@warpvector/core";
+import { innerProduct, normalize, getWasmInstance, allocateWasmMemory, withWasmMemoryStack, writeFloat32ArrayToWasm, readFloat32ArrayFromWasm } from "@warpvector/core";
 
 export interface MultipathScatteringConfig {
   /**
@@ -55,12 +55,14 @@ export class MultipathScatteringReranker {
   public threshold: number;
   public maxIterations: number;
   public tolerance: number;
+  private wasm: WebAssembly.Instance | null;
 
   constructor(config: MultipathScatteringConfig = {}) {
     this.alpha = config.alpha ?? 0.85;
     this.threshold = config.threshold ?? 0.0;
     this.maxIterations = config.maxIterations ?? 20;
     this.tolerance = config.tolerance ?? 1e-6;
+    this.wasm = getWasmInstance();
 
     if (this.alpha < 0 || this.alpha >= 1) {
       throw new Error("MultipathScatteringReranker: alpha must be in [0, 1).");
@@ -119,6 +121,95 @@ export class MultipathScatteringReranker {
       for (let i = 0; i < N; i++) S0[i] = uniform;
     }
 
+    // WASMが利用可能かチェック
+    if (this.wasm) {
+      const exports = this.wasm.exports as any;
+      if (exports.buildMultipathTransitionMatrixWasm && exports.multipathScatteringPowerIterationWasm) {
+        return this.rerankWasm(CNorm, S0, N, initialScores, sumS0);
+      }
+    }
+
+    // JS フォールバック
+    return this.rerankJs(CNorm, S0, N, initialScores, sumS0);
+  }
+
+  private rerankWasm(
+    CNorm: Float32Array[],
+    S0: Float32Array,
+    N: number,
+    initialScores: number[] | undefined,
+    sumS0: number
+  ): MultipathScatteringResult[] {
+    const dim = CNorm[0].length;
+    const exports = this.wasm!.exports as any;
+    const memory = exports.memory as WebAssembly.Memory;
+
+    // 候補ベクトルを1次元のFloat32Arrayに平坦化
+    const flatVectors = new Float32Array(N * dim);
+    for (let i = 0; i < N; i++) {
+      flatVectors.set(CNorm[i], i * dim);
+    }
+
+    return withWasmMemoryStack(() => {
+      // メモリ確保
+      const vectorsPtr = allocateWasmMemory(N * dim * 4);
+      // P行列と一時的なD配列を合わせて確保 (N*N + N)
+      const pMatrixPtr = allocateWasmMemory(N * N * 4 + N * 4);
+      const s0Ptr = allocateWasmMemory(N * 4);
+      const currentSPtr = allocateWasmMemory(N * 4);
+      const nextSPtr = allocateWasmMemory(N * 4);
+
+      // データの書き込み
+      writeFloat32ArrayToWasm(memory, flatVectors, vectorsPtr);
+      writeFloat32ArrayToWasm(memory, S0, s0Ptr);
+      writeFloat32ArrayToWasm(memory, S0, currentSPtr);
+
+      // 1. P行列の構築 (WASM)
+      exports.buildMultipathTransitionMatrixWasm(
+        vectorsPtr,
+        N,
+        dim,
+        this.threshold,
+        pMatrixPtr
+      );
+
+      // 2. Power Iteration (WASM)
+      exports.multipathScatteringPowerIterationWasm(
+        pMatrixPtr,
+        s0Ptr,
+        currentSPtr,
+        nextSPtr,
+        N,
+        this.alpha,
+        this.maxIterations,
+        this.tolerance
+      );
+
+      // 3. 結果の読み取り
+      const currentS = readFloat32ArrayFromWasm(memory, currentSPtr, N);
+
+      const results: MultipathScatteringResult[] = [];
+      for (let i = 0; i < N; i++) {
+        results.push({
+          originalIndex: i,
+          score: currentS[i],
+          initialScore: initialScores && initialScores.length === N ? initialScores[i] : S0[i] * sumS0,
+          vector: CNorm[i]
+        });
+      }
+
+      results.sort((a, b) => b.score - a.score);
+      return results;
+    });
+  }
+
+  private rerankJs(
+    CNorm: Float32Array[],
+    S0: Float32Array,
+    N: number,
+    initialScores: number[] | undefined,
+    sumS0: number
+  ): MultipathScatteringResult[] {
     // 2. 散乱推移マトリクスの構築 P
     // W[i][j] = max(0, cos_sim(c_i, c_j) - threshold)
     const W = new Float32Array(N * N);
