@@ -7,6 +7,8 @@ import {
 
 export * from "./adapters/ColbertAdapter";
 export * from "./adapters/QuantizationAdapter";
+export * from "./adapters/SafeQuantizationAdapter";
+export * from "./adapters/AnomalyDetectionAdapter";
 export * from "./adapters/VsaAdapter";
 export * from "./operations/TaskArithmetic";
 export * from "./fusion";
