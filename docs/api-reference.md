@@ -6,6 +6,39 @@
 
 ## Core Classes (`@warpvector/core`)
 
+```mermaid
+classDiagram
+    class WarpAdapter {
+        <<interface>>
+        +tune(vector)* Float32Array
+        +exportState()* AdapterState
+    }
+    
+    class FinalStageAdapter {
+        <<interface>>
+        +encode(vector)* OutputVector
+        +exportState()* AdapterState
+    }
+
+    class IntentAdapter {
+        +tune(vector) Float32Array
+    }
+    class ProjectionAdapter {
+        +tune(vector) Float32Array
+    }
+    class MlpAdapter {
+        +tune(vector) Float32Array
+    }
+    class QuantizationAdapter {
+        +encode(vector) Int8Array | Uint8Array
+    }
+    
+    WarpAdapter <|.. IntentAdapter
+    WarpAdapter <|.. ProjectionAdapter
+    WarpAdapter <|.. MlpAdapter
+    FinalStageAdapter <|.. QuantizationAdapter
+```
+
 ### `WarpPipeline`
 複数のアダプタを直感的に繋ぎ合わせ、ベクトルの変換、非同期初期化、バッチ処理、DBフォーマット出力を一括で管理できる統合インターフェース。
 

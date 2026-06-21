@@ -6,24 +6,25 @@ WarpVector は「使えば使うほど賢くなる」フライホイール学習
 
 ## 概要: 3層の学習ループ
 
-```
-┌─────────────────────────────────────────────┐
-│       Layer 3: グローバル最適化              │
-│   FederatedAggregator で全ユーザーの         │
-│   重みを集約 → ベースライン更新              │
-└──────────────────┬──────────────────────────┘
-                   │
-┌──────────────────▼──────────────────────────┐
-│       Layer 2: スケジュール制御              │
-│   AdaptiveScheduler が学習率を自動減衰       │
-│   初期: 大きく変形 → 後期: 微調整           │
-└──────────────────┬──────────────────────────┘
-                   │
-┌──────────────────▼──────────────────────────┐
-│       Layer 1: フィードバック収集            │
-│   FeedbackCollector がクリック/スキップを     │
-│   TripletExample / InfoNCEExample に変換     │
-└─────────────────────────────────────────────┘
+```mermaid
+graph TD
+    subgraph Layer1 [Layer 1: フィードバック収集]
+        A[FeedbackCollector]
+        Note1[クリック/スキップを<br>Triplet/InfoNCEに変換] -.-> A
+    end
+
+    subgraph Layer2 [Layer 2: スケジュール制御]
+        B[AdaptiveScheduler]
+        Note2[学習率を自動減衰し<br>バッチ学習を制御] -.-> B
+    end
+
+    subgraph Layer3 [Layer 3: グローバル最適化]
+        C[FederatedAggregator]
+        Note3[全ユーザーの重みを<br>集約しベースライン更新] -.-> C
+    end
+
+    A -->|学習データ| B
+    B -->|ローカル学習済み重み| C
 ```
 
 ---

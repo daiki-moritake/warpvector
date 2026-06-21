@@ -8,6 +8,16 @@ WarpVector の中核をなすのは、ベクトルを特定の意図（コンテ
 `IntentAdapter` は、**線形のアフィン変換（$W \cdot x + b$）** を用いて、元のベクトル空間を歪めたりシフトさせたりする基本アダプタです。
 例えば、「リスク分析」という意図と「経済的影響」という意図で、同じデータのベクトル（埋め込み）を全く異なる方向に変換します。
 
+```mermaid
+graph LR
+    X[入力ベクトル x] -->|W * x| M(行列乗算: 空間の歪み/回転)
+    M -->|+ b| B(バイアス加算: 空間のシフト)
+    B --> Y[ワープ済ベクトル x']
+    
+    style M fill:#f9f2f4,stroke:#d0a9b5
+    style B fill:#f2f9f4,stroke:#a9d0b5
+```
+
 ### 特徴
 - **高速性**: 内部の行列演算は SIMD/WASM により最適化されており、大量のベクトル処理（バッチ処理）を数ミリ秒で完了します。
 - **ブレンド**: 複数の意図を重み付けして合成する `tuneBlended` をサポート。
@@ -44,6 +54,15 @@ const warpedVector = adapter.tune(baseVector, "riskAnalysis");
 1536次元のような高次元ベクトルを、256次元や512次元といったより扱いやすい低次元に圧縮します。
 これにより、ベクトルDBの保存コストやメモリ消費を大幅に削減しつつ、必要な意味的距離を保つことができます。
 
+```mermaid
+graph LR
+    X[高次元ベクトル<br>1536 dim] -->|射影行列 P| M(圧縮・特徴抽出)
+    M --> Y[低次元ベクトル<br>256 dim]
+    
+    style X fill:#e1f5fe,stroke:#81d4fa
+    style Y fill:#fff3e0,stroke:#ffb74d
+```
+
 ### 基本的な使い方
 
 ```typescript
@@ -67,6 +86,17 @@ const compressedVector = adapter.tune(baseVector, "compress_256");
 
 `LoraIntentAdapter` は、**LoRA (Low-Rank Adaptation)** アーキテクチャを採用し、変換行列を「低ランクの2つの行列」に分解して近似します（$W = A \cdot B$）。
 これにより、パラメータ数と計算量を劇的に削減しながら、同等の変換精度を実現します。
+
+```mermaid
+graph TD
+    X[入力ベクトル 1536 dim] -->|行列 B| Down(ランク降下: 8 dim)
+    Down -->|行列 A| Up(ランク上昇: 1536 dim)
+    X -.->|+ bias| Y
+    Up --> Y[ワープ済ベクトル]
+    
+    style Down fill:#fce4ec,stroke:#f48fb1
+    style Up fill:#e8eaf6,stroke:#9fa8da
+```
 
 ### メリット
 - メモリ削減: $1536 \times 1536 \approx 2.3M$ パラメータが、ランク $r=8$ の場合 $(1536 \times 8) + (8 \times 1536) \approx 24K$ パラメータ（約1/100）に削減。
