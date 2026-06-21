@@ -138,43 +138,43 @@ const restoredPipeline = WarpPipeline.importState(stateJson);
 
 各機能のより詳細な仕組み、コードスニペット、ユースケースについては以下の個別ドキュメントをご参照ください。
 
-0. **[エッジコンピューティング クイックスタート (Edge Quickstart)](./docs/edge-quickstart.md)**
+0. **[エッジコンピューティング クイックスタート (Edge Quickstart)](./docs/edge-quickstart.ja.md)**
    - Cloudflare Workers や Vercel Edge 等のエッジ環境におけるハイブリッド検索とオンライン学習の最速実装ガイド
-0.5. **[自動学習 実装ガイド (Auto-Learning Guide)](./docs/auto-learning-guide.md)**
+0.5. **[自動学習 実装ガイド (Auto-Learning Guide)](./docs/auto-learning-guide.ja.md)**
    - 外部サーバー不要で、ユーザーの行動ログから検索空間を自動最適化する学習パイプラインの構築手順
-1. **[コアアダプタ (Core Adapters)](./docs/1-core-adapters.md)**
+1. **[コアアダプタ (Core Adapters)](./docs/1-core-adapters.ja.md)**
    - `IntentAdapter`, `ProjectionAdapter`, `LoraIntentAdapter` の基本
-2. **[ニューラルネットワーク (Neural Networks)](./docs/2-neural-networks.md)**
+2. **[ニューラルネットワーク (Neural Networks)](./docs/2-neural-networks.ja.md)**
    - `MlpAdapter` を用いた多層パーセプトロンと非線形活性化関数
-3. **[オンライン等方化・PCA (Whitening)](./docs/3-whitening-pca.md)**
+3. **[オンライン等方化・PCA (Whitening)](./docs/3-whitening-pca.ja.md)**
    - 空間的偏り (異方性) のストリーミング学習による除去
 3.5 **[意味の逆拡散・シャープニング (Inverse Diffusion)](#35-意味の逆拡散シャープニング-soft-whitening)**
    - 逆熱方程式によるコンテキストの混ざり合いの解消と、鋭い意図の抽出
-4. **[量子化と圧縮 (Quantization)](./docs/4-quantization.md)**
+4. **[量子化と圧縮 (Quantization)](./docs/4-quantization.ja.md)**
    - `Int8` (1/4圧縮) および `Binary` (1/32圧縮) による高速化と省メモリ化
-5. **[Late Interaction / ColBERT](./docs/5-colbert.md)**
+5. **[Late Interaction / ColBERT](./docs/5-colbert.ja.md)**
    - WASM を用いた MaxSim 演算による緻密なトークン照合
-6. **[ハイブリッド検索フュージョン (Hybrid Search)](./docs/6-hybrid-search.md)**
+6. **[ハイブリッド検索フュージョン (Hybrid Search)](./docs/6-hybrid-search.ja.md)**
    - ベクトル検索とキーワード検索の統合 (`RRF`, `RSF`)
-7. **[オンライン学習エンジン (Trainers)](./docs/7-trainers.md)**
+7. **[オンライン学習エンジン (Trainers)](./docs/7-trainers.ja.md)**
    - 対照学習によるリアルタイムな空間最適化 (`InfoNCETrainer`, `TripletTrainer`)
-8. **[エコシステム統合 (Integrations)](./docs/8-integrations.md)**
+8. **[エコシステム統合 (Integrations)](./docs/8-integrations.ja.md)**
    - `LangChain`, `LlamaIndex`, `Prisma + pgvector` とのシームレスな連携
-9. **[状態の永続化・シリアライズ (Serialization)](./docs/9-serialization.md)**
+9. **[状態の永続化・シリアライズ (Serialization)](./docs/9-serialization.ja.md)**
    - 学習結果の JSON / バイナリ形式での保存と復元
-10. **[次元削減・モデル間移行 (Projection & Migration)](./docs/10-projection-migration.md)**
+10. **[次元削減・モデル間移行 (Projection & Migration)](./docs/10-projection-migration.ja.md)**
     - `ProjectionAdapter` による射影変換と `MigrationTrainer` によるモデル間移行
-11. **[タスクベクトル演算 (Task Arithmetic)](./docs/11-task-arithmetic.md)**
+11. **[タスクベクトル演算 (Task Arithmetic)](./docs/11-task-arithmetic.ja.md)**
     - 学習済み重みの加減算によるゼロオーバーヘッドのモデルマージ
-12. **[超次元計算 / VSA (Vector Symbolic Architecture)](./docs/12-vsa.md)**
+12. **[超次元計算 / VSA (Vector Symbolic Architecture)](./docs/12-vsa.ja.md)**
     - ベクトルのバインド・バンドル・アンバインドによるメタデータ埋め込み演算
-13. **[フィードバックループと連合学習 (Feedback & Federated Learning)](./docs/13-feedback-loop.md)**
+13. **[フィードバックループと連合学習 (Feedback & Federated Learning)](./docs/13-feedback-loop.ja.md)**
     - ユーザーログからのオンライン学習データ生成と複数クライアントの重み集約 (FedAvg)
-14. **[意味の逆拡散・シャープニング (Inverse Diffusion)](./docs/14-soft-whitening.md)**
+14. **[意味の逆拡散・シャープニング (Inverse Diffusion)](./docs/14-soft-whitening.ja.md)**
     - 逆熱方程式によるコンテキストの混ざり合いの解消と、鋭い意図の抽出
-15. **[時間反転波リランカー (Time-Reversal Reranker)](./docs/15-time-reversal-reranker.md)**
+15. **[時間反転波リランカー (Time-Reversal Reranker)](./docs/15-time-reversal-reranker.ja.md)**
     - 時間反転鏡(TRM)の原理を用い、検索候補グラフ上で波を逆再生して真のソースドキュメントを特定
-16. **[多重経路散乱場リランカー (Multipath Scattering Reranker)](./docs/16-multipath-scattering-reranker.md)**
+16. **[多重経路散乱場リランカー (Multipath Scattering Reranker)](./docs/16-multipath-scattering-reranker.ja.md)**
     - 波動の多重散乱場理論（ランダムウォーク）を用い、多重経路で支持されている真のハブドキュメントを特定
 ---
 

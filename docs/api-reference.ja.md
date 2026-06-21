@@ -1,6 +1,6 @@
 # API Reference
 
-A reference for the core classes and functions provided by `warpvector`.
+`warpvector` で提供される主要なクラスと関数のリファレンスです。
 
 ---
 
@@ -40,55 +40,55 @@ classDiagram
 ```
 
 ### `WarpPipeline`
-An integrated interface that intuitively chains multiple adapters together and centrally manages vector transformation, asynchronous initialization, batch processing, and DB format output.
+複数のアダプタを直感的に繋ぎ合わせ、ベクトルの変換、非同期初期化、バッチ処理、DBフォーマット出力を一括で管理できる統合インターフェース。
 
 - `constructor(inputDim: number)`
 - `addIntent(intents?: Record<string, IntentWeights>): this`
 - `addLoraIntent(rank: number, intents?: Record<string, LoraIntentWeights>): this`
 - `addProjection(outputDim: number, projections?: Record<string, ProjectionWeights>): this`
 - `addStep(type: string, adapter: WarpAdapter): this`
-  - Adds a custom adapter directly to the end of the pipeline.
+  - カスタムアダプタを直接パイプラインの末尾に追加します。
 - `setFinalStage(type: string, adapter: FinalStageAdapter): this`
-  - Sets a final transformation, such as quantization, at the end of the pipeline.
+  - 量子化などの最終変換をパイプライン末尾に設定します。
 - `init(): Promise<void>`
-  - Sets up all built-in adapters that require asynchronous initialization, like WASM, at once.
+  - WASM等の非同期初期化が必要な組み込みアダプタを一括でセットアップします。
 - `run(vector: number[] | Float32Array, context?: RunContext): any`
-  - Sequentially applies all configured transformation steps.
+  - 構成された全ての変換ステップを順次適用します。
 - `runBatch(vectors: (number[] | Float32Array)[], context?: RunContext): any[]`
-  - Feeds multiple vectors into the pipeline in bulk. Batch processing is parallelized for WASM-supported adapters.
+  - 複数のベクトルを一括でパイプラインに流し込みます。WASM対応アダプタではバッチ処理が並列化されます。
 - `runAndFormat(vector: number[] | Float32Array, dbOptions: FormatOptions, context?: RunContext): any`
-  - Handles everything from transformation to database formatting (pinecone, pgvector, redis) in a single line.
+  - 変換からデータベース向けフォーマット（pinecone, pgvector, redis）までの処理を1行で行います。
 - `exportState(): PipelineState[]`
 - `static importState(states: PipelineState[]): WarpPipeline`
 - `static registerAdapter(type: string, importFn: (state: AdapterState) => WarpAdapter): void`
-  - Registers a restore function for a custom adapter.
+  - カスタムアダプタの復元関数を登録します。
 - `static registerFinalStage(type: string, importFn: (state: AdapterState) => FinalStageAdapter): void`
-  - Registers a restore function for a FinalStageAdapter.
+  - FinalStageAdapter の復元関数を登録します。
 - `static registerFormat(format: string, formatFn: (vector: OutputVector, options: FormatOptions) => unknown): void`
-  - Registers a custom output format (Milvus, Weaviate, etc.).
+  - カスタム出力フォーマット（Milvus, Weaviate等）を登録します。
 
 ### `IntentAdapter`
-The main class for performing in-memory affine transformations of vectors.
+インメモリでベクトルのアフィン変換を行うメインクラス。
 
 - `constructor(intents: Record<string, IntentWeights> | number)`
-  - Loads the intents specified at initialization and optimizes them for WASM/Float32Array.
+  - 初期化時に指定された意図をロードし、WASM/Float32Array向けに最適化します。
 - `tune(baseVector: number[] | Float32Array, intent: string, activation?: Activation): Float32Array`
-  - Applies the affine transformation of the specified intent to a single vector.
+  - 指定した意図のアフィン変換を単一のベクトルに適用します。
 - `tuneBatch(baseVectors: (number[] | Float32Array)[], intent: string, activation?: Activation): Float32Array[]`
-  - Applies transformations to multiple vectors in bulk. Accelerated by WASM / SIMD when possible.
+  - 複数のベクトルに一括で変換を適用します。可能であれば WASM / SIMD により高速化されます。
 - `tuneBlended(baseVector: number[] | Float32Array, blendWeights: Record<string, number>, activation?: Activation): Float32Array`
-  - Synthesizes and applies multiple intents at a specified ratio (e.g., `{ intentA: 0.7, intentB: 0.3 }`).
+  - 複数の意図を指定した割合（例: `{ intentA: 0.7, intentB: 0.3 }`）で合成し、適用します。
 - `tuneBatchBlended(...)`
-  - Batch processing version (WASM supported) of `tuneBlended`.
+  - `tuneBlended` のバッチ処理（WASM対応）版。
 - `tuneAutoBlended(baseVector: number[] | Float32Array, activation?: Activation): Float32Array`
-  - Automatically calculates and applies the optimal blend ratio directly from the query vector itself, based on the `routingVector` (representative vector) settings.
+  - `routingVector`（代表ベクトル）の設定に基づき、クエリベクトル自身から最適なブレンド割合を自動で計算して適用します。
 - `addIntent(intentName: string, weights: IntentWeights): void`
 - `removeIntent(intentName: string): void`
 - `exportState(): string`
 - `static importState(stateJson: string): IntentAdapter`
 
 ### `LoraIntentAdapter`
-An adapter for high-dimensional vectors (like 1536 dimensions) that dramatically reduces memory and computational cost by using low-rank matrices (LoRA).
+高次元（1536次元など）のベクトル向けに、低ランク行列(LoRA)を用いてメモリと計算量を劇的に削減するアダプター。
 
 - `constructor(dimension: number, rank: number, intents?: Record<string, LoraIntentWeights>)`
 - `tune(baseVector: number[] | Float32Array, intent: string): Float32Array`
@@ -98,7 +98,7 @@ An adapter for high-dimensional vectors (like 1536 dimensions) that dramatically
 - `static importState(stateJson: string): LoraIntentAdapter`
 
 ### `ProjectionAdapter`
-An adapter for dimensionality reduction or expansion using projection matrices calculated via PCA or SVD.
+PCAやSVDなどで計算された射影行列を用いて、次元削減や次元拡張を行うためのアダプター。
 
 - `constructor(inDimension: number, outDimension: number, projections?: Record<string, ProjectionWeights>)`
 - `tune(vector: number[] | Float32Array, version?: string): Float32Array`
@@ -112,38 +112,38 @@ An adapter for dimensionality reduction or expansion using projection matrices c
 ## ML Classes (`@warpvector/ml`)
 
 ### `MlpAdapter`
-An adapter that performs ultra-fast non-linear Multi-Layer Perceptron inference using a WASM backend.
+WASMバックエンドにより、超高速に非線形な多層パーセプトロン推論を行うアダプター。
 
 - `constructor(layers: MlpLayer[])`
 - `tune(vector: number[] | Float32Array): Float32Array`
 - `tuneBatch(vectors: (number[] | Float32Array)[]): Float32Array[]`
-- `init(): Promise<void>` — Persists weights in WASM memory.
+- `init(): Promise<void>` — WASM メモリに重みを永続化します。
 - `exportState(): string`
 - `static importState(stateJson: string): MlpAdapter`
 
 ### `WhiteningAdapter`
-An adapter that performs Anisotropy Reduction (equalizing the vector space) using online PCA via Oja's Rule.
+Oja's Rule によるオンラインPCAを用いて、ベクトル空間の等方化（Anisotropy Reduction）を行うアダプター。
 
 - `constructor(dimension: number, config?: WhiteningConfig)`
 - `tune(vector: number[] | Float32Array): Float32Array`
-- `update(vector: number[] | Float32Array): void` — Streams and updates the principal components.
+- `update(vector: number[] | Float32Array): void` — 主成分をストリーミング更新します。
 - `exportState(): string`
 - `static importState(stateJson: string): WhiteningAdapter`
 
 ### `InfoNCETrainer`
-A contrastive learning trainer using InfoNCE Loss. Learns from one positive and multiple negatives simultaneously.
+InfoNCE Loss を用いた対照学習トレーナー。1つの正解と複数の不正解を同時に学習。
 
 - `constructor(dimension: number)`
 - `updateOnline(currentWeights: IntentWeights, example: InfoNCEExample, options?: InfoNCEOnlineOptions): Promise<IntentWeights>`
 
 ### `TripletTrainer`
-A contrastive learning trainer using Triplet Loss.
+トリプレットロスを用いた対照学習トレーナー。
 
 - `constructor(dimension: number)`
 - `updateOnline(currentWeights: IntentWeights, example: TripletExample, options?: TripletOnlineOptions): Promise<IntentWeights>`
 
 ### `MigrationTrainer`
-A trainer that automatically learns a projection matrix to translate the vector space between different embedding models.
+異なる埋め込みモデル間のベクトル空間を翻訳する射影行列を自動学習するトレーナー。
 
 - `constructor(sourceDimension: number, targetDimension: number)`
 - `addExample(example: MigrationExample): void`
@@ -154,25 +154,25 @@ A trainer that automatically learns a projection matrix to translate the vector 
 ## Extras Classes (`@warpvector/extras`)
 
 ### `QuantizationAdapter`
-An adapter that compresses Float32 vectors to Int8 or Binary.
+Float32 ベクトルを Int8 または Binary に圧縮するアダプター。
 
 - `constructor(config: QuantizationConfig)`
 - `tune(vector: number[] | Float32Array): Int8Array | Uint8Array`
-- `encode(vector: number[] | Float32Array): Int8Array | Uint8Array` — Alias for `tune`
+- `encode(vector: number[] | Float32Array): Int8Array | Uint8Array` — `tune` のエイリアス
 - `static int8DotProduct(a: Int8Array, b: Int8Array): number`
 - `static hammingDistance(a: Uint8Array, b: Uint8Array): number`
 - `exportState(): string`
 - `static importState(stateJson: string): QuantizationAdapter`
 
 ### `ColbertAdapter`
-Token-level matching via MaxSim calculation for Late Interaction (ColBERT) using WASM.
+WASM を用いた Late Interaction (ColBERT) の MaxSim 演算によるトークンレベル照合。
 
 - `constructor()`
 - `score(queryTokens: Float32Array, documentTokens: Float32Array, dim: number): number`
 - `rank(queryTokens: Float32Array, documents: { id: string; tokens: Float32Array }[], dim: number): { id: string; score: number }[]`
 
 ### `VsaAdapter`
-Vector Symbolic Architecture (VSA) / Hyperdimensional Computing.
+ベクトル・シンボリック・アーキテクチャ（VSA）/ 超次元計算。
 
 - `static bundle(vectors: (number[] | Float32Array)[], options?: VsaOptions): Float32Array`
 - `static bind(vec1: number[] | Float32Array, vec2: number[] | Float32Array, options?: VsaOptions): Float32Array`
@@ -182,23 +182,23 @@ Vector Symbolic Architecture (VSA) / Hyperdimensional Computing.
 - `static bundleBinary(bins: Uint8Array[]): Uint8Array`
 
 ### `TaskArithmetic`
-Utility for synthesizing multiple learned adapter weights as task vectors.
+複数の学習済みアダプタ重みをタスクベクトルとして合成するユーティリティ。
 
 - `static merge(tasks: TaskConfig[], baseIntent?: IntentWeights): IntentWeights`
 
 ### Fusion Functions
 
 - `rrf(resultSets: { id: string; score: number }[][], k?: number): { id: string; score: number }[]`
-  - Reciprocal Rank Fusion. Rank-based score integration.
+  - Reciprocal Rank Fusion。順位ベースのスコア統合。
 - `rsf(resultSets: { id: string; score: number }[][], weights?: number[]): { id: string; score: number }[]`
-  - Relative Score Fusion. Min-Max normalization + weighted addition.
+  - Relative Score Fusion。Min-Max正規化 + 重み付き加算。
 
 ---
 
 ## Integration Classes (`@warpvector/langchain`)
 
 ### `WarpEmbeddings`
-Wraps LangChain's `Embeddings` interface, applying WarpVector transformations only to search queries.
+LangChain の `Embeddings` インターフェースをラップし、検索クエリにのみ WarpVector 変換を適用。
 
 - `constructor(options: WarpEmbeddingsOptions)`
 - `embedQuery(text: string): Promise<number[]>`
@@ -207,7 +207,7 @@ Wraps LangChain's `Embeddings` interface, applying WarpVector transformations on
 - `setAutoBlend(enabled: boolean): void`
 
 ### `WarpLlamaIndexEmbeddings`
-Wraps LlamaIndex's BaseEmbedding interface, applying WarpVector transformations only to search queries.
+LlamaIndex の BaseEmbedding インターフェースをラップし、検索クエリにのみ WarpVector 変換を適用。
 
 - `constructor(options: WarpLlamaIndexEmbeddingsOptions)`
 - `getQueryEmbedding(query: string): Promise<number[]>`
@@ -221,19 +221,19 @@ Wraps LlamaIndex's BaseEmbedding interface, applying WarpVector transformations 
 ## Utility Functions
 
 - `normalize(vector: number[] | Float32Array): Float32Array`
-  - Calculates the L2 norm of the vector and normalizes its length to 1.
+  - ベクトルのL2ノルムを計算し、長さを1に正規化します。
 - `cosineSimilarity(v1: number[] | Float32Array, v2: number[] | Float32Array): number`
-  - Calculates the cosine similarity (-1.0 to 1.0) between two vectors.
+  - 2つのベクトルのコサイン類似度（-1.0〜1.0）を計算します。
 - `innerProduct(v1: number[] | Float32Array, v2: number[] | Float32Array): number`
-  - Calculates the dot product of two vectors.
+  - 2つのベクトルの内積を計算します。
 - `slerp(v1: number[] | Float32Array, v2: number[] | Float32Array, t: number): Float32Array`
-  - Spherical Linear Interpolation. Interpolates between two vectors while maintaining the structure of cosine similarity (t is 0.0 to 1.0).
+  - 球面線形補間。コサイン類似度の構造を維持したまま2つのベクトル間を補間します（t は 0.0〜1.0）。
 - `reject(baseVector: number[] | Float32Array, negativeVector: number[] | Float32Array): Float32Array`
-  - Component removal via orthogonal projection. Completely removes the component of `negativeVector` from `baseVector`.
+  - 直交射影による成分除去。`baseVector` から `negativeVector` の成分を完全に消し去ります。
 - `applyActivationToVector(vector: Float32Array, activation?: Activation): void`
-  - Applies a non-linear activation function to the vector in-place.
+  - ベクトルに対してインプレースで非線形活性化関数を適用します。
 - `softmax(values: number[]): number[]`
-  - Converts an array of numbers into a probability distribution (summing to 1.0). Includes an overflow prevention mechanism.
+  - 数値配列を確率分布（合計1.0）に変換します。オーバーフロー防止機構付き。
 
 ---
 
@@ -247,7 +247,7 @@ Wraps LlamaIndex's BaseEmbedding interface, applying WarpVector transformations 
 - `WarpAdapter`: `{ tune(vector, ...args): Float32Array; exportState(): AdapterState }`
 - `FinalStageAdapter`: `{ encode(vector): OutputVector; exportState(): AdapterState }`
 - `RunContext`: `{ intent?: string; version?: string }`
-- `FormatOptions`: `{ format: string; top: number; filter?: Record<string, unknown> }`
+- `FormatOptions`: `{ format: string; topK?: number; filter?: Record<string, unknown> }`
 - `PipelineState`: `{ type: string; state: AdapterState | null }`
 
 ### ML Types

@@ -1,33 +1,33 @@
 # Late Interaction / ColBERT
 
-一般的なベクトル検索では、文書全体やクエリ全体の意味を「1つのベクトル（例: 1536次元）」に圧縮して比較します（Dense Retrieval）。しかしこれでは、長い文書に含まれる特定の「細かいニュアンス」や「単語の組み合わせ」が圧縮の過程で潰れてしまうという課題があります。
+In general vector search, the meaning of an entire document or an entire query is compressed into a "single vector" (e.g., 1536 dimensions) for comparison (Dense Retrieval). However, this poses a challenge because specific "subtle nuances" and "word combinations" contained in long documents get squashed during the compression process.
 
-WarpVector の `ColbertAdapter` は、**Late Interaction (ColBERT アーキテクチャ)** をエッジ環境で実現するためのアダプタです。
-クエリと文書を1つのベクトルではなく、「各トークン（単語）ごとのベクトルの集合（マトリクス）」として保持し、検索の最後に緻密な総当り照合（MaxSim）を行います。
+WarpVector's `ColbertAdapter` is an adapter that enables **Late Interaction (ColBERT Architecture)** in edge environments.
+Instead of treating queries and documents as a single vector, they are maintained as a "set of vectors (matrix) for each token (word)", and a precise brute-force matching (MaxSim) is performed at the very end of the search.
 
-## 1. Late Interaction (MaxSim) の仕組み
+## 1. How Late Interaction (MaxSim) Works
 
-1. クエリ "A B C" を `[Vec_A, Vec_B, Vec_C]` のように複数のベクトルとして表現します。
-2. ドキュメント "X Y Z ..." も `[Vec_X, Vec_Y, Vec_Z, ...]` として表現します。
-3. クエリの各トークンについて、ドキュメント内の全トークンとの類似度を計算し、**「最も高い類似度 (MaxSim)」** を見つけます。
-4. 全てのクエリトークンの MaxSim を合計したものが、最終的なドキュメントのスコアになります。
+1. Represent the query "A B C" as multiple vectors like `[Vec_A, Vec_B, Vec_C]`.
+2. Similarly, represent the document "X Y Z ..." as `[Vec_X, Vec_Y, Vec_Z, ...]`.
+3. For each token in the query, calculate the similarity with all tokens in the document, and find the **"highest similarity (MaxSim)"**.
+4. The sum of the MaxSim for all query tokens becomes the final document score.
 
-これにより、「Aという概念」がドキュメント内のどこかに存在し、「Bという概念」が別のどこかに存在していれば、それが的確にマッチングされます。単一ベクトルでは絶対に不可能な高精度の検索体験を提供します。
+With this, if the "concept of A" exists somewhere in the document, and the "concept of B" exists somewhere else, they are accurately matched. It provides a highly accurate search experience that is absolutely impossible with a single vector.
 
-## 2. WASM による超高速化
+## 2. Ultra-Acceleration with WASM
 
-この「総当り照合」は、TypeScript/JavaScript で実行すると絶望的に遅い（何重もの for ループと数万回のドット積が必要になるため）という致命的な欠点があります。
-WarpVector は、この MaxSim 演算を **WebAssembly (WASM)** のフラットメモリ上で実行し、ループのアンローリングとSIMDライクな処理によって爆速化しています。
+This "brute-force matching" has a fatal flaw: executing it in TypeScript/JavaScript is hopelessly slow (because it requires multiple nested loops and tens of thousands of dot products).
+WarpVector dramatically accelerates this MaxSim calculation by running it on the flat memory of **WebAssembly (WASM)**, utilizing loop unrolling and SIMD-like processing.
 
-## 3. 基本的な使い方
+## 3. Basic Usage
 
 ```typescript
 import { ColbertAdapter } from 'warpvector';
 
 const adapter = new ColbertAdapter();
 
-// クエリとドキュメントは、それぞれ「トークンベクトルの平坦化配列」として用意します
-// 例: 32次元のトークンが5個ある場合、32 * 5 = 160要素の Float32Array
+// Queries and documents should be prepared as "flattened arrays of token vectors"
+// Example: If you have 5 tokens of 32 dimensions, it's a 160-element Float32Array (32 * 5 = 160)
 const queryTokens = getQueryTokenMatrix(); 
 
 const doc1Tokens = getDocTokenMatrix(doc1);
@@ -35,22 +35,22 @@ const doc2Tokens = getDocTokenMatrix(doc2);
 const doc3Tokens = getDocTokenMatrix(doc3);
 
 const documents = [doc1Tokens, doc2Tokens, doc3Tokens];
-const dimension = 32; // トークン1つあたりの次元数
+const dimension = 32; // Dimensionality per token
 
-// WASM上で超高速に全ドキュメントに対する MaxSim を計算し、スコア順にランク付け
+// Calculate MaxSim against all documents ultra-fast on WASM, and rank them by score
 const rankedResults = adapter.rank(queryTokens, documents, dimension);
 
 console.log(rankedResults);
-// 出力例:
+// Example Output:
 // [
-//   { index: 1, score: 12.45 }, // doc2 が1位
-//   { index: 0, score:  9.12 }, // doc1 が2位
-//   { index: 2, score:  4.33 }  // doc3 が3位
+//   { index: 1, score: 12.45 }, // doc2 is 1st
+//   { index: 0, score:  9.12 }, // doc1 is 2nd
+//   { index: 2, score:  4.33 }  // doc3 is 3rd
 // ]
 ```
 
-## 4. ユースケース
+## 4. Use Cases
 
-ColBERTアーキテクチャによるLate Interactionは、特に **RAG (Retrieval-Augmented Generation)** において圧倒的な威力を発揮します。
+Late Interaction via the ColBERT architecture shows overwhelming power, especially in **RAG (Retrieval-Augmented Generation)**.
 
-ユーザーからの長文で複雑な質問や、「〇〇について、××の観点から教えて」といった複数の条件が絡むクエリに対して、単一ベクトルの検索ではどうしても「全体的にぼんやり似ている別の文書」が引っかかりがちですが、ColBERTを用いれば「〇〇」と「××」の両方のトークンが文中に出現する文書をピンポイントで引き当てることができます。
+For long, complex questions from users, or queries involving multiple conditions like "Tell me about [Topic A] from the perspective of [Topic B]", single-vector searches tend to pull up "other documents that are vaguely similar overall". However, by using ColBERT, you can precisely pinpoint and retrieve documents where both the [Topic A] and [Topic B] tokens appear in the text.

@@ -1,65 +1,65 @@
-# トラブルシューティングガイド
+# Troubleshooting Guide
 
-WarpVector でよくある問題と解決策をまとめています。
+A collection of common problems and solutions when using WarpVector.
 
 ---
 
-## 1. WASM 初期化エラー
+## 1. WASM Initialization Error
 
-### 症状
+### Symptom
 ```
 WASM initialization failed, falling back to JS.
 ```
 
-### 原因
-- WebAssembly がサポートされていない環境で実行している
-- ランタイムの WASM 実行ポリシーで制限されている（一部の Cloudflare Workers プランなど）
+### Cause
+- Running in an environment where WebAssembly is not supported.
+- Restricted by the runtime's WASM execution policies (e.g., some Cloudflare Workers plans).
 
-### 解決策
-1. **自動フォールバック**: WarpVector は WASM 初期化に失敗した場合、自動的に純粋な JS 実装にフォールバックします。この警告メッセージは無害ですが、パフォーマンスは低下します。
-2. **明示的な初期化**: `await pipeline.init()` を起動時に呼ぶことで、WASM の初期化失敗を早期に検出できます。
-3. **autoInit の使用**: v0.2.0 以降、`WarpPipeline` はデフォルトで `autoInit: true` です。初回の `runStream()` 呼び出し時に自動で WASM を初期化します。
+### Solution
+1. **Automatic Fallback**: If WarpVector fails to initialize WASM, it automatically falls back to a pure JS implementation. This warning message is harmless, but performance will decrease.
+2. **Explicit Initialization**: By calling `await pipeline.init()` at startup, you can detect WASM initialization failures early.
+3. **Using autoInit**: As of v0.2.0, `WarpPipeline` defaults to `autoInit: true`. It automatically initializes WASM upon the first `runStream()` call.
 
 ---
 
-## 2. init() の呼び忘れ
+## 2. Forgetting to call init()
 
-### 症状
-- `MlpAdapter` の結果がゼロベクトルになる
-- WASM関連のエラーがスローされる
+### Symptom
+- Results from `MlpAdapter` become zero vectors.
+- WASM-related errors are thrown.
 
-### 解決策
+### Solution
 
-**v0.2.0 以降（推奨）**: `WarpPipeline` の `autoInit` 機能を使用する（デフォルト有効）:
+**v0.2.0 and later (Recommended)**: Use the `autoInit` feature of `WarpPipeline` (enabled by default):
 
 ```typescript
-const pipeline = new WarpPipeline(1536); // autoInit はデフォルトで true
-// init() を呼ばなくても、初回の runStream() で自動初期化される
+const pipeline = new WarpPipeline(1536); // autoInit is true by default
+// No need to call init(), it auto-initializes on the first runStream()
 ```
 
-**明示的に初期化する場合**:
+**When initializing explicitly**:
 ```typescript
 const pipeline = new WarpPipeline(1536, { autoInit: false });
-await pipeline.init(); // 明示的に呼ぶ
+await pipeline.init(); // Call explicitly
 ```
 
 ---
 
-## 3. 次元不一致エラー
+## 3. Dimensionality Mismatch Error
 
-### 症状
+### Symptom
 ```
-IntentAdapter: 入力ベクトルの次元が一致しません。
-  期待: 1536
-  実際: 768
+IntentAdapter: Dimensionality of input vector does not match.
+  Expected: 1536
+  Actual: 768
 ```
 
-### 原因
-- 埋め込みモデルを変更したが、アダプターの次元設定を更新していない
-- `ProjectionAdapter` で次元変換した後のパイプラインステップが、変換前の次元を期待している
+### Cause
+- The embedding model was changed, but the adapter's dimension setting wasn't updated.
+- A pipeline step expects the pre-conversion dimensionality after a dimension transformation via `ProjectionAdapter`.
 
-### 解決策
-1. **`pipeline.inspect()` で構成を確認**:
+### Solution
+1. **Check configuration with `pipeline.inspect()`**:
 ```typescript
 console.log(pipeline.inspect());
 // Pipeline [1536-dim]
@@ -68,7 +68,7 @@ console.log(pipeline.inspect());
 //   Final: QuantizationAdapter
 ```
 
-2. **`pipeline.dryRun()` で中間出力を確認**:
+2. **Check intermediate outputs with `pipeline.dryRun()`**:
 ```typescript
 const results = pipeline.dryRun(testVector, { intent: "tech" });
 results.forEach(r => {
@@ -76,40 +76,40 @@ results.forEach(r => {
 });
 ```
 
-3. **モデル移行時**: `MigrationTrainer` を使って既存のベクトルを新モデルの空間に変換する射影行列を学習してください。
+3. **During Model Migration**: Use `MigrationTrainer` to learn a projection matrix that converts existing vectors into the new model's space.
 
 ---
 
-## 4. エッジ環境でのメモリ制限
+## 4. Memory Limits in Edge Environments
 
-### 症状
-- `WASM memory grow failed` のエラー
-- OOM (Out Of Memory) で Worker がクラッシュする
+### Symptom
+- `WASM memory grow failed` error.
+- The Worker crashes due to OOM (Out Of Memory).
 
-### 原因
-- Cloudflare Workers のメモリ制限（128MB）に到達した
-- 大量のベクトルを一括で処理しようとしている
+### Cause
+- Reached the Cloudflare Workers memory limit (e.g., 128MB).
+- Attempting to process a massive number of vectors in a single batch.
 
-### 解決策
+### Solution
 
-1. **ストリーム処理を使用する**:
+1. **Use Stream Processing**:
 ```typescript
-// 一括処理ではなくストリームで処理（メモリ効率的）
+// Process as a stream instead of a single batch (Memory efficient)
 const results = pipeline.runStream(vectorGenerator, {
-  batchSize: 64,  // バッチサイズを小さくする
+  batchSize: 64,  // Reduce the batch size
 });
 ```
 
-2. **量子化を使用してメモリを削減**:
+2. **Reduce Memory Using Quantization**:
 ```typescript
-// Float32 → Int8 で 1/4、Binary で 1/32 に圧縮
+// Compress to 1/4 with Int8, or 1/32 with Binary from Float32
 pipeline.setFinalStage("quantize", new QuantizationAdapter({
-  type: "int8",  // または "binary"
+  type: "int8",  // or "binary"
   dim: 1536
 }));
 ```
 
-3. **WASMメモリ使用量の監視**:
+3. **Monitor WASM Memory Usage**:
 ```typescript
 import { getWasmMemoryStats } from 'warpvector';
 
@@ -119,29 +119,29 @@ console.log(`Used: ${stats.usedBytes}, Peak: ${stats.peakBytes}, Total: ${stats.
 
 ---
 
-## 5. パフォーマンスのボトルネック特定
+## 5. Identifying Performance Bottlenecks
 
-### 症状
-- パイプラインの処理速度が期待より遅い
-- どのステップがボトルネックか分からない
+### Symptom
+- Pipeline processing speed is slower than expected.
+- Unsure which step is the bottleneck.
 
-### 解決策
+### Solution
 
-**メトリクス収集を有効にする**:
+**Enable Metrics Collection**:
 ```typescript
 const pipeline = new WarpPipeline(1536)
   .addStep("mlp", mlpAdapter)
   .addIntent(intents);
 
-// メトリクス収集を有効化
+// Enable metrics collection
 pipeline.metrics.enable();
 
-// 処理を実行
+// Execute processing
 for (const vec of vectors) {
   pipeline.run(vec, { intent: "tech" });
 }
 
-// 結果を確認
+// Check results
 const metrics = pipeline.metrics.getMetrics();
 console.log(`Total runs: ${metrics.totalRuns}`);
 console.log(`Avg run duration: ${metrics.avgRunDurationMs.toFixed(2)}ms`);
@@ -151,7 +151,7 @@ for (const [step, avg] of Object.entries(metrics.avgStepDurationMs)) {
 }
 ```
 
-**`dryRun()` で単一ベクトルを計測する**:
+**Measure a single vector using `dryRun()`**:
 ```typescript
 const results = pipeline.dryRun(testVector, { intent: "tech" });
 results.forEach(r => {
@@ -161,22 +161,22 @@ results.forEach(r => {
 
 ---
 
-## 6. 並行処理でのデータ破壊
+## 6. Data Corruption in Concurrent Processing
 
-### 症状
-- 複数リクエストを同時処理するとベクトルの結果がおかしくなる
+### Symptom
+- Processing multiple requests simultaneously results in corrupted vector outputs.
 
-### 原因
-- WASM メモリは共有リソースのため、複数の処理が同時にアクセスすると破壊が起きる
+### Cause
+- Because WASM memory is a shared resource, simultaneous access by multiple processes causes corruption.
 
-### 解決策
-**`runStream` を使用する**: v0.2.0 以降、`runStream` は内部で `wasmMutex` による排他制御を行います。
+### Solution
+**Use `runStream`**: As of v0.2.0, `runStream` internally utilizes `wasmMutex` for exclusive control.
 
-**手動で排他制御する場合**:
+**When managing exclusive control manually**:
 ```typescript
 import { wasmMutex } from 'warpvector';
 
-// WASM メモリを使う処理を排他的に実行
+// Execute processes utilizing WASM memory exclusively
 const result = await wasmMutex.runExclusive(() => {
   return pipeline.run(vector, { intent: "tech" });
 });
@@ -184,25 +184,25 @@ const result = await wasmMutex.runExclusive(() => {
 
 ---
 
-## 7. importState でのエラー
+## 7. Errors during importState
 
-### 症状
+### Symptom
 ```
-WarpVector: フィールド 'state' のバリデーションに失敗しました。
-  JSON文字列が必要ですが、object 型が渡されました。
+WarpVector: Validation failed for field 'state'.
+  Expected a JSON string, but received object.
 ```
 
-### 原因
-- `importState()` に `exportState()` の結果を直接渡さず、加工してしまった
-- JSON のシリアライズ/デシリアライズの過程でデータが壊れた
+### Cause
+- You modified or parsed the result of `exportState()` before passing it to `importState()`.
+- Data was corrupted during JSON serialization/deserialization.
 
-### 解決策
+### Solution
 ```typescript
-// 正しい使い方
-const state = adapter.exportState();    // string 型
-const json = JSON.stringify(state);     // Redis 等に保存する場合
+// Correct usage
+const state = adapter.exportState();    // string type
+const json = JSON.stringify(state);     // E.g., when saving to Redis
 
-// 復元時
-const parsed = JSON.parse(json);        // string に戻す
+// Upon restoration
+const parsed = JSON.parse(json);        // Convert back to string
 const restored = IntentAdapter.importState(parsed);
 ```

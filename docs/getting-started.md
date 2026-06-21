@@ -1,34 +1,34 @@
-# Getting Started (はじめに)
+# Getting Started
 
-`warpvector` は、ベクトル検索における「ユーザーの意図」に合わせたベクトル空間の動的変形（アフィン変換）を可能にする超軽量ミドルウェアです。
+`warpvector` is an ultra-lightweight middleware that enables dynamic transformation (affine transformations) of vector spaces based on "user intent" in vector searches.
 
-## 1. インストール
+## 1. Installation
 
-パッケージマネージャーを使用してインストールします。
+Install using your preferred package manager.
 
 ```bash
-# npmを使用する場合
+# Using npm
 npm install warpvector
 
-# bunを使用する場合
+# Using bun
 bun add warpvector
 ```
 
-Python環境や重厚な機械学習ライブラリ（PyTorchなど）は一切不要です。内部で自動的に WebAssembly (WASM) がロードされ、大規模なベクトルバッチ処理も高速に処理されます。
+No Python environment or heavy machine learning libraries (like PyTorch) are required. WebAssembly (WASM) is automatically loaded internally, allowing even large batch vector processing to run at high speed.
 
-## 2. 基本的な使い方
+## 2. Basic Usage
 
-`warpvector` の中心となるのは `IntentAdapter` クラスです。
+The core of `warpvector` is the `IntentAdapter` class.
 
-### アダプターの初期化
+### Initializing the Adapter
 
-まず、それぞれの「意図（コンテキスト）」に対応する変換行列とバイアスを用意し、アダプターを初期化します。ここでは最もシンプルで強力な `WarpPipeline` を使ってベクトル操作を組み立てます。
+First, prepare the transformation matrices and biases corresponding to each "intent" (context) and initialize the adapter. Here, we use the `WarpPipeline`, which is the simplest and most powerful way to assemble vector operations.
 
 ```typescript
 import { WarpPipeline, IntentWeights } from 'warpvector';
 
 const intents: Record<string, IntentWeights> = {
-  // 例えば「リスク分析」という意図の変換定義
+  // For example, a transformation definition for a "risk analysis" intent
   riskAnalysis: {
     matrix: [
       [1.2, 0.1, -0.4],
@@ -39,65 +39,65 @@ const intents: Record<string, IntentWeights> = {
   }
 };
 
-// 3次元ベクトルを受け取り、Intent変換と量子化を行うパイプラインを構築
+// Build a pipeline that takes a 3D vector, performs Intent transformation, and quantizes it
 const pipeline = new WarpPipeline(3)
   .addIntent(intents)
   .quantize("int8");
 ```
 
-### ベクトルの変換（ワープ）
+### Transforming (Warping) Vectors
 
-AIモデルから出力された標準の埋め込みベクトルを、指定した意図に合わせて変換します。
+Transform the standard embedding vectors output by an AI model according to the specified intent.
 
 ```typescript
-// AIモデルが出力した元のベクトル
+// Original vector output by the AI model
 const baseVector = [0.15, -0.23, 0.88];
 
-// "riskAnalysis" の意図に合わせてベクトルを変換し、Int8に量子化
+// Transform the vector according to the "riskAnalysis" intent and quantize to Int8
 const tunedVector = pipeline.run(baseVector, { intent: "riskAnalysis" });
 
-console.log(tunedVector); // Int8Array に変換された新しいベクトル
+console.log(tunedVector); // The new vector converted to Int8Array
 ```
 
-## 3. 正規化と類似度計算
+## 3. Normalization and Similarity Calculation
 
-変換後のベクトルは、Pinecone や Qdrant などのベクトルデータベースにそのまま渡すことができますが、コサイン類似度で比較する場合は、変換後に正規化（L2 Normを1にする）を行うと便利です。
+Transformed vectors can be directly passed to vector databases like Pinecone or Qdrant. However, if you are comparing them using cosine similarity, it is useful to normalize them (setting the L2 Norm to 1) after transformation.
 
 ```typescript
 import { normalize, cosineSimilarity } from 'warpvector';
 
 const normalized = normalize(tunedVector);
 
-// 別のベクトルとの類似度を計算
+// Calculate similarity with another vector
 const queryVector = normalize([0.1, 0.0, 0.9]);
 const similarity = cosineSimilarity(normalized, queryVector);
-console.log(`類似度: ${similarity}`);
+console.log(`Similarity: ${similarity}`);
 ```
 
-さらに高度な使い方（自動ブレンド、WASMバッチ処理など）については、[Advanced Usage](./advanced-usage.md) をご覧ください。
+For more advanced usage (automatic blending, WASM batch processing, etc.), please refer to [Advanced Usage](./advanced-usage.md).
 
 ---
 
-## 4. クイックスタート・サンプルの実行
+## 4. Running the Quickstart Sample
 
-`warpvector` の効果を実際にターミナル上で確認できるサンプルスクリプトを用意しています。このスクリプトでは、あらかじめ定義された3つのドキュメントベクトルに対して、「通常の検索」と「テクノロジー重視にワープ（アフィン変換）した検索」のスコアの違いを体験できます。
+We provide a sample script where you can actually see the effects of `warpvector` in your terminal. This script lets you experience the difference in scores between a "normal search" and a search "warped (affine transformed) towards technology" against three predefined document vectors.
 
-リポジトリをクローンした状態で、以下のコマンドを実行してください。
+With the repository cloned, run the following command:
 
 ```bash
-# Bun をお使いの場合
+# If using Bun
 bun run examples/quickstart.ts
 
-# Node.js をお使いの場合 (ts-node 等が必要です)
+# If using Node.js (requires ts-node, etc.)
 npx ts-node examples/quickstart.ts
 ```
 
-### サンプルコードの概要
+### Overview of the Sample Code
 
-`examples/quickstart.ts` では以下のような処理が行われています。
-1. **ドキュメントの定義**: 「天気」「経済」「テクノロジー」の3つのサンプルベクトルを用意します。
-2. **通常の検索**: クエリに対して最も近いのは「経済」のドキュメントになります。
-3. **ワープの適用**: `IntentAdapter` を用いて、ベクトル空間の「Z軸（テクノロジーの特徴量）」を 2.5倍に拡張（拡大）し、さらに空間全体をZ軸方向にシフトさせるアフィン変換を適用します。
-4. **意図を反映した検索**: データベース側（ドキュメント側）のベクトルは一切変更していないにも関わらず、検索クエリが「テクノロジー重視空間」に歪められるため、テクノロジーのドキュメントが検索スコアの最上位に躍り出ます。
+The following processes take place in `examples/quickstart.ts`:
+1. **Defining Documents**: Prepares three sample vectors representing "Weather", "Economy", and "Technology".
+2. **Normal Search**: The closest document to the query is "Economy".
+3. **Applying Warp**: Uses `IntentAdapter` to apply an affine transformation that expands (scales up) the "Z-axis (technology feature)" of the vector space by 2.5x, and shifts the entire space along the Z-axis.
+4. **Search Reflecting Intent**: Even though the vectors on the database side (document side) are not modified at all, the search query is warped into a "technology-focused space", causing the technology document to leap to the top of the search score rankings.
 
-このように、フロントエンド（またはエッジ層）で `warpvector` を挟むだけで、ユーザーの意図に応じた検索結果のランキング操作をリアルタイムに実現できます！
+In this way, simply by inserting `warpvector` at the frontend (or edge layer), you can instantly achieve ranking manipulation of search results tailored to the user's intent in real-time!

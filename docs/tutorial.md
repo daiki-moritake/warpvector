@@ -1,82 +1,80 @@
-# WarpVector E2E チュートリアル: ゼロから意図行列を作る
+# WarpVector E2E Tutorial: Creating an Intent Matrix from Scratch
 
-このチュートリアルでは、WarpVector を使って **「検索クエリのベクトルを、特定の意図に合わせて空間変換する」** という実践的なシナリオを最初から最後まで構築します。
+In this tutorial, we will build a practical scenario from start to finish using WarpVector: **"Dynamically transforming a search query's vector to match a specific intent."**
 
-## 目次
+## Table of Contents
 
-1. [コンセプト: 意図行列とは何か](#コンセプト-意図行列とは何か)
-2. [セットアップ](#セットアップ)
-3. [Step 1: IntentAdapter で線形変換を構築](#step-1-intentadapter-で線形変換を構築)
-4. [Step 2: パイプラインの組み立て](#step-2-パイプラインの組み立て)
-5. [Step 3: 量子化で保存コストを削減](#step-3-量子化で保存コストを削減)
-6. [Step 4: 状態の保存と復元](#step-4-状態の保存と復元)
-7. [Step 5: MLP アダプタで非線形変換](#step-5-mlp-アダプタで非線形変換)
-8. [API リファレンス](#api-リファレンス)
-
----
-
-## コンセプト: 意図行列とは何か
-
-ベクトル検索において、同じクエリでも **「類似度重視」** と **「多様性重視」** では
-最適なベクトル空間が異なります。WarpVector の **意図行列（Intent Matrix）** は、
-この「意図に応じたベクトル空間の回転・拡縮」を実現します。
-
-```
-元のベクトル空間        意図行列 W        変換後の空間
-     [v₁]           × [W_intent]   →    [v₁']
-     [v₂]                               [v₂']
-```
-
-数学的には `v' = Wv + b` （アフィン変換）です。
+1. [Concept: What is an Intent Matrix?](#concept-what-is-an-intent-matrix)
+2. [Setup](#setup)
+3. [Step 1: Building a Linear Transformation with IntentAdapter](#step-1-building-a-linear-transformation-with-intentadapter)
+4. [Step 2: Assembling the Pipeline](#step-2-assembling-the-pipeline)
+5. [Step 3: Reducing Storage Costs with Quantization](#step-3-reducing-storage-costs-with-quantization)
+6. [Step 4: Saving and Restoring State](#step-4-saving-and-restoring-state)
+7. [Step 5: Non-linear Transformation with MLP Adapter](#step-5-non-linear-transformation-with-mlp-adapter)
+8. [API Reference](#api-reference)
 
 ---
 
-## セットアップ
+## Concept: What is an Intent Matrix?
+
+In vector search, the optimal vector space differs even for the same query depending on whether the focus is on **"similarity"** or **"diversity"**. WarpVector's **Intent Matrix** achieves this "rotation and scaling of the vector space according to intent."
+
+```
+Original Vector Space      Intent Matrix W        Transformed Space
+     [v₁]               × [W_intent]   →    [v₁']
+     [v₂]                                   [v₂']
+```
+
+Mathematically, it is an affine transformation: `v' = Wv + b`.
+
+---
+
+## Setup
 
 ```bash
-# 新しいプロジェクトを作成
+# Create a new project
 mkdir my-warp-project && cd my-warp-project
 bun init -y
 
-# WarpVector をインストール
+# Install WarpVector
 bun add @warpvector/core
 ```
 
 ---
 
-## Step 1: IntentAdapter で線形変換を構築
+## Step 1: Building a Linear Transformation with IntentAdapter
 
-最も基本的な使い方は、`IntentAdapter` に意図行列を登録し、ベクトルを変換することです。
+The most basic usage is to register an intent matrix with the `IntentAdapter` and transform the vector.
 
 ```typescript
 import { IntentAdapter } from "@warpvector/core";
 
-// 3次元ベクトルを扱う IntentAdapter を作成
+// Create an IntentAdapter that handles 3-dimensional vectors
 const adapter = new IntentAdapter(3);
 
-// 「類似度重視」の意図行列を登録
-// この行列は、第1次元（意味的類似度）を2倍に強調し、
-// 第3次元（多様性スコア）を半分に抑える変換を表します。
+// Register an intent matrix focused on "similarity"
+// This matrix represents a transformation that doubles the 1st dimension (semantic similarity),
+// and halves the 3rd dimension (diversity score).
 adapter.addIntent("similarity", {
   matrix: [
-    [2, 0, 0],   // 第1次元を2倍に強調
-    [0, 1, 0],   // 第2次元はそのまま
-    [0, 0, 0.5], // 第3次元を半分に
+    [2, 0, 0],   // Double the 1st dimension
+    [0, 1, 0],   // Keep the 2nd dimension as is
+    [0, 0, 0.5], // Halve the 3rd dimension
   ],
-  bias: [0, 0, 0], // バイアスなし
+  bias: [0, 0, 0], // No bias
 });
 
-// 「多様性重視」の意図行列
+// An intent matrix focused on "diversity"
 adapter.addIntent("diversity", {
   matrix: [
-    [0.5, 0, 0], // 第1次元を半分に
+    [0.5, 0, 0], // Halve the 1st dimension
     [0, 1, 0],
-    [0, 0, 2],   // 第3次元を2倍に強調
+    [0, 0, 2],   // Double the 3rd dimension
   ],
   bias: [0, 0, 0],
 });
 
-// ベクトルを変換
+// Transform the vector
 const query = [0.8, 0.5, 0.3];
 const forSimilarity = adapter.tune(query, "similarity");
 // → Float32Array [1.6, 0.5, 0.15]
@@ -87,14 +85,14 @@ const forDiversity = adapter.tune(query, "diversity");
 
 ---
 
-## Step 2: パイプラインの組み立て
+## Step 2: Assembling the Pipeline
 
-複数の変換を **パイプライン** として直列に接続できます。
+You can chain multiple transformations serially as a **Pipeline**.
 
 ```typescript
 import { WarpPipeline } from "@warpvector/core";
 
-// パイプライン: 意図変換 → 次元削減(3D → 2D)
+// Pipeline: Intent Transformation → Dimensionality Reduction (3D → 2D)
 const pipeline = new WarpPipeline(3)
   .addIntent({
     search: {
@@ -109,23 +107,22 @@ const pipeline = new WarpPipeline(3)
   .addProjection(2, {
     search: {
       matrix: [
-        [1, 0, 0], // 第1・第2次元だけを取り出す
+        [1, 0, 0], // Extract only the 1st and 2nd dimensions
         [0, 1, 0],
       ],
     },
   });
 
-// 実行
+// Execute
 const result = pipeline.run([0.5, 0.8, 0.3], { intent: "search" });
-// → Float32Array [1.1, 0.8]  (3次元 → 2次元に圧縮)
+// → Float32Array [1.1, 0.8]  (Compressed from 3D → 2D)
 ```
 
 ---
 
-## Step 3: 量子化で保存コストを削減
+## Step 3: Reducing Storage Costs with Quantization
 
-`@warpvector/extras` の `QuantizationAdapter` を使い、
-Float32 ベクトルを Int8 に量子化してストレージコストを **1/4** に削減できます。
+Using the `QuantizationAdapter` from `@warpvector/extras`, you can quantize Float32 vectors into Int8 to reduce storage costs by **75% (1/4)**.
 
 ```typescript
 import { WarpPipeline } from "@warpvector/core";
@@ -133,7 +130,7 @@ import { QuantizationAdapter } from "@warpvector/extras";
 
 const quantizer = new QuantizationAdapter({ type: "int8", dim: 2 });
 
-// パイプラインの最終段に量子化を設定（FinalStageAdapter パターン）
+// Set quantization at the final stage of the pipeline (FinalStageAdapter pattern)
 const pipeline = new WarpPipeline(3)
   .addIntent({
     search: {
@@ -156,36 +153,34 @@ const pipeline = new WarpPipeline(3)
   .setFinalStage("QuantizationAdapter", quantizer);
 
 const result = pipeline.run([0.5, 0.8, 0.3], { intent: "search" });
-// → Int8Array [64, 102]  (Float32Array → Int8Array に量子化)
+// → Int8Array [64, 102]  (Quantized from Float32Array → Int8Array)
 ```
 
-> **Note:** `setFinalStage()` は従来の `addStep("QuantizationAdapter", ...)` とは異なり、
-> パイプラインの中間段には Float32Array のみを強制するため型安全です。
+> **Note:** `setFinalStage()` differs from the traditional `addStep("QuantizationAdapter", ...)`. It is type-safe by enforcing that the intermediate stages of the pipeline remain exclusively Float32Array.
 
 ---
 
-## Step 4: 状態の保存と復元
+## Step 4: Saving and Restoring State
 
-パイプラインの重み（意図行列、射影行列など）はすべて JSON にシリアライズ・復元可能です。
+All pipeline weights (intent matrices, projection matrices, etc.) can be serialized to and restored from JSON.
 
 ```typescript
-// 保存
+// Save
 const state = pipeline.exportState();
 const json = JSON.stringify(state);
-// → データベースやファイルに保存
+// → Save to a database or file
 
-// 復元
+// Restore
 const restored = WarpPipeline.importState(JSON.parse(json));
 const result2 = restored.run([0.5, 0.8, 0.3], { intent: "search" });
-// → 保存前と完全に同じ結果
+// → Produces the exact same result as before saving
 ```
 
 ---
 
-## Step 5: MLP アダプタで非線形変換
+## Step 5: Non-linear Transformation with MLP Adapter
 
-線形変換では表現できない複雑な空間変換には、`MlpAdapter`（多層パーセプトロン）を使います。
-WASM による高速推論で、1536次元のベクトルも数マイクロ秒で処理できます。
+For complex spatial transformations that cannot be expressed with linear transformations, use `MlpAdapter` (Multi-Layer Perceptron). With fast inference powered by WASM, even 1536-dimensional vectors can be processed in a few microseconds.
 
 ```typescript
 import { MlpAdapter } from "@warpvector/ml";
@@ -213,47 +208,47 @@ const mlp = new MlpAdapter([
   },
 ]);
 
-// WASM の初期化（1回だけ）
+// Initialize WASM (only once)
 await mlp.init();
 
-// 推論
+// Infer
 const output = mlp.tune([0.5, 0.8, 0.3]);
-// → Float32Array (2次元に次元削減された非線形変換結果)
+// → Float32Array (Result of non-linear transformation reduced to 2 dimensions)
 
-// パイプラインに組み込む
+// Integrate into the pipeline
 const pipeline = new WarpPipeline(3)
   .addStep("MlpAdapter", mlp);
 
-await pipeline.init(); // WASM アダプタの初期化
+await pipeline.init(); // Initialize WASM adapters
 const pipelineResult = pipeline.run([0.5, 0.8, 0.3]);
 ```
 
 ---
 
-## API リファレンス
+## API Reference
 
-| クラス | 用途 | パッケージ |
+| Class | Use Case | Package |
 |--------|------|-----------|
-| `IntentAdapter` | 意図ごとの線形変換 (Wx+b) | `@warpvector/core` |
-| `LoraIntentAdapter` | LoRA式の低ランク意図変換 | `@warpvector/core` |
-| `ProjectionAdapter` | PCA/SVD による次元削減 | `@warpvector/core` |
-| `WarpPipeline` | アダプタの直列接続 | `@warpvector/core` |
-| `QuantizationAdapter` | Int8/Binary 量子化 | `@warpvector/extras` |
+| `IntentAdapter` | Linear transformation per intent (Wx+b) | `@warpvector/core` |
+| `LoraIntentAdapter` | Low-rank intent transformation using LoRA | `@warpvector/core` |
+| `ProjectionAdapter` | Dimensionality reduction via PCA/SVD | `@warpvector/core` |
+| `WarpPipeline` | Serial connection of adapters | `@warpvector/core` |
+| `QuantizationAdapter` | Int8/Binary quantization | `@warpvector/extras` |
 | `ColbertAdapter` | Late Interaction (MaxSim) | `@warpvector/extras` |
-| `MlpAdapter` | 非線形変換 (WASM MLP) | `@warpvector/ml` |
-| `WhiteningAdapter` | Whitening 正規化 | `@warpvector/ml` |
+| `MlpAdapter` | Non-linear transformation (WASM MLP) | `@warpvector/ml` |
+| `WhiteningAdapter` | Whitening normalization | `@warpvector/ml` |
 
-### パイプラインの設計パターン
+### Pipeline Design Pattern
 
 ```
-入力ベクトル (Float32Array)
+Input Vector (Float32Array)
     │
     ├─ WarpAdapter (IntentAdapter, ProjectionAdapter, MlpAdapter...)
-    │   → 常に Float32Array を返す
-    │   → 複数を直列に接続可能
+    │   → Always returns a Float32Array
+    │   → Can be connected serially
     │
     └─ FinalStageAdapter (QuantizationAdapter)
-        → Int8Array / Uint8Array を返す
-        → パイプライン最終段にのみ配置可能
-        → setFinalStage() で設定
+        → Returns Int8Array / Uint8Array
+        → Can only be placed at the final stage of the pipeline
+        → Configured using setFinalStage()
 ```
