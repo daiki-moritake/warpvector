@@ -26,8 +26,23 @@ published: true
 
 WarpVectorは、LLM（OpenAI等）とベクトルデータベースの「中間（ミドルウェア）」に配置する軽量なライブラリです。
 
-![WarpVectorアーキテクチャ概要](https://storage.googleapis.com/zenn-user-upload/placeholder-architecture.png)
-_(※ここにアーキテクチャの概要図を入れる)_
+```mermaid
+graph LR
+    User[検索クエリ] --> LLM[OpenAI / LLM]
+    LLM -->|1536次元 Float32| WV{WarpVector}
+
+    subgraph WarpVector [TypeScript / WASM Middleware]
+        WV --> IA[IntentAdapter<br/>意図に合わせて空間を変形]
+        IA --> QA[QuantizationAdapter<br/>Float32をBinaryに圧縮]
+    end
+
+    QA -->|192Byte Binary| DB[(Pinecone / Vector DB)]
+
+    style WV fill:#2d3748,stroke:#fff,stroke-width:2px,color:#fff
+    style IA fill:#4a5568,stroke:#e2e8f0,color:#fff
+    style QA fill:#4a5568,stroke:#e2e8f0,color:#fff
+    style DB fill:#3182ce,stroke:#fff,color:#fff
+```
 
 主な機能は以下の2つです。
 
@@ -68,8 +83,23 @@ const compressedVector = quantizer.tune(baseVector);
 
 WarpVectorの `IntentAdapter` を使えば、WASMによる超高速なアフィン変換を用いて、ベクトルを特定の「インテント（意図）」の方向に動的に引き寄せることができます。
 
-![Intent切り替えの動作GIF](https://storage.googleapis.com/zenn-user-upload/placeholder-intent-demo.gif)
-_(※ここにPlayground等で意図を切り替えた瞬間に検索結果が変わるGIFを入れる)_
+```mermaid
+graph TD
+    Query["検索クエリ:「靴」<br/>(Base Vector)"] --> IA{IntentAdapter<br/>WASMによる超高速ワープ}
+    
+    IA -->|意図: "スポーツ・運動"| V_Sport["🏃‍♂️『ランニングシューズ』の空間へ移動"]
+    IA -->|意図: "ビジネス・フォーマル"| V_Biz["👞『革靴・ビジネス』の空間へ移動"]
+    IA -->|意図: "カジュアル・普段着"| V_Cas["👟『スニーカー』の空間へ移動"]
+
+    V_Sport --> DB[(Vector DB<br/>検索実行)]
+    V_Biz --> DB
+    V_Cas --> DB
+    
+    style IA fill:#4a5568,stroke:#e2e8f0,stroke-width:2px,color:#fff
+    style V_Sport fill:#e53e3e,stroke:#fff,color:#fff
+    style V_Biz fill:#3182ce,stroke:#fff,color:#fff
+    style V_Cas fill:#38a169,stroke:#fff,color:#fff
+```
 
 ### 実装例
 
