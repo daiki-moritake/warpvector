@@ -4,453 +4,50 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>WarpVector Playground — Interactive Vector Space Demo</title>
-  <meta name="description" content="See how WarpVector dynamically warps vector space based on intent. No retraining, no Python, just TypeScript.">
+  <meta name="description" content="See how WarpVector dynamically warps vector space using REAL WASM-accelerated affine transforms. No simulation — actual library running in your browser.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <style>
-    /* ===== Design Tokens ===== */
-    :root {
-      color-scheme: dark;
-      --bg-primary: #0a0e1a;
-      --bg-secondary: #111827;
-      --bg-card: rgba(17, 24, 39, 0.7);
-      --bg-glass: rgba(255, 255, 255, 0.04);
-      --border-glass: rgba(255, 255, 255, 0.08);
-      --text-primary: #f1f5f9;
-      --text-secondary: #94a3b8;
-      --text-muted: #64748b;
-      --accent-blue: #3b82f6;
-      --accent-purple: #8b5cf6;
-      --accent-cyan: #06b6d4;
-      --accent-green: #10b981;
-      --accent-amber: #f59e0b;
-      --accent-rose: #f43f5e;
-      --gradient-primary: linear-gradient(135deg, #3b82f6, #8b5cf6);
-      --gradient-glow: radial-gradient(ellipse at center, rgba(59, 130, 246, 0.15) 0%, transparent 70%);
-      --radius-lg: 16px;
-      --radius-md: 12px;
-      --radius-sm: 8px;
-      --shadow-glow: 0 0 40px rgba(59, 130, 246, 0.15);
-      --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
-      --font-mono: 'JetBrains Mono', monospace;
-      --transition-smooth: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    /* ===== Reset ===== */
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body {
-      font-family: var(--font-sans);
-      background: var(--bg-primary);
-      color: var(--text-primary);
-      min-height: 100vh;
-      overflow-x: hidden;
-      -webkit-font-smoothing: antialiased;
-    }
-
-    /* ===== Background Effects ===== */
-    .bg-grid {
-      position: fixed;
-      inset: 0;
-      background-image:
-        linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
-      background-size: 60px 60px;
-      pointer-events: none;
-      z-index: 0;
-    }
-    .bg-glow {
-      position: fixed;
-      top: -20%;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 800px;
-      height: 600px;
-      background: var(--gradient-glow);
-      pointer-events: none;
-      z-index: 0;
-    }
-
-    /* ===== Layout ===== */
-    .app {
-      position: relative;
-      z-index: 1;
-      max-width: 1400px;
-      margin: 0 auto;
-      padding: 24px;
-    }
-
-    /* ===== Header ===== */
-    .header {
-      text-align: center;
-      padding: 40px 0 32px;
-    }
-    .header__badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 14px;
-      background: var(--bg-glass);
-      border: 1px solid var(--border-glass);
-      border-radius: 999px;
-      font-size: 12px;
-      font-weight: 500;
-      color: var(--accent-cyan);
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
-      margin-bottom: 16px;
-    }
-    .header__badge::before {
-      content: '';
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: var(--accent-green);
-      animation: pulse-dot 2s ease-in-out infinite;
-    }
-    @keyframes pulse-dot {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.3; }
-    }
-    .header h1 {
-      font-size: clamp(28px, 4vw, 42px);
-      font-weight: 800;
-      background: var(--gradient-primary);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-      line-height: 1.2;
-    }
-    .header p {
-      color: var(--text-secondary);
-      font-size: 16px;
-      margin-top: 12px;
-      max-width: 600px;
-      margin-inline: auto;
-      line-height: 1.6;
-    }
-
-    /* ===== Main Grid ===== */
-    .main-grid {
-      display: grid;
-      grid-template-columns: 1fr 320px;
-      gap: 24px;
-      margin-top: 32px;
-    }
-
-    @media (max-width: 900px) {
-      .main-grid {
-        grid-template-columns: 1fr;
-      }
-    }
-
-    /* ===== Glass Card ===== */
-    .card {
-      background: var(--bg-card);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border: 1px solid var(--border-glass);
-      border-radius: var(--radius-lg);
-      overflow: hidden;
-    }
-    .card__header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 16px 20px;
-      border-bottom: 1px solid var(--border-glass);
-    }
-    .card__title {
-      font-size: 14px;
-      font-weight: 600;
-      color: var(--text-primary);
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .card__title-icon {
-      width: 18px;
-      height: 18px;
-      border-radius: 4px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 11px;
-    }
-    .card__body { padding: 20px; }
-
-    /* ===== Canvas ===== */
-    .canvas-wrapper {
-      position: relative;
-      aspect-ratio: 16 / 10;
-      border-radius: var(--radius-md);
-      overflow: hidden;
-      background: rgba(0,0,0,0.3);
-    }
-    #vectorCanvas {
-      width: 100%;
-      height: 100%;
-      display: block;
-      cursor: crosshair;
-    }
-    .canvas-legend {
-      position: absolute;
-      bottom: 12px;
-      left: 12px;
-      display: flex;
-      gap: 12px;
-      font-size: 11px;
-      color: var(--text-muted);
-    }
-    .canvas-legend span {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-    }
-    .canvas-legend .dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      display: inline-block;
-    }
-
-    /* ===== Intent Buttons ===== */
-    .intent-group {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-    .intent-btn {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 14px 16px;
-      background: var(--bg-glass);
-      border: 1px solid var(--border-glass);
-      border-radius: var(--radius-md);
-      cursor: pointer;
-      transition: all var(--transition-smooth);
-      font-family: var(--font-sans);
-      color: var(--text-secondary);
-      font-size: 13px;
-      font-weight: 500;
-      text-align: left;
-    }
-    .intent-btn:hover {
-      background: rgba(255, 255, 255, 0.06);
-      border-color: rgba(255, 255, 255, 0.12);
-    }
-    .intent-btn.active {
-      background: rgba(59, 130, 246, 0.1);
-      border-color: rgba(59, 130, 246, 0.3);
-      color: var(--text-primary);
-      box-shadow: 0 0 20px rgba(59, 130, 246, 0.1);
-    }
-    .intent-btn__icon {
-      width: 36px;
-      height: 36px;
-      border-radius: var(--radius-sm);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 18px;
-      flex-shrink: 0;
-    }
-    .intent-btn__content {
-      flex: 1;
-      min-width: 0;
-    }
-    .intent-btn__name {
-      font-weight: 600;
-      font-size: 14px;
-      margin-bottom: 2px;
-    }
-    .intent-btn__desc {
-      font-size: 11px;
-      color: var(--text-muted);
-      line-height: 1.4;
-    }
-
-    /* ===== Rankings ===== */
-    .ranking-list {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-    .ranking-item {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 10px 12px;
-      border-radius: var(--radius-sm);
-      background: var(--bg-glass);
-      border: 1px solid transparent;
-      transition: all var(--transition-smooth);
-      font-size: 13px;
-    }
-    .ranking-item.highlight {
-      border-color: rgba(16, 185, 129, 0.3);
-      background: rgba(16, 185, 129, 0.08);
-    }
-    .ranking-rank {
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 11px;
-      font-weight: 700;
-      background: rgba(255, 255, 255, 0.06);
-      color: var(--text-muted);
-      flex-shrink: 0;
-    }
-    .ranking-item.highlight .ranking-rank {
-      background: rgba(16, 185, 129, 0.2);
-      color: var(--accent-green);
-    }
-    .ranking-name {
-      flex: 1;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      color: var(--text-secondary);
-    }
-    .ranking-item.highlight .ranking-name {
-      color: var(--text-primary);
-    }
-    .ranking-score {
-      font-family: var(--font-mono);
-      font-size: 12px;
-      color: var(--text-muted);
-    }
-    .ranking-item.highlight .ranking-score {
-      color: var(--accent-green);
-    }
-    .ranking-change {
-      font-size: 11px;
-      font-weight: 600;
-      min-width: 28px;
-      text-align: right;
-    }
-    .ranking-change.up { color: var(--accent-green); }
-    .ranking-change.down { color: var(--accent-rose); }
-    .ranking-change.same { color: var(--text-muted); }
-
-    /* ===== Metrics Bar ===== */
-    .metrics-bar {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 16px;
-      margin-top: 24px;
-    }
-    @media (max-width: 600px) {
-      .metrics-bar { grid-template-columns: 1fr; }
-    }
-    .metric-card {
-      padding: 16px;
-      border-radius: var(--radius-md);
-      background: var(--bg-glass);
-      border: 1px solid var(--border-glass);
-      text-align: center;
-    }
-    .metric-card__value {
-      font-size: 24px;
-      font-weight: 700;
-      font-family: var(--font-mono);
-      background: var(--gradient-primary);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-    .metric-card__label {
-      font-size: 11px;
-      color: var(--text-muted);
-      margin-top: 4px;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-
-    /* ===== Section Labels ===== */
-    .section-label {
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      margin-bottom: 12px;
-    }
-
-    /* ===== Footer ===== */
-    .footer {
-      text-align: center;
-      padding: 40px 0;
-      color: var(--text-muted);
-      font-size: 13px;
-    }
-    .footer a {
-      color: var(--accent-blue);
-      text-decoration: none;
-      font-weight: 500;
-    }
-    .footer a:hover {
-      text-decoration: underline;
-    }
-
-    /* ===== Animations ===== */
-    @keyframes fadeInUp {
-      from { opacity: 0; transform: translateY(16px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    .animate-in {
-      animation: fadeInUp 0.6s ease-out both;
-    }
-    .animate-in:nth-child(2) { animation-delay: 0.1s; }
-    .animate-in:nth-child(3) { animation-delay: 0.2s; }
-  </style>
+  <link rel="stylesheet" href="./src/style.css">
 </head>
 <body>
   <div class="bg-grid"></div>
   <div class="bg-glow"></div>
-
   <div class="app">
     <header class="header animate-in">
-      <div class="header__badge">
-        <span>Interactive Demo</span>
-      </div>
+      <div class="header__badge"><span>Real WASM Demo</span></div>
       <h1>WarpVector Playground</h1>
-      <p>See how vector space transforms in real-time based on search intent. Click an intent to warp the space.</p>
-      <p style="margin-top:8px;"><a href="./ja.html" style="color: var(--accent-cyan); text-decoration: none; font-size: 13px;">🇯🇵 日本語版</a></p>
+      <p>See how vector space transforms in real-time using the <strong>actual warpvector library</strong> with WASM acceleration. Every dot movement is a real <code>IntentAdapter.tune()</code> call.</p>
+      <p class="header__lang"><a href="./ja.html">🇯🇵 日本語版</a></p>
     </header>
-
     <div class="main-grid">
-      <!-- Left: Canvas -->
       <div class="card animate-in">
         <div class="card__header">
           <div class="card__title">
-            <span class="card__title-icon" style="background: rgba(59,130,246,0.15); color: var(--accent-blue);">⬡</span>
-            Vector Space Visualization
+            <span class="card__title-icon" style="background:rgba(59,130,246,0.15);color:var(--accent-blue);">⬡</span>
+            Vector Space (32-dim → 2D projection)
           </div>
-          <span style="font-size:12px; color: var(--text-muted);" id="intentLabel">No Intent (Vanilla)</span>
+          <span style="font-size:12px;display:flex;align-items:center;gap:8px;">
+            <span class="wasm-badge" id="wasmBadge">Loading…</span>
+            <span style="color:var(--text-muted);" id="intentLabel">Vanilla Search</span>
+          </span>
         </div>
         <div class="card__body">
           <div class="canvas-wrapper">
             <canvas id="vectorCanvas"></canvas>
             <div class="canvas-legend">
-              <span><span class="dot" style="background: var(--accent-blue);"></span> Document</span>
-              <span><span class="dot" style="background: var(--accent-amber);"></span> Query</span>
-              <span><span class="dot" style="background: var(--accent-green);"></span> Top Match</span>
+              <span><span class="dot" style="background:var(--accent-blue);"></span> Document</span>
+              <span><span class="dot" style="background:var(--accent-amber);"></span> Query</span>
+              <span><span class="dot" style="background:var(--accent-green);"></span> Top Match</span>
             </div>
           </div>
-          <!-- Metrics -->
           <div class="metrics-bar">
             <div class="metric-card">
-              <div class="metric-card__value" id="metricLatency">0.0ms</div>
+              <div class="metric-card__value" id="metricLatency">—</div>
               <div class="metric-card__label">Transform Latency</div>
             </div>
             <div class="metric-card">
-              <div class="metric-card__value" id="metricTopSim">0.000</div>
+              <div class="metric-card__value" id="metricTopSim">—</div>
               <div class="metric-card__label">Top-1 Similarity</div>
             </div>
             <div class="metric-card">
@@ -460,42 +57,39 @@
           </div>
         </div>
       </div>
-
-      <!-- Right: Controls + Rankings -->
-      <div style="display:flex; flex-direction:column; gap:24px;">
-        <!-- Intent Selector -->
+      <div style="display:flex;flex-direction:column;gap:24px;">
         <div class="card animate-in">
           <div class="card__header">
             <div class="card__title">
-              <span class="card__title-icon" style="background: rgba(139,92,246,0.15); color: var(--accent-purple);">◈</span>
+              <span class="card__title-icon" style="background:rgba(139,92,246,0.15);color:var(--accent-purple);">◈</span>
               Search Intent
             </div>
           </div>
           <div class="card__body">
             <div class="intent-group" id="intentGroup">
               <button class="intent-btn active" data-intent="none">
-                <div class="intent-btn__icon" style="background: rgba(100,116,139,0.15);">🔍</div>
+                <div class="intent-btn__icon" style="background:rgba(100,116,139,0.15);">🔍</div>
                 <div class="intent-btn__content">
                   <div class="intent-btn__name">Vanilla Search</div>
                   <div class="intent-btn__desc">No transformation applied</div>
                 </div>
               </button>
               <button class="intent-btn" data-intent="technology">
-                <div class="intent-btn__icon" style="background: rgba(59,130,246,0.15);">💻</div>
+                <div class="intent-btn__icon" style="background:rgba(59,130,246,0.15);">💻</div>
                 <div class="intent-btn__content">
                   <div class="intent-btn__name">Technology</div>
                   <div class="intent-btn__desc">Boost technical documents</div>
                 </div>
               </button>
               <button class="intent-btn" data-intent="business">
-                <div class="intent-btn__icon" style="background: rgba(16,185,129,0.15);">📊</div>
+                <div class="intent-btn__icon" style="background:rgba(16,185,129,0.15);">📊</div>
                 <div class="intent-btn__content">
                   <div class="intent-btn__name">Business</div>
                   <div class="intent-btn__desc">Boost business & finance docs</div>
                 </div>
               </button>
               <button class="intent-btn" data-intent="medical">
-                <div class="intent-btn__icon" style="background: rgba(244,63,94,0.15);">🏥</div>
+                <div class="intent-btn__icon" style="background:rgba(244,63,94,0.15);">🏥</div>
                 <div class="intent-btn__content">
                   <div class="intent-btn__name">Medical</div>
                   <div class="intent-btn__desc">Boost healthcare documents</div>
@@ -504,12 +98,10 @@
             </div>
           </div>
         </div>
-
-        <!-- Rankings -->
         <div class="card animate-in">
           <div class="card__header">
             <div class="card__title">
-              <span class="card__title-icon" style="background: rgba(6,182,212,0.15); color: var(--accent-cyan);">≡</span>
+              <span class="card__title-icon" style="background:rgba(6,182,212,0.15);color:var(--accent-cyan);">≡</span>
               Search Rankings
             </div>
           </div>
@@ -519,390 +111,14 @@
         </div>
       </div>
     </div>
-
     <footer class="footer">
-      <p>
-        Built with <a href="https://github.com/daiki-moritake/warpvector" target="_blank">WarpVector</a> —
-        zero-dependency TypeScript middleware for dynamic vector space transformation.
-      </p>
-      <p style="margin-top:8px;">
-        <a href="https://github.com/daiki-moritake/warpvector" target="_blank">GitHub</a> ·
-        <a href="https://www.npmjs.com/package/warpvector" target="_blank">npm</a>
-      </p>
+      <p>Powered by <a href="https://github.com/daiki-moritake/warpvector" target="_blank">WarpVector</a> — real <code>IntentAdapter.tune()</code> running via WASM in your browser.</p>
+      <p style="margin-top:8px;"><a href="https://github.com/daiki-moritake/warpvector" target="_blank">GitHub</a> · <a href="https://www.npmjs.com/package/warpvector" target="_blank">npm</a></p>
     </footer>
   </div>
-
-  <script>
-    // ===================================================================
-    // WarpVector Playground — Client-side Vector Space Visualization
-    //
-    // This demo simulates WarpVector's intent-based transformation
-    // using 2D projections of higher-dimensional vector operations.
-    // In production, these same operations run on 1536-dim vectors
-    // via WASM-accelerated matrix multiplication.
-    // ===================================================================
-
-    // --- Simulated Documents (2D projections of semantic vectors) ---
-    const DOCUMENTS = [
-      // Technology
-      { id: 0, name: "TypeScript WASM Guide",    category: "tech",     baseX: 0.25, baseY: 0.72, color: "#3b82f6" },
-      { id: 1, name: "React Performance Tips",   category: "tech",     baseX: 0.32, baseY: 0.65, color: "#3b82f6" },
-      { id: 2, name: "Edge Computing Patterns",  category: "tech",     baseX: 0.18, baseY: 0.80, color: "#3b82f6" },
-      { id: 3, name: "Vector Database Internals", category: "tech",    baseX: 0.40, baseY: 0.58, color: "#3b82f6" },
-      // Business
-      { id: 4, name: "Q3 Revenue Analysis",      category: "business", baseX: 0.70, baseY: 0.30, color: "#10b981" },
-      { id: 5, name: "Market Entry Strategy",     category: "business", baseX: 0.75, baseY: 0.25, color: "#10b981" },
-      { id: 6, name: "Enterprise SaaS Pricing",   category: "business", baseX: 0.65, baseY: 0.35, color: "#10b981" },
-      { id: 7, name: "Startup Fundraising Guide", category: "business", baseX: 0.80, baseY: 0.40, color: "#10b981" },
-      // Medical
-      { id: 8,  name: "Clinical Trial Design",    category: "medical",  baseX: 0.60, baseY: 0.75, color: "#f43f5e" },
-      { id: 9,  name: "Drug Interaction Database", category: "medical",  baseX: 0.55, baseY: 0.82, color: "#f43f5e" },
-      { id: 10, name: "Patient Data Privacy",      category: "medical",  baseX: 0.68, baseY: 0.70, color: "#f43f5e" },
-      { id: 11, name: "Genomics Pipeline",         category: "medical",  baseX: 0.50, baseY: 0.88, color: "#f43f5e" },
-      // General / Ambiguous
-      { id: 12, name: "Machine Learning Basics",    category: "general", baseX: 0.45, baseY: 0.50, color: "#94a3b8" },
-      { id: 13, name: "Data Privacy Compliance",    category: "general", baseX: 0.55, baseY: 0.45, color: "#94a3b8" },
-      { id: 14, name: "Cloud Infrastructure",       category: "general", baseX: 0.38, baseY: 0.42, color: "#94a3b8" },
-    ];
-
-    // Query position (center-ish, ambiguous)
-    const QUERY = { x: 0.48, y: 0.55 };
-
-    // Intent transformation matrices (simulated 2D affine transforms)
-    // These simulate what WarpVector's IntentAdapter does in high dimensions
-    const INTENTS = {
-      none: {
-        label: "No Intent (Vanilla)",
-        transform: (doc) => ({ x: doc.baseX, y: doc.baseY }),
-      },
-      technology: {
-        label: "Technology Intent",
-        transform: (doc) => {
-          const dx = doc.baseX - 0.5;
-          const dy = doc.baseY - 0.5;
-          const isTech = doc.category === "tech";
-          // Pull tech docs toward query, push others away
-          const scale = isTech ? 0.5 : 1.3;
-          const shiftX = isTech ? 0.12 : -0.05;
-          const shiftY = isTech ? -0.10 : 0.03;
-          return {
-            x: Math.max(0.05, Math.min(0.95, 0.5 + dx * scale + shiftX)),
-            y: Math.max(0.05, Math.min(0.95, 0.5 + dy * scale + shiftY)),
-          };
-        },
-      },
-      business: {
-        label: "Business Intent",
-        transform: (doc) => {
-          const dx = doc.baseX - 0.5;
-          const dy = doc.baseY - 0.5;
-          const isBiz = doc.category === "business";
-          const scale = isBiz ? 0.5 : 1.3;
-          const shiftX = isBiz ? -0.10 : 0.04;
-          const shiftY = isBiz ? 0.12 : -0.03;
-          return {
-            x: Math.max(0.05, Math.min(0.95, 0.5 + dx * scale + shiftX)),
-            y: Math.max(0.05, Math.min(0.95, 0.5 + dy * scale + shiftY)),
-          };
-        },
-      },
-      medical: {
-        label: "Medical Intent",
-        transform: (doc) => {
-          const dx = doc.baseX - 0.5;
-          const dy = doc.baseY - 0.5;
-          const isMed = doc.category === "medical";
-          const scale = isMed ? 0.5 : 1.2;
-          const shiftX = isMed ? -0.05 : 0.03;
-          const shiftY = isMed ? -0.15 : 0.05;
-          return {
-            x: Math.max(0.05, Math.min(0.95, 0.5 + dx * scale + shiftX)),
-            y: Math.max(0.05, Math.min(0.95, 0.5 + dy * scale + shiftY)),
-          };
-        },
-      },
-    };
-
-    // --- Canvas State ---
-    const canvas = document.getElementById("vectorCanvas");
-    const ctx = canvas.getContext("2d");
-    let currentIntent = "none";
-    let animationProgress = 1; // 0 → 1
-    let animationStartPositions = [];
-    let animationTargetPositions = [];
-    let currentPositions = [];
-    let animFrameId = null;
-
-    // Initialize positions
-    function initPositions() {
-      currentPositions = DOCUMENTS.map((d) => ({ x: d.baseX, y: d.baseY }));
-      animationStartPositions = currentPositions.map((p) => ({ ...p }));
-      animationTargetPositions = currentPositions.map((p) => ({ ...p }));
-    }
-
-    // Resize canvas for HiDPI
-    function resizeCanvas() {
-      const rect = canvas.parentElement.getBoundingClientRect();
-      const dpr = window.devicePixelRatio || 1;
-      canvas.width = rect.width * dpr;
-      canvas.height = rect.height * dpr;
-      ctx.scale(dpr, dpr);
-      canvas.style.width = rect.width + "px";
-      canvas.style.height = rect.height + "px";
-    }
-
-    // Calculate distance between two points
-    function dist(a, b) {
-      return Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
-    }
-
-    // Cosine similarity (simulated from 2D distance)
-    function simScore(docPos) {
-      const d = dist(docPos, QUERY);
-      return Math.max(0, 1 - d * 1.5);
-    }
-
-    // Get sorted rankings
-    function getRankings(positions) {
-      return DOCUMENTS.map((doc, i) => ({
-        ...doc,
-        score: simScore(positions[i]),
-        pos: positions[i],
-      }))
-        .sort((a, b) => b.score - a.score);
-    }
-
-    // --- Drawing ---
-    function drawFrame() {
-      const w = canvas.width / (window.devicePixelRatio || 1);
-      const h = canvas.height / (window.devicePixelRatio || 1);
-
-      // Clear
-      ctx.clearRect(0, 0, w, h);
-
-      // Grid lines
-      ctx.strokeStyle = "rgba(255,255,255,0.03)";
-      ctx.lineWidth = 1;
-      for (let i = 0; i <= 10; i++) {
-        const p = i / 10;
-        ctx.beginPath();
-        ctx.moveTo(p * w, 0);
-        ctx.lineTo(p * w, h);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(0, p * h);
-        ctx.lineTo(w, p * h);
-        ctx.stroke();
-      }
-
-      // Connection lines from query to top-3 matches
-      const rankings = getRankings(currentPositions);
-      const top3 = rankings.slice(0, 3);
-      top3.forEach((doc, i) => {
-        const alpha = [0.25, 0.12, 0.06][i];
-        ctx.beginPath();
-        ctx.moveTo(QUERY.x * w, QUERY.y * h);
-        ctx.lineTo(doc.pos.x * w, doc.pos.y * h);
-        ctx.strokeStyle = `rgba(245, 158, 11, ${alpha})`;
-        ctx.lineWidth = 1.5;
-        ctx.setLineDash([4, 4]);
-        ctx.stroke();
-        ctx.setLineDash([]);
-      });
-
-      // Document dots
-      DOCUMENTS.forEach((doc, i) => {
-        const pos = currentPositions[i];
-        const x = pos.x * w;
-        const y = pos.y * h;
-        const isTop1 = rankings[0]?.id === doc.id;
-        const radius = isTop1 ? 7 : 5;
-
-        // Glow for top result
-        if (isTop1) {
-          const grad = ctx.createRadialGradient(x, y, 0, x, y, 24);
-          grad.addColorStop(0, "rgba(16, 185, 129, 0.3)");
-          grad.addColorStop(1, "rgba(16, 185, 129, 0)");
-          ctx.fillStyle = grad;
-          ctx.beginPath();
-          ctx.arc(x, y, 24, 0, Math.PI * 2);
-          ctx.fill();
-        }
-
-        // Dot
-        ctx.beginPath();
-        ctx.arc(x, y, radius, 0, Math.PI * 2);
-        ctx.fillStyle = isTop1 ? "#10b981" : doc.color;
-        ctx.fill();
-
-        // Border
-        ctx.strokeStyle = isTop1 ? "rgba(16, 185, 129, 0.5)" : "rgba(255,255,255,0.1)";
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-
-        // Label
-        ctx.fillStyle = isTop1 ? "#f1f5f9" : "rgba(241,245,249,0.5)";
-        ctx.font = `${isTop1 ? 500 : 400} 10px Inter, system-ui`;
-        ctx.textAlign = "center";
-        ctx.fillText(doc.name, x, y - radius - 6);
-      });
-
-      // Query marker
-      const qx = QUERY.x * w;
-      const qy = QUERY.y * h;
-
-      // Query glow
-      const qGrad = ctx.createRadialGradient(qx, qy, 0, qx, qy, 30);
-      qGrad.addColorStop(0, "rgba(245, 158, 11, 0.25)");
-      qGrad.addColorStop(1, "rgba(245, 158, 11, 0)");
-      ctx.fillStyle = qGrad;
-      ctx.beginPath();
-      ctx.arc(qx, qy, 30, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Query diamond
-      ctx.save();
-      ctx.translate(qx, qy);
-      ctx.rotate(Math.PI / 4);
-      ctx.fillStyle = "#f59e0b";
-      ctx.fillRect(-5, -5, 10, 10);
-      ctx.strokeStyle = "rgba(245, 158, 11, 0.5)";
-      ctx.lineWidth = 1.5;
-      ctx.strokeRect(-5, -5, 10, 10);
-      ctx.restore();
-
-      // Query label
-      ctx.fillStyle = "#f59e0b";
-      ctx.font = "600 12px Inter, system-ui";
-      ctx.textAlign = "center";
-      ctx.fillText("Query: \"Apple\"", qx, qy - 16);
-    }
-
-    // --- Animation ---
-    function animateTransition() {
-      const duration = 800; // ms
-      const startTime = performance.now();
-
-      function step(timestamp) {
-        const elapsed = timestamp - startTime;
-        const t = Math.min(elapsed / duration, 1);
-        // Ease-out cubic
-        const ease = 1 - Math.pow(1 - t, 3);
-
-        // Interpolate positions
-        for (let i = 0; i < DOCUMENTS.length; i++) {
-          currentPositions[i] = {
-            x: animationStartPositions[i].x + (animationTargetPositions[i].x - animationStartPositions[i].x) * ease,
-            y: animationStartPositions[i].y + (animationTargetPositions[i].y - animationStartPositions[i].y) * ease,
-          };
-        }
-
-        drawFrame();
-        updateRankings();
-
-        if (t < 1) {
-          animFrameId = requestAnimationFrame(step);
-        }
-      }
-
-      if (animFrameId) cancelAnimationFrame(animFrameId);
-      animFrameId = requestAnimationFrame(step);
-    }
-
-    // --- Switch Intent ---
-    function switchIntent(intentKey) {
-      const t0 = performance.now();
-      currentIntent = intentKey;
-      const intent = INTENTS[intentKey];
-
-      // Save current as start
-      animationStartPositions = currentPositions.map((p) => ({ ...p }));
-
-      // Compute targets
-      animationTargetPositions = DOCUMENTS.map((doc) => intent.transform(doc));
-
-      // Update UI
-      document.getElementById("intentLabel").textContent = intent.label;
-      document.querySelectorAll(".intent-btn").forEach((btn) => {
-        btn.classList.toggle("active", btn.dataset.intent === intentKey);
-      });
-
-      // Animate
-      animateTransition();
-
-      // Metrics
-      const latency = (performance.now() - t0).toFixed(2);
-      document.getElementById("metricLatency").textContent = latency + "ms";
-    }
-
-    // --- Rankings ---
-    function updateRankings() {
-      const rankings = getRankings(currentPositions);
-      const vanillaRankings = getRankings(DOCUMENTS.map((d) => ({ x: d.baseX, y: d.baseY })));
-
-      const listEl = document.getElementById("rankingList");
-      listEl.innerHTML = "";
-
-      // Update top-1 similarity metric
-      if (rankings.length > 0) {
-        document.getElementById("metricTopSim").textContent = rankings[0].score.toFixed(3);
-      }
-
-      // Find rank improvement for expected top-1
-      const intentCategory = {
-        none: null,
-        technology: "tech",
-        business: "business",
-        medical: "medical",
-      }[currentIntent];
-
-      let bestImprovement = 0;
-
-      rankings.slice(0, 8).forEach((doc, i) => {
-        const vanillaRank = vanillaRankings.findIndex((d) => d.id === doc.id);
-        const improvement = vanillaRank - i;
-        const isRelevant = intentCategory && doc.category === intentCategory;
-
-        if (isRelevant && improvement > bestImprovement) bestImprovement = improvement;
-
-        const item = document.createElement("div");
-        item.className = "ranking-item" + (isRelevant && currentIntent !== "none" ? " highlight" : "");
-        item.innerHTML = `
-          <span class="ranking-rank">${i + 1}</span>
-          <span class="ranking-name">${doc.name}</span>
-          <span class="ranking-score">${doc.score.toFixed(3)}</span>
-          <span class="ranking-change ${improvement > 0 ? 'up' : improvement < 0 ? 'down' : 'same'}">
-            ${improvement > 0 ? '↑' + improvement : improvement < 0 ? '↓' + Math.abs(improvement) : '—'}
-          </span>
-        `;
-        listEl.appendChild(item);
-      });
-
-      // Rank improvement metric
-      const deltaEl = document.getElementById("metricRankDelta");
-      if (currentIntent === "none") {
-        deltaEl.textContent = "—";
-      } else {
-        deltaEl.textContent = bestImprovement > 0 ? "+" + bestImprovement + " ranks" : "—";
-      }
-    }
-
-    // --- Event Listeners ---
-    document.getElementById("intentGroup").addEventListener("click", (e) => {
-      const btn = e.target.closest(".intent-btn");
-      if (btn) switchIntent(btn.dataset.intent);
-    });
-
-    window.addEventListener("resize", () => {
-      resizeCanvas();
-      drawFrame();
-    });
-
-    // --- Init ---
-    initPositions();
-    resizeCanvas();
-    drawFrame();
-    updateRankings();
+  <script type="module">
+    import { initPlayground } from './src/main.ts';
+    initPlayground('en');
   </script>
 </body>
 </html>
