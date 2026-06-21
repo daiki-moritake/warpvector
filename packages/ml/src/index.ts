@@ -9,6 +9,7 @@ export * from "./adapters/WhiteningAdapter";
 export * from "./adapters/SoftWhiteningAdapter";
 export * from "./rerankers/TimeReversalReranker";
 export * from "./rerankers/MultipathScatteringReranker";
+export * from "./rerankers/BaseGraphReranker";
 export * from "./trainers/BaseTrainer";
 export * from "./trainers/IntentTrainer";
 export * from "./trainers/InfoNCETrainer";

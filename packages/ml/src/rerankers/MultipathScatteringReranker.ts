@@ -1,4 +1,5 @@
-import { innerProduct, normalize, getWasmInstance, allocateWasmMemory, withWasmMemoryStack, writeFloat32ArrayToWasm, readFloat32ArrayFromWasm } from "@warpvector/core";
+import { allocateWasmMemory, withWasmMemoryStack, writeFloat32ArrayToWasm, readFloat32ArrayFromWasm } from "@warpvector/core";
+import { BaseGraphReranker, GraphRerankerResult } from "./BaseGraphReranker";
 
 export interface MultipathScatteringConfig {
   /**
@@ -29,16 +30,7 @@ export interface MultipathScatteringConfig {
   tolerance?: number;
 }
 
-export interface MultipathScatteringResult {
-  /** 元の候補配列におけるインデックス */
-  originalIndex: number;
-  /** 多重散乱場理論（Random Walk with Restart）によって集約された新しいスコア */
-  score: number;
-  /** 初期のコサイン類似度スコア */
-  initialScore: number;
-  /** 候補ベクトル */
-  vector: Float32Array;
-}
+export type MultipathScatteringResult = GraphRerankerResult;
 
 /**
  * MultipathScatteringReranker
@@ -50,19 +42,16 @@ export interface MultipathScatteringResult {
  * これにより、孤立したノイズドキュメントのスコアは減衰し、
  * 多数の類似ドキュメントから「多重経路で支持されている」真の意図（波源）のスコアが際立ちます。
  */
-export class MultipathScatteringReranker {
+export class MultipathScatteringReranker extends BaseGraphReranker {
   public alpha: number;
-  public threshold: number;
   public maxIterations: number;
   public tolerance: number;
-  private wasm: WebAssembly.Instance | null;
 
   constructor(config: MultipathScatteringConfig = {}) {
+    super(config.threshold ?? 0.0);
     this.alpha = config.alpha ?? 0.85;
-    this.threshold = config.threshold ?? 0.0;
     this.maxIterations = config.maxIterations ?? 20;
     this.tolerance = config.tolerance ?? 1e-6;
-    this.wasm = getWasmInstance();
 
     if (this.alpha < 0 || this.alpha >= 1) {
       throw new Error("MultipathScatteringReranker: alpha must be in [0, 1).");
@@ -72,101 +61,12 @@ export class MultipathScatteringReranker {
     }
   }
 
-  /**
-   * 候補ベクトル群に対して多重経路散乱波によるリランキングを行います。
-   * 
-   * @param query クエリベクトル（initialScoresがある場合はnull可）
-   * @param candidates 検索システム等から返された候補ベクトル群
-   * @param initialScores （任意）計算済みの初期コサイン類似度スコア
-   * @returns スコア降順でソートされたMultipathScatteringResultの配列
-   */
-  public rerank(
-    query: Float32Array | number[] | null,
-    candidates: (Float32Array | number[])[],
-    initialScores?: number[]
-  ): MultipathScatteringResult[] {
-    const N = candidates.length;
-    if (N === 0) return [];
-
-    if (!query && (!initialScores || initialScores.length !== N)) {
-      throw new Error("MultipathScatteringReranker: Must provide either 'query' or a valid 'initialScores' array.");
-    }
-
-    // L2正規化
-    const CNorm = candidates.map(c => normalize(new Float32Array(c)));
-
-    // 1. 初期の観測場 S0 (Initial Field)
-    let S0 = new Float32Array(N);
-    if (initialScores && initialScores.length === N) {
-      S0.set(initialScores);
-    } else if (query) {
-      const qNorm = normalize(new Float32Array(query));
-      for (let i = 0; i < N; i++) {
-        S0[i] = Math.max(0, innerProduct(qNorm, CNorm[i])); // 非負に制限
-      }
-    }
-
-    if (N === 1) {
-      return [{ originalIndex: 0, score: S0[0], initialScore: S0[0], vector: CNorm[0] }];
-    }
-
-    // S0 を確率分布として正規化（総和を1にする）
-    let sumS0 = 0;
-    for (let i = 0; i < N; i++) sumS0 += S0[i];
-    if (sumS0 > 0) {
-      for (let i = 0; i < N; i++) S0[i] /= sumS0;
-    } else {
-      // S0が全て0の場合は均等分布
-      const uniform = 1.0 / N;
-      for (let i = 0; i < N; i++) S0[i] = uniform;
-    }
-
-    // WASMが利用可能かチェック
-    if (this.wasm) {
-      const exports = this.wasm.exports as any;
-      if (exports.buildMultipathTransitionMatrixWasm && exports.multipathScatteringPowerIterationWasm) {
-        // 候補ベクトルを1次元のFloat32Arrayに平坦化
-        const dim = CNorm[0].length;
-        const flatVectors = new Float32Array(N * dim);
-        for (let i = 0; i < N; i++) {
-          flatVectors.set(CNorm[i], i * dim);
-        }
-        return this.rerankWasm(flatVectors, CNorm, S0, N, dim, initialScores, sumS0);
-      }
-    }
-
-    // JS フォールバック
-    return this.rerankJs(CNorm, S0, N, initialScores, sumS0);
+  protected hasRequiredWasmExports(exports: any): boolean {
+    return !!(exports.buildMultipathTransitionMatrixWasm && exports.multipathScatteringPowerIterationWasm);
   }
 
-  /**
-   * ベクトルが既に平坦化された1次元 Float32Array の状態で提供される場合の、
-   * ゼロコピー最適化版リランク関数。
-   * エッジ環境やベクトルDBから直接バッファを受け取れる場合に極めて高速に動作します。
-   * ※入力される flatCandidates は L2 正規化済みである必要があります。
-   * 
-   * @param query クエリベクトル
-   * @param flatCandidates 平坦化された候補ベクトル群 (サイズ: numDocs * dim)
-   * @param numDocs ドキュメント数
-   * @param dim 次元数
-   * @param initialScores （任意）初期スコア
-   */
-  public rerankFlat(
-    query: Float32Array | number[] | null,
-    flatCandidates: Float32Array,
-    numDocs: number,
-    dim: number,
-    initialScores?: number[]
-  ): MultipathScatteringResult[] {
-    const N = numDocs;
-    if (N === 0) return [];
-    if (flatCandidates.length !== N * dim) {
-      throw new Error("MultipathScatteringReranker: flatCandidates length mismatch.");
-    }
-
-    let S0 = new Float32Array(N);
+  protected prepareInitialScores(S0: Float32Array, N: number, initialScores?: number[]): number {
     let sumS0 = 0;
-    
     if (initialScores && initialScores.length === N) {
       let minScore = Infinity;
       for (let i = 0; i < N; i++) {
@@ -177,14 +77,10 @@ export class MultipathScatteringReranker {
         S0[i] = val;
         sumS0 += val;
       }
-    } else if (query) {
-      const qNorm = normalize(new Float32Array(query));
+    } else {
       let minScore = Infinity;
       for (let i = 0; i < N; i++) {
-        const cNorm = flatCandidates.subarray(i * dim, (i + 1) * dim);
-        const score = innerProduct(qNorm, cNorm);
-        S0[i] = score;
-        if (score < minScore) minScore = score;
+        if (S0[i] < minScore) minScore = S0[i];
       }
       for (let i = 0; i < N; i++) {
         S0[i] = S0[i] - Math.min(0, minScore);
@@ -198,49 +94,27 @@ export class MultipathScatteringReranker {
       const uniform = 1.0 / N;
       for (let i = 0; i < N; i++) S0[i] = uniform;
     }
-
-    if (this.wasm) {
-      const exports = this.wasm.exports as any;
-      if (exports.buildMultipathTransitionMatrixWasm && exports.multipathScatteringPowerIterationWasm) {
-        return this.rerankWasm(flatCandidates, null, S0, N, dim, initialScores, sumS0);
-      }
-    }
-
-    // JS フォールバック用に 2D配列化
-    const CNorm: Float32Array[] = [];
-    for (let i = 0; i < N; i++) {
-      CNorm.push(flatCandidates.slice(i * dim, (i + 1) * dim));
-    }
-    return this.rerankJs(CNorm, S0, N, initialScores, sumS0);
+    return sumS0;
   }
 
-  private rerankWasm(
-    flatVectors: Float32Array,
-    CNorm: Float32Array[] | null,
-    S0: Float32Array,
-    N: number,
-    dim: number,
-    initialScores: number[] | undefined,
-    sumS0: number
-  ): MultipathScatteringResult[] {
-    const exports = this.wasm!.exports as any;
+  protected restoreInitialScore(s0Val: number, scaleFactor: number): number {
+    return s0Val * scaleFactor;
+  }
+
+  protected executeWasm(flatVectors: Float32Array, S0: Float32Array, N: number, dim: number, exports: any): Float32Array {
     const memory = exports.memory as WebAssembly.Memory;
 
     return withWasmMemoryStack(() => {
-      // メモリ確保
       const vectorsPtr = allocateWasmMemory(N * dim * 4);
-      // P行列と一時的なD配列を合わせて確保 (N*N + N)
       const pMatrixPtr = allocateWasmMemory(N * N * 4 + N * 4);
       const s0Ptr = allocateWasmMemory(N * 4);
       const currentSPtr = allocateWasmMemory(N * 4);
       const nextSPtr = allocateWasmMemory(N * 4);
 
-      // データの書き込み
       writeFloat32ArrayToWasm(memory, flatVectors, vectorsPtr);
       writeFloat32ArrayToWasm(memory, S0, s0Ptr);
       writeFloat32ArrayToWasm(memory, S0, currentSPtr);
 
-      // 1. P行列の構築 (WASM)
       exports.buildMultipathTransitionMatrixWasm(
         vectorsPtr,
         N,
@@ -249,7 +123,6 @@ export class MultipathScatteringReranker {
         pMatrixPtr
       );
 
-      // 2. Power Iteration (WASM)
       exports.multipathScatteringPowerIterationWasm(
         pMatrixPtr,
         s0Ptr,
@@ -261,33 +134,11 @@ export class MultipathScatteringReranker {
         this.tolerance
       );
 
-      // 3. 結果の読み取り
-      const currentS = readFloat32ArrayFromWasm(memory, currentSPtr, N);
-
-      const results: MultipathScatteringResult[] = [];
-      for (let i = 0; i < N; i++) {
-        results.push({
-          originalIndex: i,
-          score: currentS[i],
-          initialScore: initialScores && initialScores.length === N ? initialScores[i] : S0[i] * sumS0,
-          vector: CNorm ? CNorm[i] : flatVectors.slice(i * dim, (i + 1) * dim)
-        });
-      }
-
-      results.sort((a, b) => b.score - a.score);
-      return results;
+      return readFloat32ArrayFromWasm(memory, currentSPtr, N);
     });
   }
 
-  private rerankJs(
-    CNorm: Float32Array[],
-    S0: Float32Array,
-    N: number,
-    initialScores: number[] | undefined,
-    sumS0: number
-  ): MultipathScatteringResult[] {
-    // 2. 散乱推移マトリクスの構築 P
-    // W[i][j] = max(0, cos_sim(c_i, c_j) - threshold)
+  protected executeJs(CNorm: Float32Array[], S0: Float32Array, N: number): Float32Array {
     const W = new Float32Array(N * N);
     const D = new Float32Array(N);
     const dim = CNorm[0].length;
@@ -305,16 +156,13 @@ export class MultipathScatteringReranker {
         const w = Math.max(0, sim - threshold);
         if (w > 0) {
           W[i * N + j] = w;
-          W[j * N + i] = w; // 対称
+          W[j * N + i] = w;
           D[i] += w;
           D[j] += w;
         }
       }
     }
 
-    // P[i][j] = jからiへの遷移確率 とする。
-    // RWRの式は S_{t+1} = alpha * P * S_t + (1 - alpha) * S_0 なので、
-    // グラフのランダムウォークとして、P_{ij} = W_{ij} / D_j （列和が1）とする。
     const P = new Float32Array(N * N);
     for (let j = 0; j < N; j++) {
       if (D[j] > 0) {
@@ -322,13 +170,10 @@ export class MultipathScatteringReranker {
           P[i * N + j] = W[i * N + j] / D[j];
         }
       } else {
-        // 孤立ノードからの遷移は自分自身に戻るとする（吸収状態）
         P[j * N + j] = 1.0;
       }
     }
 
-    // 3. 多重経路散乱場 (Random Walk with Restart) の計算
-    // S_{t+1} = alpha * P * S_t + (1 - alpha) * S_0
     let currentS = new Float32Array(S0);
     const nextS = new Float32Array(N);
     const alpha = this.alpha;
@@ -351,24 +196,10 @@ export class MultipathScatteringReranker {
       
       currentS.set(nextS);
       if (maxDiff < this.tolerance) {
-        break; // 収束
+        break;
       }
     }
 
-    // 4. 結果のフォーマットとソート
-    // 定常確率分布になっているため、スケールを戻すために元のS0の最大値などに合わせることもできるが、
-    // 順位（相対スコア）として使うためそのまま出力する。
-    const results: MultipathScatteringResult[] = [];
-    for (let i = 0; i < N; i++) {
-      results.push({
-        originalIndex: i,
-        score: currentS[i],
-        initialScore: initialScores && initialScores.length === N ? initialScores[i] : S0[i] * sumS0, // 元のスケールのスコアがあれば戻す
-        vector: CNorm[i]
-      });
-    }
-
-    results.sort((a, b) => b.score - a.score);
-    return results;
+    return currentS;
   }
 }
