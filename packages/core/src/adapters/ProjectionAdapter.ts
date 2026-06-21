@@ -42,7 +42,6 @@ export interface ProjectionWeights {
 export class ProjectionAdapter implements WarpAdapter {
   private readonly inDimension: number;
   private readonly outDimension: number;
-  private wasmInstance: WebAssembly.Instance | null = null;
 
   // フラット化された射影行列とバイアスを保存
   private readonly matrices: Map<string, Float32Array>;

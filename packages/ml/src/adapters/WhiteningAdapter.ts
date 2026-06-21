@@ -5,7 +5,6 @@ import {
   innerProduct,
   addScaledVector,
   getWasmInstance,
-  ensureWasmMemory,
   writeFloat32ArrayToWasm,
   allocateWasmMemory,
   initWasm,
@@ -49,15 +48,8 @@ export class WhiteningAdapter implements WarpAdapter {
   private learningRate: number;
   private numComponents: number;
 
-  private componentsPtr = 0;
-  private xResidualPtr = 0;
-  private isWasmReady = false;
-
   public async init(): Promise<void> {
-    const instance = await initWasm();
-    if (instance) {
-      this.isWasmReady = true;
-    }
+    await initWasm();
   }
 
   /**

@@ -16,7 +16,6 @@ import {
 } from "../validation";
 import {
   getWasmInstance,
-  ensureWasmMemory,
   writeFloat32ArrayToWasm,
   allocateWasmMemory,
   withWasmMemoryStack,

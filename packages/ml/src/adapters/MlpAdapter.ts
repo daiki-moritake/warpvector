@@ -3,7 +3,6 @@ import {
   type Activation,
   assertDimension,
   initWasm,
-  ensureWasmMemory,
   writeFloat32ArrayToWasm,
   allocateWasmMemory,
   withWasmMemoryStack,
@@ -267,7 +266,7 @@ export class MlpAdapter implements WarpAdapter {
    */
   public tuneBatch(
     inputs: (number[] | Float32Array)[],
-    intent?: string,
+    _intent?: string,
   ): Float32Array[] {
     if (!this.isWasmReady || !this.wasmInstance) {
       throw new Error(

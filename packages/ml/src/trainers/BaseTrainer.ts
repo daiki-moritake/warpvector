@@ -216,9 +216,6 @@ export abstract class BaseTrainer<
   ): void {
     const sDim = this.sourceDimension;
     const tDim = this.targetDimension;
-    const beta1 = 0.9;
-    const beta2 = 0.999;
-    const epsilon = 1e-8;
 
     const pred = new Float32Array(tDim);
     applyAffine(matrix, bias, x, pred, sDim, tDim);
