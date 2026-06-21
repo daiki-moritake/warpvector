@@ -1,11 +1,7 @@
 /**
- * WarpVector Playground — UI Controller (Enhanced)
+ * WarpVector Playground — UI Controller
  *
- * Features:
- * - Single intent mode (IntentAdapter.tune)
- * - Blend mode with sliders (IntentAdapter.tuneBlended)
- * - Live code snippet display
- * - Batch performance benchmark (IntentAdapter.tuneBatch)
+ * Enhanced with Real LLM Embeddings via Transformers.js
  */
 import {
   createDemoState,
@@ -13,6 +9,8 @@ import {
   transformWithBlend,
   runBenchmark,
   cosineSim,
+  updateQuery,
+  addCustomIntent,
   DIM,
   type DemoState,
   type RankedDoc,
@@ -30,9 +28,14 @@ const LABELS: Record<Lang, {
   individualLabel: string;
   speedupLabel: string;
   opsLabel: string;
+  loadingModel: string;
+  embeddingTexts: string;
+  customIntentName: string;
+  customIntentDesc: string;
+  addingIntent: string;
 }> = {
   en: {
-    queryLabel: 'Query: "Apple"',
+    queryLabel: 'Query',
     rankUnit: 'ranks',
     runBench: '▶ Run Benchmark',
     running: 'Running…',
@@ -40,9 +43,14 @@ const LABELS: Record<Lang, {
     individualLabel: 'tune() × N',
     speedupLabel: 'Speedup',
     opsLabel: 'ops/sec',
+    loadingModel: 'Loading LLM Model...',
+    embeddingTexts: 'Computing Embeddings...',
+    customIntentName: 'Custom Intent',
+    customIntentDesc: 'adapter.tune(vec, "custom")',
+    addingIntent: 'Adding...',
   },
   ja: {
-    queryLabel: 'クエリ: "Apple"',
+    queryLabel: 'クエリ',
     rankUnit: '位',
     runBench: '▶ ベンチマーク実行',
     running: '実行中…',
@@ -50,6 +58,11 @@ const LABELS: Record<Lang, {
     individualLabel: 'tune() × N',
     speedupLabel: '高速化',
     opsLabel: 'ops/sec',
+    loadingModel: 'LLMモデル読込中...',
+    embeddingTexts: 'ベクトル計算中...',
+    customIntentName: 'カスタムインテント',
+    customIntentDesc: 'adapter.tune(vec, "custom")',
+    addingIntent: '追加中...',
   },
 };
 
@@ -58,8 +71,35 @@ export async function initPlayground(lang: Lang) {
   const ctx = canvas.getContext('2d')!;
   const labels = LABELS[lang];
 
-  // Initialize the REAL warpvector engine
-  const state = await createDemoState(lang);
+  // Loading UI handling
+  const loadingOverlay = document.getElementById('loadingOverlay')!;
+  const loadingText = document.getElementById('loadingText')!;
+  const loadingSubtext = document.getElementById('loadingSubtext')!;
+
+  const progressCallback = (status: string, data?: any) => {
+    if (status === 'init_model') {
+      loadingText.textContent = labels.loadingModel;
+    } else if (status === 'embedding') {
+      loadingText.textContent = labels.embeddingTexts;
+      loadingSubtext.textContent = 'Generating 384-dimensional vectors...';
+    } else if (status === 'progress' && data) {
+      if (data.status === 'downloading' || data.status === 'progress') {
+        loadingSubtext.textContent = `Downloading: ${data.file} - ${Math.round(data.progress || 0)}%`;
+      }
+    }
+  };
+
+  // Initialize the REAL warpvector engine WITH REAL EMBEDDINGS
+  let state: DemoState;
+  try {
+    state = await createDemoState(lang, progressCallback);
+    loadingOverlay.style.display = 'none'; // Hide overlay
+  } catch (err) {
+    loadingText.textContent = 'Error loading model';
+    loadingSubtext.textContent = (err as Error).message;
+    console.error(err);
+    return;
+  }
 
   // Show WASM status
   const wasmBadge = document.getElementById('wasmBadge');
@@ -68,12 +108,72 @@ export async function initPlayground(lang: Lang) {
     wasmBadge.style.color = state.wasmReady ? '#10b981' : '#f59e0b';
   }
 
+  // Set initial query input text
+  const queryInput = document.getElementById('queryInput') as HTMLInputElement;
+  if (queryInput) queryInput.value = state.query.text;
+
+  // Build intent buttons dynamically
+  function renderIntentButtons() {
+    const singlePanel = document.getElementById('intentGroup')!;
+    const blendGroup = document.getElementById('blendGroup')!;
+    
+    singlePanel.innerHTML = `
+      <button class="intent-btn ${currentIntent === 'none' ? 'active' : ''}" data-intent="none">
+        <div class="intent-btn__icon" style="background:rgba(100,116,139,0.15);">🔍</div>
+        <div class="intent-btn__content">
+          <div class="intent-btn__name">${lang === 'ja' ? '通常検索' : 'Vanilla Search'}</div>
+          <div class="intent-btn__desc">${lang === 'ja' ? '変換なし（ベースライン）' : 'No transformation applied'}</div>
+        </div>
+      </button>
+    `;
+    
+    blendGroup.innerHTML = '';
+
+    for (const intent of state.intentsList) {
+      // Single button
+      const btn = document.createElement('button');
+      btn.className = `intent-btn ${currentIntent === intent.key ? 'active' : ''}`;
+      btn.dataset.intent = intent.key;
+      btn.innerHTML = `
+        <div class="intent-btn__icon" style="background:${intent.color};">${intent.icon}</div>
+        <div class="intent-btn__content">
+          <div class="intent-btn__name">${intent.name}</div>
+          <div class="intent-btn__desc">${intent.desc}</div>
+        </div>
+      `;
+      singlePanel.appendChild(btn);
+
+      // Blend slider
+      const bItem = document.createElement('div');
+      bItem.className = 'blend-item';
+      bItem.innerHTML = `
+        <div class="blend-item__header">
+          <span><span class="blend-icon">${intent.icon}</span> ${intent.name}</span>
+          <span class="blend-value">${Math.round((blendWeights[intent.key] || 0) * 100)}%</span>
+        </div>
+        <input type="range" min="0" max="100" value="${Math.round((blendWeights[intent.key] || 0) * 100)}" class="blend-slider" data-intent="${intent.key}">
+      `;
+      blendGroup.appendChild(bItem);
+    }
+    
+    // Re-bind slider events
+    document.querySelectorAll<HTMLInputElement>('.blend-slider').forEach(slider => {
+      slider.addEventListener('input', () => {
+        const intentKey = slider.dataset.intent!;
+        blendWeights[intentKey] = parseInt(slider.value) / 100;
+        const valueEl = slider.parentElement?.querySelector('.blend-value');
+        if (valueEl) valueEl.textContent = slider.value + '%';
+        applyBlend();
+      });
+    });
+  }
+
   // State
   let baseRankings = transformWithIntent(state, null).rankings;
   let currentRankings = baseRankings;
   let currentIntent = 'none';
   let isBlendMode = false;
-  let blendWeights: Record<string, number> = { technology: 0, business: 0, medical: 0 };
+  let blendWeights: Record<string, number> = {};
 
   // Animation state
   let animFrameId: number | null = null;
@@ -103,10 +203,6 @@ export async function initPlayground(lang: Lang) {
     animCurrentPositions = state.docs.map(d => normalize(d.pos));
   }
 
-  initDisplayPositions();
-  const { normalize: baseNormalize } = normalizePositions(state.docs, state.query.pos);
-  const queryDisplayPos = baseNormalize(state.query.pos);
-
   // Canvas resize
   function resizeCanvas() {
     const rect = canvas.parentElement!.getBoundingClientRect();
@@ -118,11 +214,40 @@ export async function initPlayground(lang: Lang) {
     canvas.style.height = rect.height + 'px';
   }
 
+  // Tooltip
+  let hoverDocId: number | null = null;
+  canvas.addEventListener('mousemove', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const w = canvas.width / (window.devicePixelRatio || 1);
+    const h = canvas.height / (window.devicePixelRatio || 1);
+
+    let found = null;
+    for (let i = 0; i < state.docs.length; i++) {
+      const pos = animCurrentPositions[i];
+      const dx = pos.x * w - x;
+      const dy = pos.y * h - y;
+      if (dx * dx + dy * dy < 100) { // 10px radius
+        found = i;
+        break;
+      }
+    }
+    
+    if (found !== hoverDocId) {
+      hoverDocId = found;
+      drawFrame();
+    }
+  });
+
   // Drawing
   function drawFrame() {
     const w = canvas.width / (window.devicePixelRatio || 1);
     const h = canvas.height / (window.devicePixelRatio || 1);
     ctx.clearRect(0, 0, w, h);
+
+    const { normalize } = normalizePositions(state.docs, state.query.pos);
+    const queryDisplayPos = normalize(state.query.pos);
 
     // Grid
     ctx.strokeStyle = 'rgba(255,255,255,0.03)';
@@ -133,7 +258,6 @@ export async function initPlayground(lang: Lang) {
       ctx.beginPath(); ctx.moveTo(0, p * h); ctx.lineTo(w, p * h); ctx.stroke();
     }
 
-    // Find top-1
     const top1Id = currentRankings[0]?.id;
 
     // Connection lines to top-3
@@ -156,7 +280,8 @@ export async function initPlayground(lang: Lang) {
       const pos = animCurrentPositions[i];
       const x = pos.x * w, y = pos.y * h;
       const isTop1 = doc.id === top1Id;
-      const radius = isTop1 ? 7 : 5;
+      const isHover = doc.id === hoverDocId;
+      const radius = isTop1 ? 7 : (isHover ? 6 : 5);
 
       if (isTop1) {
         const grad = ctx.createRadialGradient(x, y, 0, x, y, 24);
@@ -176,6 +301,28 @@ export async function initPlayground(lang: Lang) {
       ctx.font = `${isTop1 ? 500 : 400} 10px Inter, system-ui`;
       ctx.textAlign = 'center';
       ctx.fillText(doc.name, x, y - radius - 6);
+      
+      // Hover tooltip text
+      if (isHover) {
+        ctx.fillStyle = '#f1f5f9';
+        ctx.font = '11px Inter, system-ui';
+        
+        // Wrap text
+        const words = doc.text.split(' ');
+        let line = '';
+        let yy = y + radius + 14;
+        for (let j = 0; j < words.length; j++) {
+          const testLine = line + words[j] + ' ';
+          if (ctx.measureText(testLine).width > 200 && j > 0) {
+            ctx.fillText(line, x, yy);
+            line = words[j] + ' ';
+            yy += 14;
+          } else {
+            line = testLine;
+          }
+        }
+        ctx.fillText(line, x, yy);
+      }
     });
 
     // Query marker
@@ -192,7 +339,7 @@ export async function initPlayground(lang: Lang) {
     ctx.strokeRect(-5, -5, 10, 10); ctx.restore();
 
     ctx.fillStyle = '#f59e0b'; ctx.font = '600 12px Inter, system-ui';
-    ctx.textAlign = 'center'; ctx.fillText(labels.queryLabel, qx, qy - 16);
+    ctx.textAlign = 'center'; ctx.fillText(`"${state.query.text}"`, qx, qy - 16);
   }
 
   // Update rankings UI
@@ -203,29 +350,13 @@ export async function initPlayground(lang: Lang) {
     document.getElementById('metricLatency')!.textContent = latencyMs.toFixed(2) + 'ms';
     document.getElementById('metricTopSim')!.textContent = rankings[0]?.score.toFixed(3) ?? '—';
 
-    const intentCategory: Record<string, string | null> = {
-      none: null, technology: 'tech', business: 'business', medical: 'medical',
-    };
-
-    // In blend mode, find the dominant category
-    let targetCat: string | null = null;
-    if (isBlendMode) {
-      let maxW = 0;
-      for (const [k, v] of Object.entries(blendWeights)) {
-        if (v > maxW) { maxW = v; targetCat = intentCategory[k]; }
-      }
-      if (maxW < 0.05) targetCat = null;
-    } else {
-      targetCat = intentCategory[currentIntent];
-    }
-
     let bestImprovement = 0;
 
     rankings.slice(0, 8).forEach((doc, i) => {
       const vanillaRank = baseRankings.findIndex(d => d.id === doc.id);
       const improvement = vanillaRank - i;
-      const isRelevant = targetCat && doc.category === targetCat;
-      if (isRelevant && improvement > bestImprovement) bestImprovement = improvement;
+      const isRelevant = improvement > 0; // Highlight anything that improved
+      if (improvement > bestImprovement) bestImprovement = improvement;
 
       const item = document.createElement('div');
       item.className = 'ranking-item' + (isRelevant ? ' highlight' : '');
@@ -283,6 +414,20 @@ export async function initPlayground(lang: Lang) {
     animFrameId = requestAnimationFrame(step);
 
     updateRankingsUI(rankings, latencyMs);
+  }
+
+  // Recompute base rankings (useful after query change)
+  function recomputeBaseRankings() {
+    baseRankings = transformWithIntent(state, null).rankings;
+  }
+
+  // Apply current state
+  function applyCurrentState() {
+    if (isBlendMode) {
+      applyBlend();
+    } else {
+      switchIntent(currentIntent);
+    }
   }
 
   // Switch single intent
@@ -343,7 +488,8 @@ export async function initPlayground(lang: Lang) {
       if (blendPanel) blendPanel.style.display = isBlendMode ? '' : 'none';
 
       if (isBlendMode) {
-        blendWeights = { technology: 0, business: 0, medical: 0 };
+        // clear weights
+        for (const k of Object.keys(blendWeights)) blendWeights[k] = 0;
         document.querySelectorAll<HTMLInputElement>('.blend-slider').forEach(s => { s.value = '0'; });
         document.querySelectorAll('.blend-value').forEach(v => { v.textContent = '0%'; });
         applyBlend();
@@ -353,22 +499,63 @@ export async function initPlayground(lang: Lang) {
     });
   }
 
-  // Blend sliders
-  document.querySelectorAll<HTMLInputElement>('.blend-slider').forEach(slider => {
-    slider.addEventListener('input', () => {
-      const intent = slider.dataset.intent!;
-      blendWeights[intent] = parseInt(slider.value) / 100;
-      const valueEl = slider.parentElement?.querySelector('.blend-value');
-      if (valueEl) valueEl.textContent = slider.value + '%';
-      applyBlend();
-    });
-  });
-
   // Single intent buttons
   document.getElementById('intentGroup')?.addEventListener('click', (e) => {
     if (isBlendMode) return;
     const btn = (e.target as HTMLElement).closest('.intent-btn') as HTMLElement | null;
     if (btn?.dataset.intent) switchIntent(btn.dataset.intent);
+  });
+
+  // Query Submit
+  document.getElementById('queryForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!queryInput) return;
+    const text = queryInput.value.trim();
+    if (!text) return;
+    
+    // Show spinner in input
+    const btn = document.getElementById('querySubmit') as HTMLButtonElement;
+    const origText = btn.textContent;
+    btn.textContent = '...';
+    btn.disabled = true;
+
+    await updateQuery(state, text);
+    
+    btn.textContent = origText;
+    btn.disabled = false;
+    
+    recomputeBaseRankings();
+    applyCurrentState();
+  });
+
+  // Add Custom Intent
+  document.getElementById('customIntentForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const input = document.getElementById('customIntentInput') as HTMLInputElement;
+    const text = input.value.trim();
+    if (!text) return;
+
+    const btn = document.getElementById('customIntentSubmit') as HTMLButtonElement;
+    const origText = btn.textContent;
+    btn.textContent = labels.addingIntent;
+    btn.disabled = true;
+
+    // Generate random hue for icon
+    const hue = Math.floor(Math.random() * 360);
+    const color = `hsla(${hue}, 80%, 60%, 0.15)`;
+    
+    const key = await addCustomIntent(state, labels.customIntentName, text, '✨', color);
+    
+    btn.textContent = origText;
+    btn.disabled = false;
+    input.value = '';
+
+    // Re-render UI
+    renderIntentButtons();
+    
+    if (!isBlendMode) {
+      switchIntent(key);
+    }
   });
 
   // Benchmark
@@ -378,7 +565,6 @@ export async function initPlayground(lang: Lang) {
       benchBtn.disabled = true;
       benchBtn.textContent = labels.running;
 
-      // Use requestAnimationFrame to let UI update
       requestAnimationFrame(() => {
         const result = runBenchmark(state, 1000);
         renderBenchmark(result);
@@ -413,7 +599,9 @@ export async function initPlayground(lang: Lang) {
   window.addEventListener('resize', () => { resizeCanvas(); drawFrame(); });
 
   // Init
+  renderIntentButtons();
   resizeCanvas();
+  initDisplayPositions();
   drawFrame();
   updateRankingsUI(baseRankings, 0);
   updateCodeSnippet(`// No intent applied\nconst result = baseVector;`);
