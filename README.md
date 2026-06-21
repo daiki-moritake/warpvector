@@ -126,7 +126,7 @@ const restoredPipeline = WarpPipeline.importState(stateJson);
     - 学習済み重みの加減算によるゼロオーバーヘッドのモデルマージ
 12. **[超次元計算 / VSA (Vector Symbolic Architecture)](./docs/12-vsa.md)**
     - ベクトルのバインド・バンドル・アンバインドによるメタデータ埋め込み演算
-13. **[フィードバックループと連合学習 (Feedback & Federated Learning)](./docs/13-feedback-federated.md)**
+13. **[フィードバックループと連合学習 (Feedback & Federated Learning)](./docs/13-feedback-loop.md)**
     - ユーザーログからのオンライン学習データ生成と複数クライアントの重み集約 (FedAvg)
 
 ---
