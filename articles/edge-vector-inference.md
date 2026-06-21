@@ -156,7 +156,7 @@ https://github.com/daiki-moritake/warpvector
 
 ### 📚 関連記事
 
-- [Pineconeのコストを96%削減し、RAGの精度を劇的に向上させる方法](/articles/reduce-pinecone-costs)
-- [RAGの検索精度が低い？ベクトル空間の「異方性」を3ステップで解決する方法](/articles/fix-rag-anisotropy)
-- [LangChainの検索精度に不満？ミドルウェアを1つ挟むだけで劇的に改善する方法](/articles/langchain-search-improvement)
-- [Pythonなしで検索のパーソナライズを実装する](/articles/ts-contrastive-learning)
+- [Pineconeのコストを96%削減し、RAGの精度を劇的に向上させる方法](/daiki_moritake/articles/reduce-pinecone-costs)
+- [RAGの検索精度が低い？ベクトル空間の「異方性」を3ステップで解決する方法](/daiki_moritake/articles/fix-rag-anisotropy)
+- [LangChainの検索精度に不満？ミドルウェアを1つ挟むだけで劇的に改善する方法](/daiki_moritake/articles/langchain-search-improvement)
+- [Pythonなしで検索のパーソナライズを実装する](/daiki_moritake/articles/ts-contrastive-learning)
