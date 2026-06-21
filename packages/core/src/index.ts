@@ -24,7 +24,9 @@ export {
   setWasmAllocatorOffset,
   writeFloat32ArrayToWasm,
   readFloat32ArrayFromWasm,
+  getWasmMemoryStats,
   WasmMutex,
   wasmMutex,
   withWasmMemoryStack,
 } from "./wasm/wasm-loader";
+export type { WasmMemoryStats } from "./wasm/wasm-loader";

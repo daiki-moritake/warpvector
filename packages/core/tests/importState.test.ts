@@ -8,7 +8,7 @@ describe("importState validation", () => {
   describe("IntentAdapter.importState", () => {
     test("rejects non-JSON string", () => {
       expect(() => IntentAdapter.importState("not json")).toThrow(
-        "Failed to parse JSON",
+        "JSONのパースに失敗しました",
       );
     });
 
@@ -23,7 +23,7 @@ describe("importState validation", () => {
         IntentAdapter.importState(
           JSON.stringify({ dimension: 1.5, intents: {} }),
         ),
-      ).toThrow("positive integer");
+      ).toThrow("正の整数");
     });
 
     test("rejects negative dimension", () => {
@@ -31,7 +31,7 @@ describe("importState validation", () => {
         IntentAdapter.importState(
           JSON.stringify({ dimension: -1, intents: {} }),
         ),
-      ).toThrow("positive integer");
+      ).toThrow("正の整数");
     });
 
     test("rejects missing intents object", () => {
@@ -53,7 +53,7 @@ describe("importState validation", () => {
             },
           }),
         ),
-      ).toThrow("finite number");
+      ).toThrow("有限な数値ではありません");
     });
 
     test("accepts valid state and round-trips", () => {
@@ -77,7 +77,7 @@ describe("importState validation", () => {
   describe("LoraIntentAdapter.importState", () => {
     test("rejects non-JSON", () => {
       expect(() => LoraIntentAdapter.importState("{bad}")).toThrow(
-        "Failed to parse JSON",
+        "JSONのパースに失敗しました",
       );
     });
 
@@ -113,7 +113,7 @@ describe("importState validation", () => {
   describe("ProjectionAdapter.importState", () => {
     test("rejects non-JSON", () => {
       expect(() => ProjectionAdapter.importState("garbage")).toThrow(
-        "Failed to parse JSON",
+        "JSONのパースに失敗しました",
       );
     });
 

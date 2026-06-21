@@ -7,7 +7,8 @@ on:
     branches: [main]
 
 jobs:
-  test:
+  test-bun:
+    name: Test (Bun)
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -24,8 +25,80 @@ jobs:
       - name: Install dependencies
         run: bun install
 
+      - name: Type check
+        run: npx tsc --noEmit
+
       - name: Run tests
         run: bun run test
 
       - name: Build
         run: bun run build
+
+  test-node:
+    name: Test (Node.js ${{ matrix.node-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [20, 22]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      - name: Setup Bun (for build tooling)
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Build
+        run: bun run build
+
+      - name: Verify package exports (Node.js CJS)
+        run: node -e "const wv = require('./dist/index.js'); console.log('CJS OK:', Object.keys(wv).length, 'exports');"
+
+      - name: Verify package exports (Node.js ESM)
+        run: node --input-type=module -e "import * as wv from './dist/index.mjs'; console.log('ESM OK:', Object.keys(wv).length, 'exports');"
+
+  bundle-size:
+    name: Bundle Size Check
+    runs-on: ubuntu-latest
+    needs: test-bun
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Build
+        run: bun run build
+
+      - name: Check bundle size
+        run: |
+          echo "## Bundle Size Report" >> $GITHUB_STEP_SUMMARY
+
+          for f in dist/*.mjs dist/*.js; do
+            if [ -f "$f" ]; then
+              SIZE_KB=$(du -k "$f" | cut -f1)
+              GZIP_KB=$(gzip -c "$f" | wc -c | awk '{printf "%.1f", $1/1024}')
+              echo "| \`$(basename $f)\` | ${SIZE_KB}KB | ${GZIP_KB}KB gzipped |" >> $GITHUB_STEP_SUMMARY
+            fi
+          done
+
+          # メインバンドルの閾値チェック (200KB)
+          MAIN_SIZE=$(du -k dist/index.mjs 2>/dev/null | cut -f1 || echo 0)
+          if [ "$MAIN_SIZE" -gt 200 ]; then
+            echo "::warning::メインバンドルサイズが200KBを超えています: ${MAIN_SIZE}KB"
+          fi
