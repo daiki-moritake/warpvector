@@ -3,9 +3,11 @@
  *
  * This module uses the ACTUAL @warpvector/core library to perform
  * intent-based vector transformations.
- * Enhanced with Real LLM Embeddings via Transformers.js and Dynamic PCA Projection.
+ * Enhanced with Real LLM Embeddings, PCA Projection, Whitening, and Quantization.
  */
 import { IntentAdapter, initWasm } from '@warpvector/core';
+import { WhiteningAdapter } from '@warpvector/ml';
+import { QuantizationAdapter, type QuantizationType } from '@warpvector/extras';
 
 // all-MiniLM-L6-v2 uses 384 dimensions
 export const DIM = 384;
@@ -72,23 +74,20 @@ export function generateIntentMatrix(
   const matrix = new Float32Array(dim * dim);
   const bias = new Float32Array(dim);
 
-  // Identity matrix
   for (let i = 0; i < dim; i++) {
     matrix[i * dim + i] = 1.0;
   }
 
-  // Add outer product: strength * direction ⊗ direction
   for (let i = 0; i < dim; i++) {
     for (let j = 0; j < dim; j++) {
       matrix[i * dim + j] += strength * categoryDirection[i] * categoryDirection[j];
     }
-    bias[i] = strength * 0.1 * categoryDirection[i]; // Small bias in the direction
+    bias[i] = strength * 0.1 * categoryDirection[i];
   }
 
   return { matrix, bias };
 }
 
-/** Cosine similarity between two vectors */
 export function cosineSim(a: Float32Array, b: Float32Array): number {
   let dot = 0, normA = 0, normB = 0;
   for (let i = 0; i < a.length; i++) {
@@ -100,7 +99,6 @@ export function cosineSim(a: Float32Array, b: Float32Array): number {
   return dot / (Math.sqrt(normA) * Math.sqrt(normB));
 }
 
-/** Project high-dimensional vector to 2D using two basis vectors */
 export function projectTo2D(
   vec: Float32Array,
   basis1: Float32Array,
@@ -114,10 +112,6 @@ export function projectTo2D(
   return { x, y };
 }
 
-/**
- * Compute the top 2 principal components (Basis vectors) of a set of vectors
- * using Power Iteration (NIPALS-like approach) for fast, lightweight PCA in JS.
- */
 export function computeDynamicBasis(vectors: Float32Array[], dim: number, iters: number = 10): { b1: Float32Array, b2: Float32Array } {
   if (vectors.length === 0) {
     const b1 = new Float32Array(dim); b1[0] = 1;
@@ -126,14 +120,12 @@ export function computeDynamicBasis(vectors: Float32Array[], dim: number, iters:
   }
 
   const n = vectors.length;
-  // 1. Calculate mean vector
   const mean = new Float32Array(dim);
   for (let i = 0; i < n; i++) {
     for (let d = 0; d < dim; d++) mean[d] += vectors[i][d];
   }
   for (let d = 0; d < dim; d++) mean[d] /= n;
 
-  // 2. Center the vectors
   const centered: Float32Array[] = [];
   for (let i = 0; i < n; i++) {
     const c = new Float32Array(dim);
@@ -141,10 +133,8 @@ export function computeDynamicBasis(vectors: Float32Array[], dim: number, iters:
     centered.push(c);
   }
 
-  // Helper for power iteration
   const powerIteration = (data: Float32Array[], excludeBasis?: Float32Array) => {
     let b = new Float32Array(dim);
-    // Init with random
     for (let d = 0; d < dim; d++) b[d] = Math.random() - 0.5;
     
     for (let iter = 0; iter < iters; iter++) {
@@ -155,14 +145,12 @@ export function computeDynamicBasis(vectors: Float32Array[], dim: number, iters:
         for (let d = 0; d < dim; d++) nextB[d] += data[i][d] * dot;
       }
       
-      // Orthogonalize against excludeBasis if provided (Gram-Schmidt)
       if (excludeBasis) {
         let proj = 0;
         for (let d = 0; d < dim; d++) proj += nextB[d] * excludeBasis[d];
         for (let d = 0; d < dim; d++) nextB[d] -= proj * excludeBasis[d];
       }
 
-      // Normalize
       let norm = 0;
       for (let d = 0; d < dim; d++) norm += nextB[d] * nextB[d];
       norm = Math.sqrt(norm);
@@ -173,13 +161,32 @@ export function computeDynamicBasis(vectors: Float32Array[], dim: number, iters:
     return b;
   };
 
-  // 1st Principal Component
   const b1 = powerIteration(centered);
-  
-  // 2nd Principal Component (Orthogonal to b1)
   const b2 = powerIteration(centered, b1);
 
   return { b1, b2 };
+}
+
+// Optimization Helpers (Decode quantized vectors to float for 2D plotting & cosine sim)
+function decodeInt8(arr: Int8Array, dim: number): Float32Array {
+  const res = new Float32Array(dim);
+  for (let i = 0; i < dim; i++) res[i] = arr[i] / 127.0;
+  return res;
+}
+function decodeBinary(arr: Uint8Array, dim: number): Float32Array {
+  const res = new Float32Array(dim);
+  for (let i = 0, bi = 0; i < dim; i += 8, bi++) {
+    const byte = arr[bi];
+    res[i]   = (byte & 128) ? 1 : -1;
+    res[i+1] = (byte & 64) ? 1 : -1;
+    res[i+2] = (byte & 32) ? 1 : -1;
+    res[i+3] = (byte & 16) ? 1 : -1;
+    res[i+4] = (byte & 8) ? 1 : -1;
+    res[i+5] = (byte & 4) ? 1 : -1;
+    res[i+6] = (byte & 2) ? 1 : -1;
+    res[i+7] = (byte & 1) ? 1 : -1;
+  }
+  return res;
 }
 
 export interface DocPoint {
@@ -195,8 +202,11 @@ export interface DocPoint {
 
 export interface DemoState {
   docs: DocPoint[];
-  query: { text: string; vector: Float32Array; pos: { x: number; y: number } };
+  query: { text: string; baseVector: Float32Array; currentVector: Float32Array; pos: { x: number; y: number } };
   adapter: IntentAdapter;
+  whiteningAdapter: WhiteningAdapter;
+  useWhitening: boolean;
+  quantMode: 'none' | 'int8' | 'binary';
   basis1: Float32Array;
   basis2: Float32Array;
   wasmReady: boolean;
@@ -326,20 +336,16 @@ const DEFAULT_INTENTS = {
   ]
 };
 
-/** Create the full demo state with real warpvector IntentAdapter and real embeddings */
 export async function createDemoState(
   lang: 'en' | 'ja', 
   onProgress?: ProgressCallback
 ): Promise<DemoState> {
-  // Initialize WASM
   const wasmResult = await initWasm();
   const wasmReady = wasmResult !== null;
 
-  // Load Transformers.js model
   if (onProgress) onProgress('init_model');
   await preloadModel(onProgress);
 
-  // Prepare all texts to embed
   const allDocs: { category: string, name: string, text: string, color: string }[] = [];
   const sourceData = INITIAL_DATA[lang];
   for (const cat of Object.keys(sourceData)) {
@@ -348,9 +354,8 @@ export async function createDemoState(
     }
   }
 
-  const queryText = lang === 'en' ? "Apple" : "Apple"; // Just a default initialization
+  const queryText = lang === 'en' ? "Apple" : "機械学習とデータ分析"; 
   
-  // Also embed the default intent directions
   const defaultIntents = DEFAULT_INTENTS[lang];
   const intentTexts = defaultIntents.map(i => i.text);
 
@@ -363,7 +368,6 @@ export async function createDemoState(
   if (onProgress) onProgress('embedding');
   const embeddings = await getEmbeddings(allTextsToEmbed);
 
-  // Distribute embeddings back
   const docs: DocPoint[] = [];
   let eIdx = 0;
   for (let i = 0; i < allDocs.length; i++) {
@@ -382,7 +386,6 @@ export async function createDemoState(
 
   const queryVec = embeddings[eIdx++];
   
-  // Initialize IntentAdapter
   const adapter = new IntentAdapter(DIM);
   const intentsList: DemoState['intentsList'] = [];
 
@@ -399,11 +402,15 @@ export async function createDemoState(
     });
   }
 
-  // Define initial 2D projection basis dynamically using PCA on the current documents + query
+  // Initialize Whitening Adapter and learn from base vectors
+  const whiteningAdapter = new WhiteningAdapter(DIM, { learningRate: 0.1, numComponents: 2 });
+  for (const doc of docs) {
+    whiteningAdapter.update(doc.baseVector); // Online learning for anisotropy removal
+  }
+
   const allCurrentVecs = [...docs.map(d => d.currentVector), queryVec];
   const { b1, b2 } = computeDynamicBasis(allCurrentVecs, DIM);
 
-  // Calculate initial positions
   for (const doc of docs) {
     doc.pos = projectTo2D(doc.baseVector, b1, b2);
   }
@@ -411,8 +418,11 @@ export async function createDemoState(
 
   return {
     docs,
-    query: { text: queryText, vector: queryVec, pos: queryPos },
+    query: { text: queryText, baseVector: queryVec, currentVector: new Float32Array(queryVec), pos: queryPos },
     adapter,
+    whiteningAdapter,
+    useWhitening: false,
+    quantMode: 'none',
     basis1: b1,
     basis2: b2,
     wasmReady,
@@ -420,16 +430,13 @@ export async function createDemoState(
   };
 }
 
-/** Update the query dynamically */
 export async function updateQuery(state: DemoState, text: string) {
   const [newVec] = await getEmbeddings([text]);
   state.query.text = text;
-  state.query.vector = newVec;
-  // Note: basis will be updated in transform functions
-  state.query.pos = projectTo2D(newVec, state.basis1, state.basis2);
+  state.query.baseVector = newVec;
+  state.query.currentVector = new Float32Array(newVec);
 }
 
-/** Add a new custom intent dynamically */
 export async function addCustomIntent(
   state: DemoState, 
   name: string, 
@@ -453,44 +460,63 @@ export async function addCustomIntent(
   return key;
 }
 
-/** Transform all document vectors and update dynamic basis */
+// Helper to apply optimizations pipeline
+function applyPipeline(state: DemoState, baseVector: Float32Array, applyIntent: (v: Float32Array) => Float32Array): Float32Array {
+  let v: any = new Float32Array(baseVector);
+  
+  // 1. Whitening (De-bias the space)
+  if (state.useWhitening) {
+    v = state.whiteningAdapter.tune(v);
+  }
+
+  // 2. Intent (Affine transform)
+  v = applyIntent(v);
+
+  // 3. Quantization (Compression)
+  if (state.quantMode === 'int8') {
+    const quantizer = new QuantizationAdapter({ type: 'int8', dim: DIM });
+    v = decodeInt8(quantizer.tune(v) as Int8Array, DIM);
+  } else if (state.quantMode === 'binary') {
+    const quantizer = new QuantizationAdapter({ type: 'binary', dim: DIM });
+    v = decodeBinary(quantizer.tune(v) as Uint8Array, DIM);
+  }
+
+  return v;
+}
+
 export function transformWithIntent(
   state: DemoState,
   intent: string | null,
 ): { latencyMs: number; rankings: RankedDoc[] } {
   const t0 = performance.now();
 
-  for (const doc of state.docs) {
-    if (intent && intent !== 'none') {
-      doc.currentVector = state.adapter.tune(doc.baseVector, intent);
-    } else {
-      doc.currentVector = new Float32Array(doc.baseVector);
-    }
-  }
+  const intentFunc = (v: Float32Array) => (intent && intent !== 'none') ? state.adapter.tune(v, intent) : v;
 
-  // Update Basis Dynamically via PCA
-  const allCurrentVecs = [...state.docs.map(d => d.currentVector), state.query.vector];
+  for (const doc of state.docs) {
+    doc.currentVector = applyPipeline(state, doc.baseVector, intentFunc);
+  }
+  state.query.currentVector = applyPipeline(state, state.query.baseVector, intentFunc);
+
+  const allCurrentVecs = [...state.docs.map(d => d.currentVector), state.query.currentVector];
   const { b1, b2 } = computeDynamicBasis(allCurrentVecs, DIM);
   state.basis1 = b1;
   state.basis2 = b2;
 
-  // Project
   for (const doc of state.docs) {
     doc.pos = projectTo2D(doc.currentVector, state.basis1, state.basis2);
   }
-  state.query.pos = projectTo2D(state.query.vector, state.basis1, state.basis2);
+  state.query.pos = projectTo2D(state.query.currentVector, state.basis1, state.basis2);
 
   const latencyMs = performance.now() - t0;
 
   const rankings = state.docs.map((doc) => ({
     ...doc,
-    score: cosineSim(doc.currentVector, state.query.vector),
+    score: cosineSim(doc.currentVector, state.query.currentVector),
   })).sort((a, b) => b.score - a.score);
 
   return { latencyMs, rankings };
 }
 
-/** Transform using BLENDED intents and update dynamic basis */
 export function transformWithBlend(
   state: DemoState,
   weights: Record<string, number>,
@@ -499,35 +525,32 @@ export function transformWithBlend(
   for (const [k, v] of Object.entries(weights)) {
     if (v > 0.01) activeWeights[k] = v;
   }
-
   const hasActive = Object.keys(activeWeights).length > 0;
+  
+  const intentFunc = (v: Float32Array) => hasActive ? state.adapter.tuneBlended(v, activeWeights) : v;
+
   const t0 = performance.now();
 
   for (const doc of state.docs) {
-    if (hasActive) {
-      doc.currentVector = state.adapter.tuneBlended(doc.baseVector, activeWeights);
-    } else {
-      doc.currentVector = new Float32Array(doc.baseVector);
-    }
+    doc.currentVector = applyPipeline(state, doc.baseVector, intentFunc);
   }
+  state.query.currentVector = applyPipeline(state, state.query.baseVector, intentFunc);
 
-  // Update Basis Dynamically via PCA
-  const allCurrentVecs = [...state.docs.map(d => d.currentVector), state.query.vector];
+  const allCurrentVecs = [...state.docs.map(d => d.currentVector), state.query.currentVector];
   const { b1, b2 } = computeDynamicBasis(allCurrentVecs, DIM);
   state.basis1 = b1;
   state.basis2 = b2;
 
-  // Project
   for (const doc of state.docs) {
     doc.pos = projectTo2D(doc.currentVector, state.basis1, state.basis2);
   }
-  state.query.pos = projectTo2D(state.query.vector, state.basis1, state.basis2);
+  state.query.pos = projectTo2D(state.query.currentVector, state.basis1, state.basis2);
 
   const latencyMs = performance.now() - t0;
 
   const rankings = state.docs.map((doc) => ({
     ...doc,
-    score: cosineSim(doc.currentVector, state.query.vector),
+    score: cosineSim(doc.currentVector, state.query.currentVector),
   })).sort((a, b) => b.score - a.score);
 
   const weightsStr = Object.entries(activeWeights)
@@ -540,7 +563,6 @@ export function transformWithBlend(
   return { latencyMs, rankings, codeSnippet };
 }
 
-/** Run batch benchmark */
 export function runBenchmark(
   state: DemoState,
   batchSize: number = 1000,
