@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Edge Ready](https://img.shields.io/badge/Edge-Ready-success.svg)](#)
 [![Zero Dependencies](https://img.shields.io/badge/Dependencies-0-brightgreen.svg)](#)
-[![Tests](https://img.shields.io/badge/Tests-251%20passed-success.svg)](#)
+[![Tests](https://img.shields.io/badge/Tests-264%20passed-success.svg)](#)
 
 **Warp your vector space at runtime — no retraining, no Python, just TypeScript.**
 
