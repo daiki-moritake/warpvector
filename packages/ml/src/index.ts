@@ -24,6 +24,7 @@ export * from "./feedback/FederatedAggregator";
 
 export * from "./automl/metrics";
 export * from "./automl/PipelineAutoTuner";
+export * from "./factory/IntentMatrixFactory";
 
 // WarpPipeline にml系アダプタを自動登録 (side-effect)
 WarpPipeline.registerAdapter("MlpAdapter", (state) =>
