@@ -199,6 +199,7 @@ const improved = adapter.tune(searchVector);
 
 ```typescript
 import { PrismaClient } from '@prisma/client';
+import sql from 'sql-template-tag';
 import { withWarpVector } from 'warpvector/prisma';
 
 const prisma = new PrismaClient().$extends(
@@ -206,7 +207,7 @@ const prisma = new PrismaClient().$extends(
 );
 
 const results = await prisma.document.searchByVector({
-  vector: rawVector, topK: 10, where: "category = 'science'"
+  vector: rawVector, topK: 10, where: sql`category = 'science'`
 });
 ```
 
