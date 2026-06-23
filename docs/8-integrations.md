@@ -74,6 +74,7 @@ If you are using PostgreSQL's `pgvector` extension alongside Prisma, you can **c
 
 ```typescript
 import { PrismaClient } from '@prisma/client';
+import sql from 'sql-template-tag';
 import { WhiteningAdapter } from 'warpvector';
 import { withWarpVector } from 'warpvector/integrations/prisma';
 
@@ -96,7 +97,7 @@ const prisma = new PrismaClient().$extends(
 const results = await prisma.document.searchByVector({
   vector: rawSearchVector,
   topK: 10,
-  where: "category = 'science'" // Optional: You can also write standard Prisma WHERE clauses
+  where: sql`category = 'science'` // Optional: Use sql-template-tag for safe WHERE clauses
 });
 
 console.log(results); // Returns IDs, scores, and record info
