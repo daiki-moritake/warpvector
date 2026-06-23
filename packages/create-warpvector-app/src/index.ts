@@ -45,7 +45,7 @@ program.action(async () => {
 
   // Next steps
   const pm = response.packageManager || 'npm';
-  const steps = template.getNextSteps(pm, response.projectName);
+  const steps = template.getNextSteps(pm);
 
   console.log(pc.green('\n✔ Project created successfully!\n'));
   console.log('Next steps:');

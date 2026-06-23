@@ -1,5 +1,5 @@
 import pc from 'picocolors';
-import { writePackageJson, writeFile, getExecCommand } from '../scaffold';
+import { writePackageJson, writeTemplateFile, getExecCommand } from '../scaffold';
 import type { TemplateDefinition } from './types';
 
 const INTENT_TEMPLATE = `\
@@ -81,8 +81,8 @@ results.forEach((r, i) => {
 console.log("\\n✅ Done! Edit src/index.ts to use your own embedding model.\\n");
 `;
 
-const README = `\
-# \${name} — WarpVector Minimal Intent Search
+function readme(name: string): string {
+  return `# ${name} — WarpVector Minimal Intent Search
 
 WarpVector を使ったインテントベース検索の最小構成プロジェクトです。
 
@@ -105,15 +105,12 @@ npx tsx src/index.ts
 - [IntentMatrixFactory](https://github.com/daiki-moritake/warpvector/blob/main/docs/17-intent-matrix-factory.md)
 - [API Reference](https://github.com/daiki-moritake/warpvector/blob/main/docs/api-reference.md)
 `;
+}
 
 export const minimalIntentTemplate: TemplateDefinition = {
   id: 'minimal-intent',
-
-  choice: {
-    title: pc.bold('Minimal Intent Search') + pc.dim(' — Auto-learn intent matrices, zero config'),
-    value: 'minimal-intent',
-    description: 'Best for getting started quickly',
-  },
+  title: pc.bold('Minimal Intent Search') + pc.dim(' — Auto-learn intent matrices, zero config'),
+  description: 'Best for getting started quickly',
 
   generate(dir: string, name: string) {
     writePackageJson(dir, {
@@ -136,8 +133,8 @@ export const minimalIntentTemplate: TemplateDefinition = {
       },
     });
 
-    writeFile(dir, 'src/index.ts', INTENT_TEMPLATE);
-    writeFile(dir, 'README.md', README);
+    writeTemplateFile(dir, 'src/index.ts', INTENT_TEMPLATE);
+    writeTemplateFile(dir, 'README.md', readme(name));
   },
 
   getNextSteps(pm: string) {

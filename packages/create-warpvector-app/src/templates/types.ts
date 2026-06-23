@@ -1,17 +1,18 @@
-import type { Choice } from 'prompts';
-
 /**
  * テンプレート定義の共通インターフェース
  *
  * 新しいテンプレートを追加する場合は、この型に準拠した定義を
- * `src/templates/` 以下に作成し、`src/prompts.ts` のレジストリに登録する。
+ * `src/templates/` 以下に作成し、barrel export (`index.ts`) に追加する。
  */
 export interface TemplateDefinition {
-  /** テンプレートの一意識別子 (例: 'minimal-intent') */
+  /** テンプレートの一意識別子 (例: 'minimal-intent')。prompts の select value としても使用される */
   id: string;
 
-  /** prompts ライブラリの Choice 形式で返す表示情報 */
-  choice: Choice;
+  /** プロンプトに表示するタイトル（カラー付き文字列） */
+  title: string;
+
+  /** プロンプトに表示する説明文 */
+  description: string;
 
   /** プロジェクトファイルを生成する */
   generate: (dir: string, name: string) => void;
@@ -19,7 +20,6 @@ export interface TemplateDefinition {
   /**
    * テンプレート固有の「次のステップ」コマンドを返す
    * @param pm - パッケージマネージャー名 (npm | pnpm | yarn | bun)
-   * @param projectName - プロジェクト名
    */
-  getNextSteps: (pm: string, projectName: string) => string[];
+  getNextSteps: (pm: string) => string[];
 }

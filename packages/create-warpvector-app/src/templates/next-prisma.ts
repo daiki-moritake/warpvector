@@ -1,5 +1,5 @@
 import pc from 'picocolors';
-import { writePackageJson, writeFile, getRunCommand } from '../scaffold';
+import { writePackageJson, writeTemplateFile, getRunCommand } from '../scaffold';
 import type { TemplateDefinition } from './types';
 
 const PAGE_TSX = `\
@@ -34,12 +34,8 @@ const ENV_EXAMPLE = `DATABASE_URL="postgresql://user:password@localhost:5432/war
 
 export const nextPrismaTemplate: TemplateDefinition = {
   id: 'next-prisma-pgvector',
-
-  choice: {
-    title: pc.bold('Next.js + Prisma + pgvector') + pc.dim(' — Full-stack RAG app'),
-    value: 'next-prisma-pgvector',
-    description: 'Production-ready with PostgreSQL',
-  },
+  title: pc.bold('Next.js + Prisma + pgvector') + pc.dim(' — Full-stack RAG app'),
+  description: 'Production-ready with PostgreSQL',
 
   generate(dir: string, name: string) {
     writePackageJson(dir, {
@@ -70,9 +66,9 @@ export const nextPrismaTemplate: TemplateDefinition = {
       },
     });
 
-    writeFile(dir, 'src/app/page.tsx', PAGE_TSX);
-    writeFile(dir, 'prisma/schema.prisma', PRISMA_SCHEMA);
-    writeFile(dir, '.env.example', ENV_EXAMPLE);
+    writeTemplateFile(dir, 'src/app/page.tsx', PAGE_TSX);
+    writeTemplateFile(dir, 'prisma/schema.prisma', PRISMA_SCHEMA);
+    writeTemplateFile(dir, '.env.example', ENV_EXAMPLE);
   },
 
   getNextSteps(pm: string) {

@@ -1,5 +1,5 @@
 import pc from 'picocolors';
-import { writePackageJson, writeFile, getRunCommand } from '../scaffold';
+import { writePackageJson, writeTemplateFile, getRunCommand } from '../scaffold';
 import type { TemplateDefinition } from './types';
 
 const WORKER_SRC = `\
@@ -39,12 +39,8 @@ compatibility_date = "2024-01-01"`;
 
 export const cloudflareTemplate: TemplateDefinition = {
   id: 'cloudflare-worker',
-
-  choice: {
-    title: pc.bold('Cloudflare Workers (Edge)') + pc.dim(' — Sub-millisecond inference'),
-    value: 'cloudflare-worker',
-    description: 'Deploy to edge in seconds',
-  },
+  title: pc.bold('Cloudflare Workers (Edge)') + pc.dim(' — Sub-millisecond inference'),
+  description: 'Deploy to edge in seconds',
 
   generate(dir: string, name: string) {
     writePackageJson(dir, {
@@ -66,8 +62,8 @@ export const cloudflareTemplate: TemplateDefinition = {
       },
     });
 
-    writeFile(dir, 'src/index.ts', WORKER_SRC);
-    writeFile(dir, 'wrangler.toml', wranglerToml(name));
+    writeTemplateFile(dir, 'src/index.ts', WORKER_SRC);
+    writeTemplateFile(dir, 'wrangler.toml', wranglerToml(name));
   },
 
   getNextSteps(pm: string) {

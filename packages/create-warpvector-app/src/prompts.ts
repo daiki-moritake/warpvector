@@ -1,8 +1,10 @@
 import type { PromptObject } from 'prompts';
-import type { TemplateDefinition } from './templates/types';
-import { minimalIntentTemplate } from './templates/minimal-intent';
-import { nextPrismaTemplate } from './templates/next-prisma';
-import { cloudflareTemplate } from './templates/cloudflare';
+import {
+  type TemplateDefinition,
+  minimalIntentTemplate,
+  nextPrismaTemplate,
+  cloudflareTemplate,
+} from './templates';
 
 /** 登録済みテンプレートのレジストリ（追加時はここに追記するだけ） */
 export const templates: TemplateDefinition[] = [
@@ -29,7 +31,11 @@ export function createPromptQuestions(): PromptObject[] {
       type: 'select',
       name: 'template',
       message: 'Which template would you like to use?',
-      choices: templates.map((t) => t.choice),
+      choices: templates.map((t) => ({
+        title: t.title,
+        value: t.id,
+        description: t.description,
+      })),
     },
     {
       type: 'select',

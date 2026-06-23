@@ -9,9 +9,9 @@ export function writePackageJson(dir: string, config: Record<string, unknown>): 
 }
 
 /**
- * 親ディレクトリを自動作成してファイルを書き出す
+ * 親ディレクトリを自動作成してテンプレートファイルを書き出す
  */
-export function writeFile(dir: string, relativePath: string, content: string): void {
+export function writeTemplateFile(dir: string, relativePath: string, content: string): void {
   const fullPath = path.join(dir, relativePath);
   fs.mkdirSync(path.dirname(fullPath), { recursive: true });
   fs.writeFileSync(fullPath, content.trim());
@@ -48,5 +48,10 @@ export function getRunCommand(pm: string): string {
  * パッケージマネージャーに応じた npx 相当コマンドを返す
  */
 export function getExecCommand(pm: string): string {
-  return pm === 'npm' ? 'npx' : pm;
+  switch (pm) {
+    case 'pnpm': return 'pnpm exec';
+    case 'yarn': return 'yarn';
+    case 'bun':  return 'bun';
+    default:     return 'npx';
+  }
 }
