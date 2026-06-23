@@ -95,4 +95,70 @@ export class VectorDBAdapter {
       ),
     );
   }
+
+  /**
+   * Cloudflare Vectorize 用のクエリオブジェクトを生成します。
+   * Vectorize の `index.query()` メソッドに渡せる形式です。
+   *
+   * @example
+   * const query = VectorDBAdapter.toVectorizeQuery(warpedVector, 10, { returnMetadata: true });
+   * const results = await env.VECTORIZE_INDEX.query(query.vector, query.options);
+   *
+   * @param vector ワープ変換後のベクトル
+   * @param topK 取得する件数 (デフォルト: 10)
+   * @param options クエリオプション
+   * @returns Vectorize の query() 用オブジェクト
+   */
+  public static toVectorizeQuery(
+    vector: number[] | Float32Array,
+    topK: number = 10,
+    options?: {
+      returnMetadata?: boolean;
+      returnValues?: boolean;
+      filter?: Record<string, unknown>;
+    },
+  ): {
+    vector: number[];
+    options: { topK: number; returnMetadata?: boolean; returnValues?: boolean; filter?: Record<string, unknown> };
+  } {
+    return {
+      vector: Array.from(vector),
+      options: {
+        topK,
+        ...options,
+      },
+    };
+  }
+
+  /**
+   * Cloudflare Vectorize 用の upsert レコードを生成します。
+   * `index.upsert()` メソッドに渡す配列要素の形式です。
+   *
+   * @example
+   * const records = documents.map((doc, i) =>
+   *   VectorDBAdapter.toVectorizeRecord(`doc-${i}`, warpedVectors[i], { title: doc.title })
+   * );
+   * await env.VECTORIZE_INDEX.upsert(records);
+   *
+   * @param id レコードID
+   * @param vector ワープ変換後のベクトル
+   * @param metadata メタデータ（オプション）
+   * @returns Vectorize の upsert() 用レコード
+   */
+  public static toVectorizeRecord(
+    id: string,
+    vector: number[] | Float32Array,
+    metadata?: Record<string, unknown>,
+  ): {
+    id: string;
+    values: number[];
+    metadata?: Record<string, unknown>;
+  } {
+    return {
+      id,
+      values: Array.from(vector),
+      ...(metadata ? { metadata } : {}),
+    };
+  }
 }
+

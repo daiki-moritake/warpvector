@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Edge Ready](https://img.shields.io/badge/Edge-Ready-success.svg)](#)
 [![Zero Dependencies](https://img.shields.io/badge/Dependencies-0-brightgreen.svg)](#)
-[![Tests](https://img.shields.io/badge/Tests-264%20passed-success.svg)](#)
+[![Tests](https://img.shields.io/badge/Tests-282%20passed-success.svg)](#)
 
 **Warp your vector space at runtime — no retraining, no Python, just TypeScript.**
 
@@ -296,6 +296,52 @@ $$\mathbf{x}' = \sigma(\mathbf{W}_I \mathbf{x} + \mathbf{b}_I)$$
 - $\sigma$: Non-linear activation function (ReLU, Sigmoid, Tanh)
 
 Computational complexity is $\mathcal{O}(d^2)$ (or $\mathcal{O}(d \cdot r)$ with LoRA), optimized via WASM and `Float32Array` memory alignment for **sub-millisecond inference on edge devices**.
+
+---
+
+## ☁️ Cloudflare Vectorize Integration
+
+```typescript
+import { WarpPipeline, VectorDBAdapter } from "warpvector";
+
+// Upsert warped vectors
+const records = documents.map((doc, i) =>
+  VectorDBAdapter.toVectorizeRecord(`doc-${i}`, pipeline.run(doc.embedding), { title: doc.title })
+);
+await env.VECTORIZE_INDEX.upsert(records);
+
+// Query with intent warping
+const { vector, options } = VectorDBAdapter.toVectorizeQuery(
+  pipeline.run(queryEmbedding),
+  10,
+  { returnMetadata: true }
+);
+const results = await env.VECTORIZE_INDEX.query(vector, options);
+```
+
+Also supports **pgvector**, **Pinecone**, and **Redis** out of the box.
+
+---
+
+## 📊 OpenTelemetry-Compatible Tracing
+
+```typescript
+import { WarpTracer, IntentAdapter } from "warpvector";
+
+const tracer = new WarpTracer();
+const adapter = new IntentAdapter(768);
+
+// Trace any operation
+const warped = tracer.trace("intent.tune", { intent: "tech", dim: 768 }, () => {
+  return adapter.tune(vector, "tech");
+});
+
+// Get metrics
+const metrics = tracer.getMetrics();
+// { totalCalls: 1, avgLatencyMs: 0.12, operationCounts: { "intent.tune": 1 } }
+```
+
+Zero-dependency — works without `@opentelemetry/api` installed.
 
 ---
 
