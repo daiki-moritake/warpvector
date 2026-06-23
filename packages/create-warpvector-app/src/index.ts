@@ -353,9 +353,9 @@ export default {
       const body = await request.json() as { query: number[]; intent?: string };
 
       const adapter = new IntentAdapter(384);
-      // TODO: Load intent weights from KV or config
-      // const state = await env.WARP_KV?.get("adapter-state");
-      // if (state) adapter = IntentAdapter.importState(JSON.parse(state));
+      // 💡 インテント重みを KV/D1/環境変数から読み込む場合:
+      //    const state = await env.WARP_KV?.get("adapter-state");
+      //    if (state) adapter = IntentAdapter.importState(JSON.parse(state));
 
       const result = adapter.tune(body.query, body.intent || "default");
       return Response.json({ vector: Array.from(result) });

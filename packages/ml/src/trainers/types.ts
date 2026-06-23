@@ -13,4 +13,6 @@ export interface BaseTrainingOptions {
   autoTune?: boolean;
   /** Lossの改善が見られなかった場合に、学習を早期終了 (Early Stopping) するまでのエポック数 (例: 5) */
   patience?: number;
+  /** Early Stopping 発動時に呼ばれるコールバック。指定しない場合、サイレントに停止します。 */
+  onEarlyStopping?: (epoch: number, patience: number) => void;
 }

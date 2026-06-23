@@ -41,20 +41,7 @@ export interface WarpMetrics {
   operationLatencies: Record<string, number>;
 }
 
-/**
- * OpenTelemetry 互換のスパンインターフェース（ゼロ依存）
- *
- * `@opentelemetry/api` の `Span` と互換性がありますが、
- * ライブラリがなくても動作する最小限の実装を提供します。
- */
-export interface WarpSpan {
-  /** スパンに属性を追加 */
-  setAttribute(key: string, value: string | number | boolean): void;
-  /** スパンにイベントを追加 */
-  addEvent(name: string, attributes?: SpanAttributes): void;
-  /** スパンを終了 */
-  end(): void;
-}
+
 
 /**
  * OpenTelemetry トレーサーのラッパー
@@ -63,7 +50,6 @@ export interface WarpSpan {
  * 自動的にそれに委譲します。
  */
 export class WarpTracer {
-  private readonly _name: string;
   private readonly _metrics: {
     calls: number;
     totalMs: number;
@@ -72,8 +58,7 @@ export class WarpTracer {
     ops: Record<string, { count: number; totalMs: number }>;
   };
 
-  constructor(name: string = "warpvector") {
-    this._name = name;
+  constructor() {
     this._metrics = {
       calls: 0,
       totalMs: 0,
