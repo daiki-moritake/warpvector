@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Edge Ready](https://img.shields.io/badge/Edge-Ready-success.svg)](#)
 [![Zero Dependencies](https://img.shields.io/badge/Dependencies-0-brightgreen.svg)](#)
-[![Tests](https://img.shields.io/badge/Tests-209%20passed-success.svg)](#)
+[![Tests](https://img.shields.io/badge/Tests-290%20passed-success.svg)](#)
 
 **Warp your vector space at runtime — no retraining, no Python, just TypeScript.**
 
@@ -27,6 +27,8 @@ It sits between your embedding model and vector database, applying fast in-memor
 | **Memory Reduction (Int8)** | 6 KB/vec (1536-dim) | 1.5 KB/vec | **75% reduction** |
 | **Memory Reduction (Binary)** | 6 KB/vec (1536-dim) | 192 B/vec | **96.9% reduction** |
 | **Pipeline Latency** | — | 119 µs (Intent + Projection) | Sub-millisecond |
+| **IR Accuracy (NDCG@10)** | 68.2% (vanilla) | 77.0% (Intent Warping) | **+13.0% improvement** |
+| **Quantization Recall@10 (Int8)** | — | 86–96% | Near-lossless retrieval |
 
 <details>
 <summary>📊 Full Benchmark Results</summary>
@@ -142,6 +144,28 @@ const techResult = adapter.tune(queryVector, "technical");
 const bizResult  = adapter.tune(queryVector, "business");
 ```
 
+### Auto-Generate Intent Matrices (NEW)
+
+```typescript
+import { IntentMatrixFactory } from 'warpvector/ml';
+import { IntentAdapter } from 'warpvector';
+
+// No manual matrix needed — just provide category samples
+const factory = new IntentMatrixFactory(1536);
+factory.addCategory("tech", [techVec1, techVec2, techVec3]);
+factory.addCategory("business", [bizVec1, bizVec2, bizVec3]);
+
+// Auto-learns optimal affine transformations via contrastive learning
+const intents = await factory.build();
+
+const adapter = new IntentAdapter(1536);
+adapter.addIntent("tech", intents.tech);
+adapter.addIntent("business", intents.business);
+
+// Auto-blending: automatically routes queries to the best intent
+const result = adapter.tuneAutoBlended(queryVector);
+```
+
 ### WASM-Accelerated Neural Network Inference
 
 ```typescript
@@ -199,6 +223,7 @@ const results = await prisma.document.searchByVector({
 | **Reranking** | ColBERT/Late Interaction (WASM), TimeReversalReranker, MultipathScatteringReranker |
 | **Hybrid Search** | Reciprocal Rank Fusion (RRF), Relative Score Fusion (RSF) |
 | **Training** | InfoNCE, Triplet Loss, MigrationTrainer (Adam optimizer, edge-ready) |
+| **Auto-ML** | IntentMatrixFactory (auto-generate intent matrices from samples) |
 | **Advanced** | Task Arithmetic (model merging), VSA (Vector Symbolic Architecture), Federated Learning |
 | **Integrations** | Prisma + pgvector, LangChain, LlamaIndex |
 | **Runtime** | Zero dependencies, WASM/SIMD, Cloudflare Workers / Bun / Node.js |
@@ -250,6 +275,7 @@ console.log(pipeline.metrics.getMetrics());
 | 14 | [Inverse Diffusion](./docs/14-soft-whitening.md) | Semantic sharpening |
 | 15 | [Time-Reversal Reranker](./docs/15-time-reversal-reranker.md) | Wave-inspired reranking |
 | 16 | [Multipath Scattering](./docs/16-multipath-scattering-reranker.md) | Random-walk hub detection |
+| 17 | [IntentMatrixFactory](./docs/17-intent-matrix-factory.md) | Auto-generate intent matrices from samples |
 | C1 | [E-commerce Search Cookbook](./docs/cookbook/ecommerce-search.md) | Intent-based routing |
 | C2 | [Pinecone RAG Cookbook](./docs/cookbook/rag-with-pinecone.md) | Cost-efficient RAG |
 | C3 | [Cloudflare Edge Cookbook](./docs/cookbook/edge-cloudflare.md) | Edge inference |
@@ -270,6 +296,52 @@ $$\mathbf{x}' = \sigma(\mathbf{W}_I \mathbf{x} + \mathbf{b}_I)$$
 - $\sigma$: Non-linear activation function (ReLU, Sigmoid, Tanh)
 
 Computational complexity is $\mathcal{O}(d^2)$ (or $\mathcal{O}(d \cdot r)$ with LoRA), optimized via WASM and `Float32Array` memory alignment for **sub-millisecond inference on edge devices**.
+
+---
+
+## ☁️ Cloudflare Vectorize Integration
+
+```typescript
+import { WarpPipeline, VectorDBAdapter } from "warpvector";
+
+// Upsert warped vectors
+const records = documents.map((doc, i) =>
+  VectorDBAdapter.toVectorizeRecord(`doc-${i}`, pipeline.run(doc.embedding), { title: doc.title })
+);
+await env.VECTORIZE_INDEX.upsert(records);
+
+// Query with intent warping
+const { vector, options } = VectorDBAdapter.toVectorizeQuery(
+  pipeline.run(queryEmbedding),
+  10,
+  { returnMetadata: true }
+);
+const results = await env.VECTORIZE_INDEX.query(vector, options);
+```
+
+Also supports **pgvector**, **Pinecone**, and **Redis** out of the box.
+
+---
+
+## 📊 OpenTelemetry-Compatible Tracing
+
+```typescript
+import { WarpTracer, IntentAdapter } from "warpvector";
+
+const tracer = new WarpTracer();
+const adapter = new IntentAdapter(768);
+
+// Trace any operation
+const warped = tracer.trace("intent.tune", { intent: "tech", dim: 768 }, () => {
+  return adapter.tune(vector, "tech");
+});
+
+// Get metrics
+const metrics = tracer.getMetrics();
+// { totalCalls: 1, avgLatencyMs: 0.12, operationCounts: { "intent.tune": 1 } }
+```
+
+Zero-dependency — works without `@opentelemetry/api` installed.
 
 ---
 

@@ -11,6 +11,7 @@ export * from "./errors";
 export * from "./metrics";
 export * from "./utils";
 export * from "./validation";
+export * from "./telemetry/WarpTracer";
 
 // WASM runtime utilities (used by sub-packages @warpvector/ml, @warpvector/extras)
 export {

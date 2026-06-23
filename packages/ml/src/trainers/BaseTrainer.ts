@@ -111,7 +111,7 @@ export abstract class BaseTrainer<
           } else {
             patienceCounter++;
             if (patienceCounter >= patience) {
-              console.log(`Early stopping triggered at epoch ${epoch + 1}. Loss did not improve for ${patience} epochs.`);
+              options.onEarlyStopping?.(epoch + 1, patience);
               break;
             }
           }
@@ -192,7 +192,7 @@ export abstract class BaseTrainer<
           } else {
             patienceCounter++;
             if (patienceCounter >= patience) {
-              console.log(`Early stopping triggered at epoch ${epoch + 1}. Loss did not improve for ${patience} epochs.`);
+              options.onEarlyStopping?.(epoch + 1, patience);
               break;
             }
           }

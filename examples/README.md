@@ -28,3 +28,10 @@ bun run examples/3-dimension-migration.ts
 
 ### `3-dimension-migration.ts`
 `ProjectionAdapter` を使用した次元削減の例です。高次元モデルから出力されたベクトルを、非対称な行列を用いて軽量な次元に投影（プロジェクション）し、DBのマイグレーションコストを削減するユースケースを示しています。
+
+### `auto-intent.ts` 🆕
+`IntentMatrixFactory` を使った**Intent行列の自動生成**の完全な例です。カテゴリごとにサンプルベクトルを追加するだけで、InfoNCE対照学習により最適なアフィン変換行列を自動学習します。Vanilla検索 vs Intent Warping vs Auto-blending の検索結果の違いを体験できます。
+
+```bash
+bun run examples/auto-intent.ts
+```

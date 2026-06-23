@@ -176,6 +176,8 @@ const restoredPipeline = WarpPipeline.importState(stateJson);
     - 時間反転鏡(TRM)の原理を用い、検索候補グラフ上で波を逆再生して真のソースドキュメントを特定
 16. **[多重経路散乱場リランカー (Multipath Scattering Reranker)](./docs/16-multipath-scattering-reranker.ja.md)**
     - 波動の多重散乱場理論（ランダムウォーク）を用い、多重経路で支持されている真のハブドキュメントを特定
+17. **[IntentMatrixFactory — Intent行列の自動生成](./docs/17-intent-matrix-factory.ja.md)** 🆕
+    - カテゴリサンプルから最適なIntent行列をInfoNCE対照学習で自動生成
 ---
 
 ## 📦 インストール
@@ -391,6 +393,30 @@ const updatedWeights = await trainer.updateOnline(
 ```
 
 ### 9. LangChain / LlamaIndex との統合 (Integrations)
+
+### 8.5 Intent行列の自動生成 (IntentMatrixFactory) 🆕
+
+変換行列を手動で設計する代わりに、カテゴリごとのサンプルベクトルから自動でIntent行列を学習できます。
+
+```typescript
+import { IntentMatrixFactory } from 'warpvector/ml';
+import { IntentAdapter } from 'warpvector';
+
+// サンプルベクトルを登録するだけ
+const factory = new IntentMatrixFactory(1536);
+factory.addCategory("tech", [techVec1, techVec2, techVec3]);
+factory.addCategory("business", [bizVec1, bizVec2, bizVec3]);
+
+// InfoNCE対照学習で最適な行列を自動生成
+const intents = await factory.build();
+
+const adapter = new IntentAdapter(1536);
+adapter.addIntent("tech", intents.tech);
+adapter.addIntent("business", intents.business);
+
+// Auto-blending: クエリの意図を自動判定して最適な変換を適用
+const result = adapter.tuneAutoBlended(queryVector);
+```
 
 `warpvector` は、既存の巨大エコシステムに「たった数行」で組み込むことができます。
 
