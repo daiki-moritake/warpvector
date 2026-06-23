@@ -52,12 +52,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - README updated with Cloudflare Vectorize, OpenTelemetry, and IntentMatrixFactory sections
-- Test badge updated: 209 → **282 tests** (+35%)
-- expect() calls: 1,188 → **1,554** (+31%)
+- Test badge updated: 209 → **290 tests** (+39%)
+- expect() calls: 1,188 → **1,562** (+31%)
 
 ### Testing
-- **282 tests** across 42 files (all passing)
-- 1,554 expect() calls
+- **290 tests** across 43 files (all passing)
+- 1,562 expect() calls
 - New test files:
   - `graceful-degradation.test.ts` (13 tests)
   - `telemetry-vectorize.test.ts` (12 tests)

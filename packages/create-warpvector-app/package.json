@@ -1,6 +1,6 @@
 {
   "name": "create-warpvector-app",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "CLI to scaffold a WarpVector application",
   "bin": {
     "create-warpvector-app": "./bin/cli.js"
