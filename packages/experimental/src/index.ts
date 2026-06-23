@@ -21,10 +21,10 @@
 
 // Re-export experimental features from @warpvector/extras
 export { ColbertAdapter } from "@warpvector/extras";
-export { VsaAdapter, type VsaConfig } from "@warpvector/extras";
+export { VsaAdapter, type VsaOptions } from "@warpvector/extras";
 export { AnomalyDetectionAdapter } from "@warpvector/extras";
 export {
   TaskArithmetic,
-  type TaskVector,
-  type MergeStrategy,
+  type TaskConfig,
 } from "@warpvector/extras";
+
