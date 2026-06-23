@@ -197,6 +197,22 @@ const result = baseVector;</code></pre>
       <div class="card animate-in">
         <div class="card__header">
           <div class="card__title">
+            <span class="card__title-icon" style="background:rgba(139,92,246,0.15);color:var(--accent-purple);">🤖</span>
+            インテント自動学習
+          </div>
+          <span class="dim-badge">IntentMatrixFactory</span>
+        </div>
+        <div class="card__body">
+          <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;line-height:1.6;">
+            <code style="color:var(--accent-purple);">IntentMatrixFactory</code> がドキュメントのカテゴリから <strong style="color:var(--text-primary);">InfoNCE 対照学習</strong>で最適なIntent行列を自動生成します。
+          </p>
+          <button class="bench-btn" id="autoLearnBtn" style="background:linear-gradient(135deg, rgba(139,92,246,0.2), rgba(59,130,246,0.2));border-color:rgba(139,92,246,0.3);">🧠 ドキュメントから自動学習</button>
+          <div id="autoLearnResult" style="margin-top:12px;"></div>
+        </div>
+      </div>
+      <div class="card animate-in">
+        <div class="card__header">
+          <div class="card__title">
             <span class="card__title-icon" style="background:rgba(16,185,129,0.15);color:var(--accent-green);">✦</span>
             仕組み
           </div>

@@ -597,3 +597,91 @@ export function runBenchmark(
     speedup: individualMs / batchMs,
   };
 }
+
+/**
+ * IntentMatrixFactory を使った自動Intent学習
+ *
+ * ドキュメントのカテゴリ別ベクトルから InfoNCE 対照学習で
+ * 最適なIntent行列を自動生成し、既存のアダプタに適用します。
+ */
+export interface AutoLearnResult {
+  categories: string[];
+  trainingTimeMs: number;
+  improved: boolean;
+}
+
+export async function autoLearnIntents(
+  state: DemoState,
+): Promise<AutoLearnResult> {
+  // Dynamic import to keep the initial bundle lean
+  const { IntentMatrixFactory } = await import('@warpvector/ml');
+
+  const t0 = performance.now();
+  const factory = new IntentMatrixFactory(DIM);
+
+  // Group document vectors by category
+  const categories = new Set<string>();
+  for (const doc of state.docs) {
+    categories.add(doc.category);
+  }
+
+  for (const cat of categories) {
+    const vecs = state.docs
+      .filter(d => d.category === cat)
+      .map(d => d.baseVector);
+    if (vecs.length >= 2) {
+      factory.addCategory(cat, vecs);
+    }
+  }
+
+  // Train with InfoNCE
+  const intents = await factory.build({
+    training: { epochs: 80, learningRate: 0.01, patience: 8 },
+  });
+
+  const trainingTimeMs = performance.now() - t0;
+
+  // Replace adapter intents with learned ones
+  const learnedCategories: string[] = [];
+  const CATEGORY_ICONS: Record<string, string> = {
+    tech: '💻', business: '📊', medical: '🏥', general: '📌',
+  };
+  const CATEGORY_COLORS_MAP: Record<string, string> = {
+    tech: 'rgba(59,130,246,0.15)',
+    business: 'rgba(16,185,129,0.15)',
+    medical: 'rgba(244,63,94,0.15)',
+    general: 'rgba(148,163,184,0.15)',
+  };
+
+  for (const cat of categories) {
+    if (intents[cat]) {
+      state.adapter.addIntent('auto_' + cat, intents[cat]);
+      learnedCategories.push(cat);
+
+      // Check if already in intentsList, replace if so
+      const existingIdx = state.intentsList.findIndex(
+        i => i.key === 'auto_' + cat,
+      );
+      const intentMeta = {
+        key: 'auto_' + cat,
+        name: `🤖 ${cat.charAt(0).toUpperCase() + cat.slice(1)}`,
+        desc: 'Auto-learned (InfoNCE)',
+        icon: CATEGORY_ICONS[cat] || '✨',
+        color: CATEGORY_COLORS_MAP[cat] || 'rgba(148,163,184,0.15)',
+      };
+
+      if (existingIdx >= 0) {
+        state.intentsList[existingIdx] = intentMeta;
+      } else {
+        state.intentsList.push(intentMeta);
+      }
+    }
+  }
+
+  return {
+    categories: learnedCategories,
+    trainingTimeMs,
+    improved: learnedCategories.length > 0,
+  };
+}
+

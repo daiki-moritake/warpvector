@@ -9,6 +9,7 @@ import {
   transformWithIntent,
   transformWithBlend,
   runBenchmark,
+  autoLearnIntents,
   cosineSim,
   projectTo2D,
   updateQuery,
@@ -17,6 +18,7 @@ import {
   type DemoState,
   type RankedDoc,
   type BenchmarkResult,
+  type AutoLearnResult,
 } from './demo-engine.ts';
 
 type Lang = 'en' | 'ja';
@@ -50,6 +52,11 @@ const LABELS: Record<Lang, {
     customIntentName: 'Custom Intent',
     customIntentDesc: 'adapter.tune(vec, "custom")',
     addingIntent: 'Adding...',
+    autoLearnBtn: '🧠 Auto-learn from Documents',
+    autoLearning: '🧠 Learning...',
+    autoLearnDone: 'Learned',
+    autoLearnCategories: 'Categories',
+    autoLearnTime: 'Training Time',
   },
   ja: {
     queryLabel: 'クエリ',
@@ -65,6 +72,11 @@ const LABELS: Record<Lang, {
     customIntentName: 'カスタムインテント',
     customIntentDesc: 'adapter.tune(vec, "custom")',
     addingIntent: '追加中...',
+    autoLearnBtn: '🧠 ドキュメントから自動学習',
+    autoLearning: '🧠 学習中...',
+    autoLearnDone: '学習完了',
+    autoLearnCategories: 'カテゴリ',
+    autoLearnTime: '学習時間',
   },
 };
 
@@ -720,6 +732,42 @@ export async function initPlayground(lang: Lang) {
         <span class="bench-speedup-value">${r.speedup.toFixed(1)}×</span>
       </div>
     `;
+  }
+
+  // Auto-learn Intents
+  const autoLearnBtn = document.getElementById('autoLearnBtn') as HTMLButtonElement | null;
+  if (autoLearnBtn) {
+    autoLearnBtn.addEventListener('click', async () => {
+      autoLearnBtn.disabled = true;
+      autoLearnBtn.textContent = labels.autoLearning;
+
+      try {
+        const result = await autoLearnIntents(state);
+        const resultEl = document.getElementById('autoLearnResult');
+        if (resultEl) {
+          resultEl.innerHTML = `
+            <div class="bench-row" style="border-left: 3px solid rgba(139,92,246,0.6);padding-left:10px;">
+              <span class="bench-label">✅ ${labels.autoLearnDone}</span>
+            </div>
+            <div class="bench-row">
+              <span class="bench-label">${labels.autoLearnCategories}</span>
+              <span class="bench-value">${result.categories.join(', ')}</span>
+            </div>
+            <div class="bench-row">
+              <span class="bench-label">${labels.autoLearnTime}</span>
+              <span class="bench-value">${result.trainingTimeMs.toFixed(0)}ms</span>
+            </div>
+          `;
+        }
+        // Re-render intent buttons to include the new auto-learned ones
+        renderIntentButtons();
+      } catch (err) {
+        console.error('Auto-learn failed:', err);
+      }
+
+      autoLearnBtn.disabled = false;
+      autoLearnBtn.textContent = labels.autoLearnBtn;
+    });
   }
 
   // Resize

@@ -379,3 +379,108 @@ for (const dim of DIMS) {
     );
   }
 }
+
+// --- Markdown レポート自動生成 ---
+import fs from "fs";
+import path from "path";
+
+function generateIRReport(): string {
+  const now = new Date().toISOString().split("T")[0];
+  const lines: string[] = [];
+
+  lines.push(`# IR精度評価レポート`);
+  lines.push(``);
+  lines.push(`> 自動生成: ${now} | コーパス: 200ドキュメント (2ドメイン×50 + 60クロス + 40一般) | クエリ: 30件`);
+  lines.push(``);
+  lines.push(`## 概要`);
+  lines.push(``);
+  lines.push(`WarpVector の各アダプタが情報検索タスクの精度に与える影響を、`);
+  lines.push(`NDCG@K（Normalized Discounted Cumulative Gain）と MRR（Mean Reciprocal Rank）で定量評価しました。`);
+  lines.push(``);
+
+  // メインテーブル
+  lines.push(`## 結果`);
+  lines.push(``);
+  lines.push(`| 手法 | 次元 | NDCG@10 | NDCG@50 | MRR |`);
+  lines.push(`|------|------|---------|---------|-----|`);
+
+  for (const r of allResults) {
+    lines.push(
+      `| ${r.method} | ${r.dimension} | ${(r.ndcg10 * 100).toFixed(1)}% | ${(r.ndcg50 * 100).toFixed(1)}% | ${(r.mrr * 100).toFixed(1)}% |`,
+    );
+  }
+  lines.push(``);
+
+  // 改善率テーブル
+  lines.push(`## Vanilla ベースライン対比の改善率`);
+  lines.push(``);
+
+  for (const dim of DIMS) {
+    const vanilla = allResults.find(
+      (r) => r.method === "Vanilla (no transform)" && r.dimension === dim,
+    );
+    if (!vanilla) continue;
+
+    lines.push(`### ${dim}次元`);
+    lines.push(``);
+    lines.push(`| 手法 | NDCG@10 改善 | MRR 改善 |`);
+    lines.push(`|------|-------------|---------|`);
+
+    const others = allResults.filter(
+      (r) => r.method !== "Vanilla (no transform)" && r.dimension === dim,
+    );
+    for (const r of others) {
+      const ndcg10Imp = ((r.ndcg10 - vanilla.ndcg10) / vanilla.ndcg10) * 100;
+      const mrrImp = ((r.mrr - vanilla.mrr) / vanilla.mrr) * 100;
+      const ndcgSign = ndcg10Imp >= 0 ? "+" : "";
+      const mrrSign = mrrImp >= 0 ? "+" : "";
+      lines.push(
+        `| ${r.method} | ${ndcgSign}${ndcg10Imp.toFixed(1)}% | ${mrrSign}${mrrImp.toFixed(1)}% |`,
+      );
+    }
+    lines.push(``);
+  }
+
+  // 推奨事項
+  lines.push(`## 推奨事項`);
+  lines.push(``);
+
+  const intentResult = allResults.find(
+    (r) => r.method === "Intent Warping (tech)" && r.dimension === 384,
+  );
+  const autoResult = allResults.find(
+    (r) => r.method.includes("IntentMatrixFactory") && r.dimension === 384,
+  );
+  const vanillaBase = allResults.find(
+    (r) => r.method === "Vanilla (no transform)" && r.dimension === 384,
+  );
+
+  if (intentResult && vanillaBase) {
+    const imp = ((intentResult.ndcg10 - vanillaBase.ndcg10) / vanillaBase.ndcg10) * 100;
+    if (imp > 0) {
+      lines.push(`- ✅ **Intent Warping**: NDCG@10 が **+${imp.toFixed(1)}%** 改善。ドメイン特化検索に有効。`);
+    }
+  }
+
+  if (autoResult && vanillaBase) {
+    const imp = ((autoResult.ndcg10 - vanillaBase.ndcg10) / vanillaBase.ndcg10) * 100;
+    if (imp > 0) {
+      lines.push(`- ✅ **IntentMatrixFactory (auto)**: NDCG@10 が **+${imp.toFixed(1)}%** 改善。手動設定不要。`);
+    }
+  }
+
+  lines.push(``);
+  lines.push(`---`);
+  lines.push(``);
+  lines.push(`*このレポートは \`bun run benchmarks/ir-evaluation/evaluate.ts\` で自動生成されました。*`);
+
+  return lines.join("\n");
+}
+
+const reportPath = path.join(
+  path.dirname(new URL(import.meta.url).pathname),
+  "REPORT.md",
+);
+fs.writeFileSync(reportPath, generateIRReport());
+console.log(`\n📄 Markdown レポートを生成しました: ${reportPath}`);
+
