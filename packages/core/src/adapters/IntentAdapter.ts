@@ -227,15 +227,21 @@ export class IntentAdapter implements WarpAdapter {
         const vectorsPtr = allocateWasmMemory(batchSize * this.dimension * 4);
         const resultsPtr = allocateWasmMemory(batchSize * this.dimension * 4);
 
-        writeFloat32ArrayToWasm(memory, matrix, matrixPtr);
-        writeFloat32ArrayToWasm(memory, bias, biasPtr);
+        const f32 = new Float32Array(memory.buffer);
+        f32.set(matrix, matrixPtr / 4);
+        f32.set(bias, biasPtr / 4);
 
+        const vectorsFloatOffset = vectorsPtr / 4;
         for (let k = 0; k < batchSize; k++) {
-          writeFloat32ArrayToWasm(
-            memory,
-            baseVectors[k],
-            vectorsPtr + k * this.dimension * 4,
-          );
+          const vec = baseVectors[k];
+          if (vec instanceof Float32Array) {
+            f32.set(vec, vectorsFloatOffset + k * this.dimension);
+          } else {
+            const start = vectorsFloatOffset + k * this.dimension;
+            for (let i = 0; i < this.dimension; i++) {
+              f32[start + i] = vec[i];
+            }
+          }
         }
 
         const tuneBatchWasm = instance.exports
@@ -250,11 +256,13 @@ export class IntentAdapter implements WarpAdapter {
         );
 
         const results = new Array<Float32Array>(batchSize);
+        // メモリが拡張された可能性があるため、再度ビューを取得
         const outF32Mem = new Float32Array(memory.buffer);
+        const resultsFloatOffset = resultsPtr / 4;
         for (let k = 0; k < batchSize; k++) {
           const res = outF32Mem.slice(
-            resultsPtr / 4 + k * this.dimension,
-            resultsPtr / 4 + (k + 1) * this.dimension,
+            resultsFloatOffset + k * this.dimension,
+            resultsFloatOffset + (k + 1) * this.dimension,
           );
           applyActivationToVector(res, activation);
           results[k] = res;

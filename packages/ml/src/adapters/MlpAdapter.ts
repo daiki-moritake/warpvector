@@ -292,6 +292,7 @@ export class MlpAdapter implements WarpAdapter {
       const results = new Array<Float32Array>(batchSize);
       const f32Mem = new Float32Array(memory.buffer);
       const outOffset = outputPtr / 4;
+      const inOffset = inputPtr / 4;
 
       for (let i = 0; i < batchSize; i++) {
         const input = inputs[i];
@@ -302,7 +303,13 @@ export class MlpAdapter implements WarpAdapter {
         );
 
         // 入力ベクトルの書き込み
-        writeFloat32ArrayToWasm(memory, input, inputPtr);
+        if (input instanceof Float32Array) {
+          f32Mem.set(input, inOffset);
+        } else {
+          for (let j = 0; j < input.length; j++) {
+            f32Mem[inOffset + j] = input[j];
+          }
+        }
 
         // WASM推論の呼び出し
         mlpInferenceWasm(
@@ -317,11 +324,7 @@ export class MlpAdapter implements WarpAdapter {
         );
 
         // 結果を読み取って新しいFloat32Arrayにコピー
-        const outArray = new Float32Array(this.outputDim);
-        for (let j = 0; j < this.outputDim; j++) {
-          outArray[j] = f32Mem[outOffset + j];
-        }
-        results[i] = outArray;
+        results[i] = f32Mem.slice(outOffset, outOffset + this.outputDim);
       }
       return results;
     });
