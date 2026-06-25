@@ -1,7 +1,7 @@
 {
   "name": "@warpvector/rerank",
   "version": "0.3.2",
-  "description": "Advanced graph-based and wave-inspired rerankers for WarpVector",
+  "description": "Advanced graph-based and wave-inspired heavy rerankers for WarpVector (Backend only)",
   "main": "src/index.ts",
   "module": "src/index.ts",
   "types": "src/index.ts",

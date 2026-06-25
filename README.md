@@ -81,11 +81,11 @@ graph LR
 ### 1. Intent-Aware Personalized Search
 Standard embeddings can't distinguish "Apple" (fruit) from "Apple" (company). WarpVector lets you switch **intents** to instantly warp the vector space toward the right domain.
 
-### 2. Real-Time Online Learning at the Edge
-No need to retrain LLMs. Learn from user clicks and skips directly on Cloudflare Workers or Vercel Edge — updating only the lightweight transformation matrix, not the model itself.
+### 2. Log-Driven Online Learning (Separation of Concerns)
+No need to retrain LLMs. Collect user click/skip logs at the edge, and run the online learning in your Node.js or backend workers. You update only the lightweight transformation matrix, not the model itself, and instantly deploy the new matrix to the edge—keeping inference lightning fast.
 
 ### 3. Auto-Correction of Embedding Anisotropy
-Many embedding models produce vectors that are all too similar (anisotropy). `WhiteningAdapter` automatically learns and removes this bias via streaming Online PCA, dramatically improving search resolution.
+Many embedding models produce vectors that are all too similar (anisotropy). `WhiteningAdapter` automatically learns and removes this bias via streaming PCA, dramatically improving search resolution.
 
 ### 4. 75–97% Memory Reduction via Quantization
 Add `.setFinalStage("quantize", quantizer)` to your pipeline to compress vectors from Float32 to Int8 (4× reduction) or Binary (32× reduction) with 0.9999+ cosine similarity preservation.
@@ -213,22 +213,40 @@ const results = await prisma.document.searchByVector({
 
 ---
 
-## 🧩 Feature Overview
+## 🧩 Feature Architecture
+
+`warpvector` adopts a clear architectural separation between "Edge Inference" (requiring ultra-low latency) and "Backend / Heavy Reranking" (requiring heavy compute resources).
+
+### ⚡ Edge Inference Layer (Sub-millisecond & Zero-dependency)
+Ultra-lightweight layer running directly on Cloudflare Workers or in the browser.
 
 | Category | Features |
 |----------|----------|
 | **Core Transforms** | IntentAdapter, LoraIntentAdapter, ProjectionAdapter |
-| **Neural Networks** | MlpAdapter (WASM), MoeAdapter (MoE), Non-linear activations (ReLU, Sigmoid, Tanh) |
-| **Online Learning** | WhiteningAdapter (PCA), SoftWhiteningAdapter (Inverse Diffusion) |
-| **Quantization** | Int8 scalar (4× compression), Binary (32× compression) |
-| **Reranking** | ColBERT/Late Interaction (WASM), TimeReversalReranker, MultipathScatteringReranker |
+| **Neural Nets** | MlpAdapter (WASM), MoeAdapter (MoE), Non-linear activations (ReLU, Sigmoid, Tanh) |
+| **Light Streaming** | WhiteningAdapter (Online PCA) |
+| **Quantization** | Int8 scalar (4× compression), Binary (32× compression), SafeQuantizationAdapter |
 | **Hybrid Search** | Reciprocal Rank Fusion (RRF), Relative Score Fusion (RSF) |
+| **VSA** | Vector Symbolic Architecture (Bind / Bundle / Unbind) |
+| **Security** | AnomalyDetectionAdapter |
+
+### 🧠 Backend & Training Layer (Heavy Compute)
+Runs in resource-rich environments like Node.js or background workers to generate "weights" or optimized vectors for the edge.
+
+| Category | Features |
+|----------|----------|
 | **Training** | IntentTrainer, CrossEncoderTrainer, InfoNCE, Triplet Loss, MigrationTrainer |
 | **Auto-ML** | IntentMatrixFactory, PipelineAutoTuner |
-| **Security & Anomaly** | AnomalyDetectionAdapter, SafeQuantizationAdapter |
-| **Advanced** | Task Arithmetic (model merging), VSA (Vector Symbolic Architecture), Federated Learning |
-| **Integrations** | Prisma + pgvector, LangChain, LlamaIndex |
-| **Runtime** | Zero dependencies, WASM/SIMD, Cloudflare Workers / Bun / Node.js |
+| **Advanced Learning** | SoftWhiteningAdapter (Inverse Diffusion) |
+| **Model Merging** | Task Arithmetic, Federated Learning (FedAvg) |
+
+### 🚀 Heavy Reranking Layer (Server-side Only)
+Advanced search algorithms that require dedicated compute environments and shouldn't be run on the edge.
+
+| Category | Features |
+|----------|----------|
+| **Late Interaction** | ColBERT (MaxSim Token Matching) |
+| **Wave/Scattering** | TimeReversalReranker, MultipathScatteringReranker |
 
 ---
 
