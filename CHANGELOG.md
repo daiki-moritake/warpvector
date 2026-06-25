@@ -5,6 +5,25 @@ All notable changes to WarpVector will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] - 2026-06-25
+
+### Added
+
+- **WASM Core Optimization**: Optimized SIMD vector operations and loop structures in `tuneBatchWasm`.
+  - Inverted dimension (`i`) and batch (`k`) loops to enable contiguous sequential writes to output buffers, greatly improving CPU L1/L2 cache locality.
+  - Split SIMD accumulator (`sumVec`) into 4 independent registers (`sumVec0..3`) to exploit instruction-level parallelism (ILP) and prevent pipeline hazards in inner product calculations.
+- **JS / WASM Memory Allocation Reductions**:
+  - Eliminated redundant `new Float32Array` heap allocations within the execution loops for `IntentAdapter`, `ColbertAdapter`, and `MlpAdapter`.
+  - Views of WebAssembly memory are now cached and reused across loop iterations, preventing runtime GC latency spikes during heavy batch loads.
+  - Replaced manual copying in JS loops with native `Float32Array.prototype.slice()` and `set()` for efficient `memcpy` operations.
+
+### Changed
+
+- **Performance Enhancements**:
+  - **WASM batch transformation** (1536-dimensional, 10,000 vectors): 4,245 vecs/s → **4,944 vecs/s** (**+16.4%** throughput increase).
+  - **Int8 Scalar Quantization**: 317,564 vecs/s → **372,924 vecs/s** (**+17.3%** speedup).
+  - Reduced memory footprint and garbage collection overhead during high-concurrency server workloads.
+
 ## [0.3.0] - 2026-06-23
 
 ### Added

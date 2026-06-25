@@ -1,6 +1,6 @@
 {
   "name": "@warpvector/ml",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Machine learning adapters and trainers for WarpVector",
   "main": "src/index.ts",
   "module": "src/index.ts",
