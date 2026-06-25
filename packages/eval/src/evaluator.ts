@@ -1,4 +1,4 @@
-import { cosineSimilarity } from "@warpvector/core";
+import { computeVectorScore } from "@warpvector/core";
 
 export interface CorpusItem {
   id: string;
@@ -32,16 +32,7 @@ export interface EvalReport {
   warped: MetricSummary;
 }
 
-/**
- * 任意の型（Float32Array, Int8Array, Array等）を cosineSimilarity で使えるように
- * number[] または Float32Array にキャストします。
- */
-function toFloatVector(vec: any): number[] | Float32Array {
-  if (vec instanceof Float32Array || Array.isArray(vec)) {
-    return vec;
-  }
-  return Array.from(vec);
-}
+
 
 /**
  * Recall@K を計算します。
@@ -99,14 +90,14 @@ export function calculateNDCG(retrievedIds: string[], expectedIds: string[], k: 
 }
 
 /**
- * コサイン類似度を用いてインメモリで簡易的なベクトル検索を実行します。
+ * 類似度スコア（computeVectorScore）を用いてインメモリで簡易的なベクトル検索を実行します。
  */
 export function searchInMemory(
-  queryVec: number[] | Float32Array,
-  corpus: { id: string; vector: number[] | Float32Array }[]
+  queryVec: number[] | Float32Array | Int8Array | Uint8Array,
+  corpus: { id: string; vector: number[] | Float32Array | Int8Array | Uint8Array }[]
 ): { id: string; score: number }[] {
   const results = corpus.map(item => {
-    const score = cosineSimilarity(queryVec, item.vector);
+    const score = computeVectorScore(queryVec, item.vector);
     return { id: item.id, score };
   });
   // 類似度の高い順にソート
@@ -120,10 +111,10 @@ export async function evaluatePipeline(config: EvalConfig): Promise<EvalReport> 
   const kList = config.kList.length > 0 ? config.kList : [1, 3, 5, 10];
   const maxK = Math.max(...kList);
 
-  // 1. キャスト済みのバニラ（オリジナル）コーパスの作成
+  // 1. バニラ（オリジナル）コーパスの作成
   const vanillaCorpus = config.corpus.map(item => ({
     id: item.id,
-    vector: toFloatVector(item.vector)
+    vector: item.vector
   }));
 
   // 2. パイプラインを適用したワープ済みのコーパスの作成
@@ -139,7 +130,7 @@ export async function evaluatePipeline(config: EvalConfig): Promise<EvalReport> 
       }
       return {
         id: item.id,
-        vector: toFloatVector(warpedVec)
+        vector: warpedVec
       };
     });
   }
@@ -171,7 +162,7 @@ export async function evaluatePipeline(config: EvalConfig): Promise<EvalReport> 
 
   // 4. データセット内の各クエリに対して評価を実行
   for (const item of config.dataset) {
-    const vanillaQuery = toFloatVector(item.queryVector);
+    const vanillaQuery = item.queryVector;
 
     // --- Vanilla 評価 ---
     const t0 = performance.now();
@@ -191,9 +182,9 @@ export async function evaluatePipeline(config: EvalConfig): Promise<EvalReport> 
     let tWarp0 = performance.now();
     if (pipeline) {
       if (typeof pipeline === "function") {
-        warpedQuery = toFloatVector(pipeline(vanillaQuery));
+        warpedQuery = pipeline(vanillaQuery);
       } else {
-        warpedQuery = toFloatVector(pipeline.run(vanillaQuery, { intent: config.intentName }));
+        warpedQuery = pipeline.run(vanillaQuery, { intent: config.intentName });
       }
     }
     const warpedResults = searchInMemory(warpedQuery, warpedCorpus);
