@@ -5,13 +5,14 @@ import fs from 'fs';
 import path from 'path';
 import { createPromptQuestions, findTemplate } from './prompts';
 import { createTsConfig } from './scaffold';
+import pkg from '../package.json';
 
 const program = new Command();
 
 program
   .name('create-warpvector-app')
   .description('Scaffold a new WarpVector application')
-  .version('0.2.0');
+  .version(pkg.version);
 
 program.action(async () => {
   console.log(pc.blue('🌌 Welcome to WarpVector!'));
