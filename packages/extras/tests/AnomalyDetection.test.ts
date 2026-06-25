@@ -59,4 +59,26 @@ describe("SafeQuantizationAdapter", () => {
     expect(output[0]).toBe(13);
     expect(output[1]).toBe(0); // NaN -> 0
   });
+
+  test("WarpPipeline serialization and deserialization works", () => {
+    const { WarpPipeline } = require("@warpvector/core");
+    const pipeline = new WarpPipeline(3)
+      .addStep("AnomalyDetectionAdapter", new AnomalyDetectionAdapter({ mode: "safe", maxValue: 50.0 }))
+      .addStep("SafeQuantizationAdapter", new SafeQuantizationAdapter({ type: "int8", dim: 3, clipThreshold: 1.0 }));
+
+    const state = pipeline.exportState();
+    const restored = WarpPipeline.importState(state);
+
+    expect(restored).toBeDefined();
+    
+    // 復元されたパイプラインを実行して、元の動作と同じか確認
+    const input = [0.1, 2.0, -3.0];
+    const output = restored.run(input) as Int8Array;
+
+    expect(output.length).toBe(3);
+    expect(output[0]).toBe(13);
+    expect(output[1]).toBe(127);
+    expect(output[2]).toBe(-127);
+  });
 });
+

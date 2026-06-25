@@ -65,6 +65,7 @@ If you want to design matrices yourself, use `WarpPipeline` to assemble vector o
 
 ```typescript
 import { WarpPipeline, IntentWeights } from 'warpvector';
+import { QuantizationAdapter } from 'warpvector/extras';
 
 const intents: Record<string, IntentWeights> = {
   // For example, a transformation definition for a "risk analysis" intent
@@ -81,7 +82,7 @@ const intents: Record<string, IntentWeights> = {
 // Build a pipeline that takes a 3D vector, performs Intent transformation, and quantizes it
 const pipeline = new WarpPipeline(3)
   .addIntent(intents)
-  .quantize("int8");
+  .setFinalStage("QuantizationAdapter", new QuantizationAdapter({ type: "int8", dim: 3 }));
 ```
 
 ### Transforming (Warping) Vectors
