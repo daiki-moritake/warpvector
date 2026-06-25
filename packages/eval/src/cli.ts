@@ -41,6 +41,44 @@ function formatDiff(value: number): string {
   return `${sign}${value.toFixed(4)}`;
 }
 
+function parseCSV(csvContent: string): any[] {
+  const lines = csvContent.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+  if (lines.length === 0) return [];
+  const headers = lines[0].split(',').map(h => h.trim());
+  const result = [];
+  for (let i = 1; i < lines.length; i++) {
+    const values = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(v => v.replace(/^"|"$/g, '').trim());
+    const obj: any = {};
+    headers.forEach((header, index) => {
+      let val: any = values[index];
+      if (val && val.startsWith('[') && val.endsWith(']')) {
+        try { val = JSON.parse(val); } catch (e) {}
+      } else if (header === 'expectedIds' && typeof val === 'string') {
+        val = val.split(';').map(s => s.trim()).filter(s => s.length > 0);
+      }
+      obj[header] = val;
+    });
+    result.push(obj);
+  }
+  return result;
+}
+
+function loadDataFile(filePath: string): any {
+  const content = fs.readFileSync(filePath, "utf-8");
+  const ext = path.extname(filePath).toLowerCase();
+
+  if (ext === '.csv') {
+    return parseCSV(content);
+  } else if (ext === '.jsonl') {
+    return content.split('\n')
+      .map(line => line.trim())
+      .filter(line => line.length > 0)
+      .map(line => JSON.parse(line));
+  } else {
+    return JSON.parse(content);
+  }
+}
+
 async function main() {
   const args = process.argv.slice(2);
   let configPath = "warpvector-eval.config.json";
@@ -97,8 +135,8 @@ async function main() {
   let dataset: EvalQuery[];
 
   try {
-    corpus = JSON.parse(fs.readFileSync(resolvedCorpusPath, "utf-8"));
-    dataset = JSON.parse(fs.readFileSync(resolvedDatasetPath, "utf-8"));
+    corpus = loadDataFile(resolvedCorpusPath);
+    dataset = loadDataFile(resolvedDatasetPath);
   } catch (err) {
     console.error(`Error reading data files: ${(err as Error).message}`);
     process.exit(1);
