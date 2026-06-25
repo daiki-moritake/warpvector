@@ -45,7 +45,7 @@ describe("SafeQuantizationAdapter", () => {
     // 2.0 > 1.0 なので 1.0にクリップ -> 127
     // -3.0 < -1.0 なので -1.0にクリップ -> -127 (QuantizationAdapterでは -128)
     
-    const output = safeQ.tune(input) as Int8Array;
+    const output = safeQ.encode(new Float32Array(input)) as Int8Array;
 
     expect(output.length).toBe(3);
     expect(output[0]).toBe(13);
@@ -55,7 +55,7 @@ describe("SafeQuantizationAdapter", () => {
 
   test("handles NaN safely", () => {
     const safeQ = new SafeQuantizationAdapter({ type: "int8", dim: 2, clipThreshold: 1.0 });
-    const output = safeQ.tune([0.1, NaN]) as Int8Array;
+    const output = safeQ.encode(new Float32Array([0.1, NaN])) as Int8Array;
     expect(output[0]).toBe(13);
     expect(output[1]).toBe(0); // NaN -> 0
   });
@@ -63,8 +63,8 @@ describe("SafeQuantizationAdapter", () => {
   test("WarpPipeline serialization and deserialization works", () => {
     const { WarpPipeline } = require("@warpvector/core");
     const pipeline = new WarpPipeline(3)
-      .addStep("AnomalyDetectionAdapter", new AnomalyDetectionAdapter({ mode: "safe", maxValue: 50.0 }))
-      .addStep("SafeQuantizationAdapter", new SafeQuantizationAdapter({ type: "int8", dim: 3, clipThreshold: 1.0 }));
+      .addStep("AnomalyDetectionAdapter", new AnomalyDetectionAdapter({ mode: "safe", maxValue: 50.0 }));
+    pipeline.setFinalStage("SafeQuantizationAdapter", new SafeQuantizationAdapter({ type: "int8", dim: 3, clipThreshold: 1.0 }));
 
     const state = pipeline.exportState();
     const restored = WarpPipeline.importState(state);

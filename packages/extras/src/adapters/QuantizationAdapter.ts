@@ -1,6 +1,5 @@
 import {
   assertDimension,
-  type WarpAdapter,
   type FinalStageAdapter,
   safeJsonParse,
   assertObject,
@@ -11,7 +10,8 @@ import {
   withWasmMemoryStack,
   writeFloat32ArrayToWasm,
   hammingDistance,
-  int8DotProduct
+  int8DotProduct,
+  type OutputVector
 } from "@warpvector/core";
 
 export type QuantizationType = "int8" | "binary";
@@ -38,7 +38,7 @@ export interface QuantizationConfig {
  * QuantizationAdapter は、Float32のベクトルを Int8 や Binary に圧縮し、
  * メモリ使用量と保存コストを劇的に（1/4 〜 1/32 に）削減します。
  */
-export class QuantizationAdapter implements WarpAdapter, FinalStageAdapter {
+export class QuantizationAdapter implements FinalStageAdapter {
   private type: QuantizationType;
   private dim: number;
   private dynamic: boolean;
@@ -57,7 +57,7 @@ export class QuantizationAdapter implements WarpAdapter, FinalStageAdapter {
     }
   }
 
-  public tune(vector: number[] | Float32Array): Int8Array | Uint8Array {
+  public encode(vector: Float32Array): OutputVector {
     assertDimension(vector, this.dim, "QuantizationAdapter.tune");
 
     if (this.wasm) {
@@ -180,13 +180,7 @@ export class QuantizationAdapter implements WarpAdapter, FinalStageAdapter {
     return int8DotProduct(a, b);
   }
 
-  /**
-   * FinalStageAdapter の実装: Float32Array を量子化します。
-   * WarpPipeline.setFinalStage() で使用される場合はこのメソッドが呼ばれます。
-   */
-  public encode(vector: Float32Array): Int8Array | Uint8Array {
-    return this.tune(vector);
-  }
+  // `encode` は既に上に定義されたため、古い `encode` や `tune` は削除。
 
   public exportState(): string {
     return JSON.stringify({

@@ -7,7 +7,7 @@ describe("QuantizationAdapter", () => {
     const adapter = new QuantizationAdapter({ type: "int8", dim: 4 });
     const vector = new Float32Array([1.0, -1.0, 0.5, -0.1]);
 
-    const result = adapter.tune(vector) as Int8Array;
+    const result = adapter.encode(vector) as Int8Array;
 
     expect(result).toBeInstanceOf(Int8Array);
     expect(result.length).toBe(4);
@@ -21,7 +21,7 @@ describe("QuantizationAdapter", () => {
     const adapter = new QuantizationAdapter({ type: "int8", dim: 2 });
     const vector = new Float32Array([2.0, -3.0]);
 
-    const result = adapter.tune(vector) as Int8Array;
+    const result = adapter.encode(vector) as Int8Array;
     expect(result[0]).toBe(127); // clipped
     expect(result[1]).toBe(-128); // clipped
   });
@@ -35,7 +35,7 @@ describe("QuantizationAdapter", () => {
       1.0, -1.0, 0.5, -0.1, 0.0, 2.0, -3.0, 0.1,
     ]);
 
-    const result = adapter.tune(vector) as Uint8Array;
+    const result = adapter.encode(vector) as Uint8Array;
 
     expect(result).toBeInstanceOf(Uint8Array);
     expect(result.length).toBe(1); // 8 dim / 8 = 1 byte

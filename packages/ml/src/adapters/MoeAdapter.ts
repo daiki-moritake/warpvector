@@ -1,4 +1,4 @@
-import { cosineSimilarity, type WarpAdapter, type InputVector, type OutputVector, type AdapterState } from "@warpvector/core";
+import { cosineSimilarity, type WarpAdapter, type InputVector, type TransformOutput, type AdapterState } from "@warpvector/core";
 
 export interface ExpertDefinition {
   /** 一意のエキスパートID */
@@ -85,7 +85,7 @@ export class MoeAdapter implements WarpAdapter {
     return bestExpert;
   }
 
-  tune(vector: InputVector, context?: string): OutputVector {
+  tune(vector: InputVector, context?: string): TransformOutput {
     const vectorArray = vector instanceof Float32Array ? vector : new Float32Array(vector);
     
     // エキスパートの選択 (Gating)
@@ -100,7 +100,7 @@ export class MoeAdapter implements WarpAdapter {
     return expert.tune(vectorArray, context);
   }
 
-  tuneBatch(vectors: InputVector[], context?: string): OutputVector[] {
+  tuneBatch(vectors: InputVector[], context?: string): TransformOutput[] {
     return vectors.map(v => this.tune(v, context));
   }
 

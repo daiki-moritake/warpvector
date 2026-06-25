@@ -264,8 +264,11 @@ export class WarpPipeline {
           currentVector,
           context?.intent || "default",
         );
-        // WarpAdapter の中間段は常に Float32Array を返すことを期待
-        currentVector = result as Float32Array;
+        // WarpAdapter の中間段は常に Float32Array (TransformOutput) を返すことを期待
+        if (!(result instanceof Float32Array)) {
+          throw new Error(`Intermediate adapter ${step.type} must return Float32Array.`);
+        }
+        currentVector = result;
       } catch (e) {
         throw new WarpPipelineError(
           (e as Error).message,
@@ -326,17 +329,27 @@ export class WarpPipeline {
       try {
         if (typeof step.adapter.tuneBatch === "function") {
           // tuneBatch メソッドがある場合は一括処理を委譲
-          currentVectors = step.adapter.tuneBatch(
+          const results = step.adapter.tuneBatch(
             currentVectors,
             context?.intent || "default",
-          ) as Float32Array[];
+          );
+          for (let i = 0; i < batchSize; i++) {
+            if (!(results[i] instanceof Float32Array)) {
+               throw new Error(`Intermediate adapter ${step.type} must return Float32Array in tuneBatch.`);
+            }
+          }
+          currentVectors = results as Float32Array[];
         } else {
           // tuneBatch がない場合は通常のループ処理へフォールバック
           for (let i = 0; i < batchSize; i++) {
-            currentVectors[i] = step.adapter.tune(
+            const result = step.adapter.tune(
               currentVectors[i],
               context?.intent || "default",
-            ) as Float32Array;
+            );
+            if (!(result instanceof Float32Array)) {
+               throw new Error(`Intermediate adapter ${step.type} must return Float32Array.`);
+            }
+            currentVectors[i] = result;
           }
         }
       } catch (e) {
@@ -586,7 +599,10 @@ export class WarpPipeline {
           currentVector,
           context?.intent || "default",
         );
-        currentVector = result as Float32Array;
+        if (!(result instanceof Float32Array)) {
+          throw new Error(`Intermediate adapter ${step.type} must return Float32Array.`);
+        }
+        currentVector = result;
         results.push({
           step: step.type,
           output: result,

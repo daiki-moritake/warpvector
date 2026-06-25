@@ -1,4 +1,4 @@
-import { WarpAdapter, InputVector, OutputVector } from "@warpvector/core";
+import { type WarpAdapter, type InputVector, type TransformOutput } from "@warpvector/core";
 
 export interface AnomalyDetectionConfig {
   /** 
@@ -49,7 +49,7 @@ export class AnomalyDetectionAdapter implements WarpAdapter {
     // 初期化処理は不要
   }
 
-  public tune(vector: InputVector): OutputVector {
+  public tune(vector: InputVector): TransformOutput {
     let hasAnomaly = false;
     let anomalyReason = "";
 

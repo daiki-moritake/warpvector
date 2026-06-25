@@ -13,7 +13,7 @@ import {
   withWasmMemoryStack,
   readFloat32ArrayFromWasm,
 } from "../wasm/wasm-loader";
-import { WarpAdapter } from "../interfaces/WarpAdapter";
+import { WarpAdapter, TransformOutput } from "../interfaces/WarpAdapter";
 
 /**
  * 次元削減/拡張のための射影行列の重みを定義するインターフェース

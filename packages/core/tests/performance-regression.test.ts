@@ -121,11 +121,11 @@ describe("パフォーマンス回帰テスト", () => {
     const vec = randomVec(DIM);
 
     // ウォームアップ
-    for (let i = 0; i < 10; i++) quantizer.tune(vec);
+    for (let i = 0; i < 10; i++) quantizer.encode(vec);
 
     const t0 = performance.now();
     const iterations = 1000;
-    for (let i = 0; i < iterations; i++) quantizer.tune(vec);
+    for (let i = 0; i < iterations; i++) quantizer.encode(vec);
     const avgMs = (performance.now() - t0) / iterations;
 
     console.log(`  QuantizationAdapter(int8): ${avgMs.toFixed(4)}ms/op`);
@@ -137,11 +137,11 @@ describe("パフォーマンス回帰テスト", () => {
     const vec = randomVec(DIM);
 
     // ウォームアップ
-    for (let i = 0; i < 10; i++) quantizer.tune(vec);
+    for (let i = 0; i < 10; i++) quantizer.encode(vec);
 
     const t0 = performance.now();
     const iterations = 1000;
-    for (let i = 0; i < iterations; i++) quantizer.tune(vec);
+    for (let i = 0; i < iterations; i++) quantizer.encode(vec);
     const avgMs = (performance.now() - t0) / iterations;
 
     console.log(`  QuantizationAdapter(binary): ${avgMs.toFixed(4)}ms/op`);
