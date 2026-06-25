@@ -4,7 +4,10 @@
 // @ts-ignore
 @inline
 function innerProductSimd(ptr1: usize, ptr2: usize, dim: i32): f32 {
-  let sumVec = f32x4.splat(0.0);
+  let sumVec0 = f32x4.splat(0.0);
+  let sumVec1 = f32x4.splat(0.0);
+  let sumVec2 = f32x4.splat(0.0);
+  let sumVec3 = f32x4.splat(0.0);
   let j: i32 = 0;
 
   for (; j <= dim - 16; j += 16) {
@@ -17,13 +20,13 @@ function innerProductSimd(ptr1: usize, ptr2: usize, dim: i32): f32 {
     let v1_3 = v128.load(ptr1 + (j + 12) * 4);
     let v2_3 = v128.load(ptr2 + (j + 12) * 4);
 
-    let sum0 = f32x4.mul(v1_0, v2_0);
-    let sum1 = f32x4.mul(v1_1, v2_1);
-    let sum2 = f32x4.mul(v1_2, v2_2);
-    let sum3 = f32x4.mul(v1_3, v2_3);
-
-    sumVec = f32x4.add(sumVec, f32x4.add(f32x4.add(sum0, sum1), f32x4.add(sum2, sum3)));
+    sumVec0 = f32x4.add(sumVec0, f32x4.mul(v1_0, v2_0));
+    sumVec1 = f32x4.add(sumVec1, f32x4.mul(v1_1, v2_1));
+    sumVec2 = f32x4.add(sumVec2, f32x4.mul(v1_2, v2_2));
+    sumVec3 = f32x4.add(sumVec3, f32x4.mul(v1_3, v2_3));
   }
+
+  let sumVec = f32x4.add(f32x4.add(sumVec0, sumVec1), f32x4.add(sumVec2, sumVec3));
 
   for (; j <= dim - 4; j += 4) {
     let v1 = v128.load(ptr1 + j * 4);
@@ -64,18 +67,17 @@ export function tuneBatchWasm(
   dim: i32,
   batchSize: i32
 ): void {
-  // 出力ベクトルの次元ごとのループ (キャッシュ効率を上げるため外側に)
-  for (let i = 0; i < dim; i++) {
-    let rowOffset = i * dim * 4;
-    let b = load<f32>(biasPtr + i * 4);
-    
-    // バッチごとのループを内側に
-    for (let k = 0; k < batchSize; k++) {
-      let vectorOffset = k * dim * 4;
+  // バッチごとのループを外側に、出力ベクトルの次元ごとのループを内側に
+  for (let k = 0; k < batchSize; k++) {
+    let vectorOffset = k * dim * 4;
+    let resultOffset = k * dim * 4;
+    for (let i = 0; i < dim; i++) {
+      let rowOffset = i * dim * 4;
+      let b = load<f32>(biasPtr + i * 4);
       let sum = innerProductSimd(matrixPtr + rowOffset, vectorsPtr + vectorOffset, dim);
       
-      // バイアスを加算して結果を保存
-      store<f32>(resultsPtr + (k * dim + i) * 4, sum + b);
+      // バイアスを加算して結果を連続的に保存
+      store<f32>(resultsPtr + resultOffset + i * 4, sum + b);
     }
   }
 }
