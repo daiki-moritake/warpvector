@@ -4,6 +4,8 @@ import {
   QuantizationAdapter,
   QuantizationConfig,
 } from "./adapters/QuantizationAdapter";
+import { AnomalyDetectionAdapter } from "./adapters/AnomalyDetectionAdapter";
+import { SafeQuantizationAdapter } from "./adapters/SafeQuantizationAdapter";
 
 export * from "./adapters/ColbertAdapter";
 export * from "./adapters/QuantizationAdapter";
@@ -40,8 +42,15 @@ export function quantizePipeline(
 WarpPipeline.registerAdapter("QuantizationAdapter", (state) =>
   QuantizationAdapter.importState(state as string),
 );
+WarpPipeline.registerAdapter("AnomalyDetectionAdapter", (state) =>
+  AnomalyDetectionAdapter.importState(state as string),
+);
+WarpPipeline.registerAdapter("SafeQuantizationAdapter", (state) =>
+  SafeQuantizationAdapter.importState(state as string),
+);
 
 // FinalStageAdapter としても登録（パイプライン末尾の量子化復元用）
 WarpPipeline.registerFinalStage("QuantizationAdapter", (state) =>
   QuantizationAdapter.importState(state as string),
 );
+
