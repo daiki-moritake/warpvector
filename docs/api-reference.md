@@ -111,6 +111,16 @@ An adapter for dimensionality reduction or expansion using projection matrices c
 
 ## ML Classes (`@warpvector/ml`)
 
+### `MoeAdapter`
+An adapter that maintains multiple experts (other adapters) and dynamically routes input vectors to the most appropriate expert (Mixture of Experts).
+
+- `constructor(config: MoeAdapterConfig)`
+- `init(): Promise<void>` — Initializes all internal experts.
+- `tune(vector: number[] | Float32Array): Float32Array`
+- `tuneBatch(vectors: (number[] | Float32Array)[]): Float32Array[]`
+- `exportState(): string`
+- `static importState(stateJson: string): MoeAdapter`
+
 ### `MlpAdapter`
 An adapter that performs ultra-fast non-linear Multi-Layer Perceptron inference using a WASM backend.
 
@@ -134,6 +144,24 @@ An adapter that performs Anisotropy Reduction (equalizing the vector space) usin
 
 ## Training Classes (`@warpvector/train`)
 
+### `PipelineAutoTuner`
+An Auto-ML utility that performs grid search to automatically explore and find the optimal hyperparameter configuration for pipelines to maximize retrieval accuracy (e.g., MRR).
+
+- `constructor(dataset: SearchExample[])`
+- `tuneGrid(config: TuneConfig): Promise<TuneResult>`
+
+### `IntentTrainer`
+A general-purpose trainer for learning Intent transformation matrices from multiple training examples.
+
+- `constructor(dimension: number)`
+- `updateOnline(currentWeights: IntentWeights, example: TrainingExample, options?: BaseTrainingOptions): Promise<IntentWeights>`
+
+### `CrossEncoderTrainer`
+A trainer for learning precise scoring models such as cross-encoders for rerankers.
+
+- `constructor(dimension: number)`
+- `updateOnline(currentWeights: IntentWeights, example: CrossEncoderExample, options?: BaseTrainingOptions): Promise<IntentWeights>`
+
 ### `InfoNCETrainer`
 A contrastive learning trainer using InfoNCE Loss. Learns from one positive and multiple negatives simultaneously.
 
@@ -156,6 +184,21 @@ A trainer that automatically learns a projection matrix to translate the vector 
 ---
 
 ## Extras Classes (`@warpvector/extras`)
+
+### `AnomalyDetectionAdapter`
+A security adapter to detect and sanitize anomalies (NaN, Infinity, extreme outliers) in input vectors before they reach the main pipeline.
+
+- `constructor(config?: AnomalyDetectionConfig)`
+- `tune(vector: number[] | Float32Array): Float32Array`
+- `exportState(): string`
+- `static importState(stateJson: string): AnomalyDetectionAdapter`
+
+### `SafeQuantizationAdapter`
+A security-aware adapter that clips anomalous values to a safe range before performing quantization (Int8, etc.).
+
+- `constructor(config: QuantizationConfig, bounds: { min: number, max: number })`
+- `tune(vector: number[] | Float32Array): Int8Array | Uint8Array`
+- `encode(vector: number[] | Float32Array): Int8Array | Uint8Array`
 
 ### `QuantizationAdapter`
 An adapter that compresses Float32 vectors to Int8 or Binary.

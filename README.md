@@ -218,13 +218,14 @@ const results = await prisma.document.searchByVector({
 | Category | Features |
 |----------|----------|
 | **Core Transforms** | IntentAdapter, LoraIntentAdapter, ProjectionAdapter |
-| **Neural Networks** | MlpAdapter (WASM), Non-linear activations (ReLU, Sigmoid, Tanh) |
+| **Neural Networks** | MlpAdapter (WASM), MoeAdapter (MoE), Non-linear activations (ReLU, Sigmoid, Tanh) |
 | **Online Learning** | WhiteningAdapter (PCA), SoftWhiteningAdapter (Inverse Diffusion) |
 | **Quantization** | Int8 scalar (4× compression), Binary (32× compression) |
 | **Reranking** | ColBERT/Late Interaction (WASM), TimeReversalReranker, MultipathScatteringReranker |
 | **Hybrid Search** | Reciprocal Rank Fusion (RRF), Relative Score Fusion (RSF) |
-| **Training** | InfoNCE, Triplet Loss, MigrationTrainer (Adam optimizer, edge-ready) |
-| **Auto-ML** | IntentMatrixFactory (auto-generate intent matrices from samples) |
+| **Training** | IntentTrainer, CrossEncoderTrainer, InfoNCE, Triplet Loss, MigrationTrainer |
+| **Auto-ML** | IntentMatrixFactory, PipelineAutoTuner |
+| **Security & Anomaly** | AnomalyDetectionAdapter, SafeQuantizationAdapter |
 | **Advanced** | Task Arithmetic (model merging), VSA (Vector Symbolic Architecture), Federated Learning |
 | **Integrations** | Prisma + pgvector, LangChain, LlamaIndex |
 | **Runtime** | Zero dependencies, WASM/SIMD, Cloudflare Workers / Bun / Node.js |
