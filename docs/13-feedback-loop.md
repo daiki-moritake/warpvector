@@ -36,7 +36,7 @@ Collects implicit user feedback and automatically converts it into learning data
 ### Basic Usage
 
 ```typescript
-import { FeedbackCollector } from "@warpvector/ml";
+import { FeedbackCollector } from "@warpvector/train";
 
 const collector = new FeedbackCollector({
   dwellThresholdMs: 3000,  // Viewing for 3 seconds or more = positive
@@ -106,7 +106,7 @@ collector.flush();
 Performs automatic decay of the learning rate and controls the timing of batch learning.
 
 ```typescript
-import { TripletTrainer, AdaptiveScheduler } from "@warpvector/ml";
+import { TripletTrainer, AdaptiveScheduler } from "@warpvector/train";
 
 const trainer = new TripletTrainer(1536);
 const scheduler = new AdaptiveScheduler(trainer, {
@@ -163,7 +163,7 @@ const restored = AdaptiveScheduler.importState(
 Aggregates the learning results of multiple users using FedAvg to update the global baseline.
 
 ```typescript
-import { FederatedAggregator } from "@warpvector/ml";
+import { FederatedAggregator } from "@warpvector/train";
 
 const aggregator = new FederatedAggregator(globalBaseWeights, 1536);
 
@@ -198,11 +198,7 @@ Clients with a higher `interactionCount` contribute more to the aggregated resul
 ## Practical Example: E-Commerce Search Overall Flow
 
 ```typescript
-import {
-  FeedbackCollector,
-  AdaptiveScheduler,
-  TripletTrainer,
-} from "@warpvector/ml";
+import { FeedbackCollector, AdaptiveScheduler, TripletTrainer } from "@warpvector/train";
 import { IntentAdapter } from "@warpvector/core";
 
 // Initialization

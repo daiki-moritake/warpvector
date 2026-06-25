@@ -130,6 +130,10 @@ Oja's Rule によるオンラインPCAを用いて、ベクトル空間の等方
 - `exportState(): string`
 - `static importState(stateJson: string): WhiteningAdapter`
 
+---
+
+## Training Classes (`@warpvector/train`)
+
 ### `InfoNCETrainer`
 InfoNCE Loss を用いた対照学習トレーナー。1つの正解と複数の不正解を同時に学習。
 
@@ -253,6 +257,8 @@ LlamaIndex の BaseEmbedding インターフェースをラップし、検索ク
 ### ML Types
 - `MlpLayer`: `{ matrix: number[][] | Float32Array, bias: number[] | Float32Array, activation: Activation }`
 - `WhiteningConfig`: `{ learningRate?: number; numComponents?: number }`
+
+### Training Types
 - `InfoNCEExample`: `{ anchor: number[] | Float32Array, positive: number[] | Float32Array, negatives: (number[] | Float32Array)[] }`
 - `InfoNCEOnlineOptions`: `{ learningRate?: number; temperature?: number; regularization?: number }`
 - `TripletExample`: `{ anchor: number[] | Float32Array, positive: number[] | Float32Array, negative: number[] | Float32Array }`

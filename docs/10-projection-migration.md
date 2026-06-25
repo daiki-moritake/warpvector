@@ -64,7 +64,7 @@ This allows you to approximately map old vectors into the new space without need
 ### Usage
 
 ```typescript
-import { MigrationTrainer } from '@warpvector/ml';
+import { MigrationTrainer } from "@warpvector/train";
 import { ProjectionAdapter } from '@warpvector/core';
 
 // Learn a projection matrix from 1536 dimensions (ada-002) -> 512 dimensions (3-small)

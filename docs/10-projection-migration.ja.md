@@ -65,7 +65,7 @@ const restored = ProjectionAdapter.importState(state);
 ### 使い方
 
 ```typescript
-import { MigrationTrainer } from '@warpvector/ml';
+import { MigrationTrainer } from "@warpvector/train";
 import { ProjectionAdapter } from '@warpvector/core';
 
 // 1536次元 (ada-002) → 512次元 (3-small) の射影行列を学習

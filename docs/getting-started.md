@@ -24,7 +24,7 @@ With `IntentMatrixFactory`, you don't need to manually design transformation mat
 
 ```bash
 # Also install the ML package
-bun add @warpvector/ml
+bun add @warpvector/ml @warpvector/train @warpvector/rerank
 ```
 
 ```typescript

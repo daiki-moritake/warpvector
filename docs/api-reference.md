@@ -130,6 +130,10 @@ An adapter that performs Anisotropy Reduction (equalizing the vector space) usin
 - `exportState(): string`
 - `static importState(stateJson: string): WhiteningAdapter`
 
+---
+
+## Training Classes (`@warpvector/train`)
+
 ### `InfoNCETrainer`
 A contrastive learning trainer using InfoNCE Loss. Learns from one positive and multiple negatives simultaneously.
 
@@ -253,6 +257,8 @@ Wraps LlamaIndex's BaseEmbedding interface, applying WarpVector transformations 
 ### ML Types
 - `MlpLayer`: `{ matrix: number[][] | Float32Array, bias: number[] | Float32Array, activation: Activation }`
 - `WhiteningConfig`: `{ learningRate?: number; numComponents?: number }`
+
+### Training Types
 - `InfoNCEExample`: `{ anchor: number[] | Float32Array, positive: number[] | Float32Array, negatives: (number[] | Float32Array)[] }`
 - `InfoNCEOnlineOptions`: `{ learningRate?: number; temperature?: number; regularization?: number }`
 - `TripletExample`: `{ anchor: number[] | Float32Array, positive: number[] | Float32Array, negative: number[] | Float32Array }`
