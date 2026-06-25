@@ -31,7 +31,7 @@
   "scripts": {
     "sync:versions": "bun run scripts/sync-versions.ts",
     "build:wasm": "bun run scripts/build-wasm.ts",
-    "build:packages": "bun run sync:versions && bun run build:wasm && cd packages/core && bun run build && cd ../ml && bun run build && cd ../extras && bun run build && cd ../prisma && bun run build && cd ../langchain && bun run build && cd ../create-warpvector-app && bun run build",
+    "build:packages": "bun run sync:versions && bun run build:wasm && cd packages/core && bun run build && cd ../ml && bun run build && cd ../extras && bun run build && cd ../prisma && bun run build && cd ../langchain && bun run build && cd ../create-warpvector-app && bun run build && cd ../eval && bun run build",
     "build": "bun run build:packages && tsup",
     "test": "bun run build:wasm && bun test",
     "bench": "bun run build:wasm && bun run benchmarks/run.ts",

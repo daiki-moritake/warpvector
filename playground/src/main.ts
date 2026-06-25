@@ -509,7 +509,7 @@ export async function initPlayground(lang: Lang) {
   // Switch single intent
   function switchIntent(intentKey: string) {
     currentIntent = intentKey;
-    const { latencyMs, rankings } = transformWithIntent(state, intentKey === 'none' ? null : intentKey);
+    const { latencyMs, rankings, metrics } = transformWithIntent(state, intentKey === 'none' ? null : intentKey);
     currentRankings = rankings;
 
     // Update intent label
@@ -528,12 +528,14 @@ export async function initPlayground(lang: Lang) {
       : `const warped = adapter.tune(\n  baseVector,\n  "${intentKey}"\n);`;
     updateCodeSnippet(code);
 
+    updateEvalUI(metrics);
+
     animateTransition(latencyMs, rankings);
   }
 
   // Apply blend from sliders
   function applyBlend() {
-    const { latencyMs, rankings, codeSnippet } = transformWithBlend(state, blendWeights);
+    const { latencyMs, rankings, codeSnippet, metrics } = transformWithBlend(state, blendWeights);
     currentRankings = rankings;
     updateCodeSnippet(codeSnippet);
 
@@ -544,6 +546,8 @@ export async function initPlayground(lang: Lang) {
     }
     document.getElementById('intentLabel')!.textContent =
       parts.length > 0 ? parts.join(' + ') : (lang === 'ja' ? '通常検索' : 'Vanilla Search');
+
+    updateEvalUI(metrics);
 
     animateTransition(latencyMs, rankings);
   }
@@ -767,6 +771,60 @@ export async function initPlayground(lang: Lang) {
 
       autoLearnBtn.disabled = false;
       autoLearnBtn.textContent = labels.autoLearnBtn;
+    });
+  }
+
+  // 精度評価UIの更新
+  function updateEvalUI(metrics: any) {
+    const ndcgEl = document.getElementById('metricNdcg');
+    const recallEl = document.getElementById('metricRecall');
+    const catEl = document.getElementById('metricExpectedCat');
+    const panelEl = document.getElementById('evalPanel');
+
+    if (!ndcgEl || !recallEl || !catEl) return;
+
+    if (metrics.expectedCategory) {
+      if (panelEl) panelEl.style.display = 'block';
+      ndcgEl.textContent = metrics.ndcg3.toFixed(4);
+      recallEl.textContent = (metrics.recall3 * 100).toFixed(1) + '%';
+      
+      let catName = metrics.expectedCategory;
+      if (lang === 'ja') {
+        if (catName === 'tech') catName = 'テクノロジー (💻)';
+        if (catName === 'business') catName = 'ビジネス (📊)';
+        if (catName === 'medical') catName = '医療 (🏥)';
+      } else {
+        if (catName === 'tech') catName = 'Technology (💻)';
+        if (catName === 'business') catName = 'Business (📊)';
+        if (catName === 'medical') catName = 'Medical (🏥)';
+      }
+      catEl.textContent = catName;
+    } else {
+      if (panelEl) panelEl.style.display = 'none';
+      ndcgEl.textContent = '—';
+      recallEl.textContent = '—';
+      catEl.textContent = '—';
+    }
+  }
+
+  // マージされた重みのエクスポート
+  const exportBtn = document.getElementById('exportBtn');
+  if (exportBtn) {
+    exportBtn.addEventListener('click', () => {
+      if (!state.lastMergedWeights) {
+        alert(lang === 'ja' 
+          ? 'エクスポートするマージ済みの重みがありません。インテントを選択するか、ブレンドしてください。' 
+          : 'No merged weights to export. Please select or blend intents.');
+        return;
+      }
+
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state.lastMergedWeights, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `warpvector_merged_intent_${Date.now()}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
     });
   }
 
