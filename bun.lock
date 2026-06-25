@@ -142,6 +142,32 @@
         "sql-template-tag": "^5.0.0",
       },
     },
+    "packages/rerank": {
+      "name": "@warpvector/rerank",
+      "version": "0.3.2",
+      "dependencies": {
+        "@warpvector/core": "workspace:*",
+        "@warpvector/ml": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/bun": "^1.3.14",
+        "tsup": "^8.0.0",
+        "typescript": "^5.0.0",
+      },
+    },
+    "packages/train": {
+      "name": "@warpvector/train",
+      "version": "0.3.2",
+      "dependencies": {
+        "@warpvector/core": "workspace:*",
+        "@warpvector/ml": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/bun": "^1.3.14",
+        "tsup": "^8.0.0",
+        "typescript": "^5.0.0",
+      },
+    },
   },
   "packages": {
     "@cfworker/json-schema": ["@cfworker/json-schema@4.1.1", "", {}, "sha512-gAmrUZSGtKc3AiBL71iNWxDsyUC5uMaKKGdvzYsBoTW/xi42JQHl7eKV2OYzCUqvc+D2RCcf7EXY2iCyFIk6og=="],
@@ -285,6 +311,10 @@
     "@warpvector/ml": ["@warpvector/ml@workspace:packages/ml"],
 
     "@warpvector/prisma": ["@warpvector/prisma@workspace:packages/prisma"],
+
+    "@warpvector/rerank": ["@warpvector/rerank@workspace:packages/rerank"],
+
+    "@warpvector/train": ["@warpvector/train@workspace:packages/train"],
 
     "acorn": ["acorn@8.17.0", "", { "bin": "bin/acorn" }, "sha512-xRQbDb9BnwDafYNn6Vwl839DYVjqXYb1XVGtWAZ1kcDc6iwAL4hg3B1dZlRiuENFeO2H53gFG3in621AdERVAg=="],
 

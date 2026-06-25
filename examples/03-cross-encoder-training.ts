@@ -6,7 +6,7 @@
  * Cross-Encoder モデルを学習し、ストリーミングデータでOOMを防ぐ方法を示します。
  */
 
-import { CrossEncoderTrainer, CrossEncoderExample } from "@warpvector/ml";
+import { CrossEncoderTrainer, CrossEncoderExample } from "@warpvector/train";
 
 // 疑似的なデータストリーム生成関数
 // 大規模データの場合、ここをデータベースカーソルやCSVの行単位の読み込みに差し替えます

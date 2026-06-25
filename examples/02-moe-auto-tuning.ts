@@ -7,7 +7,8 @@
  */
 
 import { WarpPipeline } from "@warpvector/core";
-import { MoeAdapter, PipelineAutoTuner, SearchExample, MlpAdapter } from "@warpvector/ml";
+import { MoeAdapter, MlpAdapter } from "@warpvector/ml";
+import { PipelineAutoTuner, SearchExample } from "@warpvector/train";
 
 async function run() {
   const dim = 128;

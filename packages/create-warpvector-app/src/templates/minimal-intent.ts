@@ -12,7 +12,7 @@ const INTENT_TEMPLATE = `\
  * 実行: npx tsx src/index.ts
  */
 import { IntentAdapter, cosineSimilarity, normalize } from "@warpvector/core";
-import { IntentMatrixFactory } from "@warpvector/ml";
+import { IntentMatrixFactory } from "@warpvector/train";
 
 // --- 1. 疑似 Embedding ---
 // 実際には OpenAI / Cohere / HuggingFace の埋め込みモデルを使用します
@@ -112,7 +112,7 @@ export const minimalIntentTemplate: TemplateDefinition = {
   title: pc.bold('Minimal Intent Search') + pc.dim(' — Auto-learn intent matrices, zero config'),
   description: 'Best for getting started quickly',
 
-  generate(dir: string, name: string) {
+  generate(dir: string, name: string, version: string) {
     writePackageJson(dir, {
       name,
       version: '0.1.0',
@@ -122,9 +122,10 @@ export const minimalIntentTemplate: TemplateDefinition = {
         dev: 'tsx watch src/index.ts',
       },
       dependencies: {
-        warpvector: '^0.2.0',
-        '@warpvector/core': '^0.2.0',
-        '@warpvector/ml': '^0.2.0',
+        'warpvector': `^${version}`,
+        '@warpvector/core': `^${version}`,
+        '@warpvector/ml': `^${version}`,
+        '@warpvector/train': `^${version}`,
       },
       devDependencies: {
         typescript: '^5.0.0',

@@ -1,5 +1,6 @@
 import { expect, test, describe } from "bun:test";
-import { MlpAdapter, WhiteningAdapter, BaseTrainer } from "@warpvector/ml";
+import { MlpAdapter, WhiteningAdapter } from "@warpvector/ml";
+import { BaseTrainer } from "@warpvector/train";
 import {
   WarpPipeline,
   VectorDBAdapter,

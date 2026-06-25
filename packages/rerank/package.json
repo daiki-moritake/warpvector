@@ -1,7 +1,7 @@
 {
-  "name": "@warpvector/extras",
+  "name": "@warpvector/rerank",
   "version": "0.3.2",
-  "description": "Extended adapters: ColBERT, Quantization, VSA, Hybrid Search for WarpVector",
+  "description": "Advanced graph-based and wave-inspired rerankers for WarpVector",
   "main": "src/index.ts",
   "module": "src/index.ts",
   "types": "src/index.ts",
@@ -23,19 +23,18 @@
   },
   "keywords": [
     "vector",
+    "reranking",
     "colbert",
-    "quantization",
-    "vsa",
-    "hybrid-search"
+    "scattering"
   ],
   "author": "Daiki Moritake",
   "license": "MIT",
   "dependencies": {
-    "@warpvector/core": "workspace:*"
+    "@warpvector/core": "workspace:*",
+    "@warpvector/ml": "workspace:*"
   },
   "devDependencies": {
     "@types/bun": "^1.3.14",
-    "@warpvector/train": "workspace:*",
     "tsup": "^8.0.0",
     "typescript": "^5.0.0"
   }

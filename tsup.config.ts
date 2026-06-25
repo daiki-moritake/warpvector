@@ -5,6 +5,8 @@ export default defineConfig({
     index: "src/index.ts",
     prisma: "src/prisma.ts",
     langchain: "src/langchain.ts",
+    train: "src/train.ts",
+    rerank: "src/rerank.ts",
   },
   format: ["cjs", "esm"],
   dts: { resolve: [/^@warpvector\//] },
