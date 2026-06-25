@@ -1,4 +1,4 @@
-import { InputVector, OutputVector } from "@warpvector/core";
+import { InputVector, OutputVector, cosineSimilarity } from "@warpvector/core";
 
 export type VectorType = InputVector | OutputVector;
 
@@ -12,16 +12,9 @@ export interface SearchExample<T = VectorType> {
  * コサイン類似度の計算
  */
 export function computeCosineSimilarity(a: VectorType, b: VectorType): number {
-  let dot = 0;
-  let normA = 0;
-  let normB = 0;
-  for (let i = 0; i < a.length; i++) {
-    dot += a[i] * b[i];
-    normA += a[i] * a[i];
-    normB += b[i] * b[i];
-  }
-  if (normA === 0 || normB === 0) return 0;
-  return dot / (Math.sqrt(normA) * Math.sqrt(normB));
+  const vecA = (a instanceof Float32Array || Array.isArray(a)) ? a : new Float32Array(a as any);
+  const vecB = (b instanceof Float32Array || Array.isArray(b)) ? b : new Float32Array(b as any);
+  return cosineSimilarity(vecA, vecB);
 }
 
 /**

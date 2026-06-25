@@ -1,4 +1,4 @@
-import type { WarpAdapter, InputVector, OutputVector, AdapterState } from "@warpvector/core";
+import { cosineSimilarity, type WarpAdapter, type InputVector, type OutputVector, type AdapterState } from "@warpvector/core";
 
 export interface ExpertDefinition {
   /** 一意のエキスパートID */
@@ -21,21 +21,6 @@ export interface MoeAdapterConfig {
   customRouter?: (vector: Float32Array) => string;
 }
 
-/**
- * ユーティリティ: コサイン類似度の計算
- */
-function computeCosineSimilarity(a: Float32Array | number[], b: Float32Array | number[]): number {
-  let dot = 0;
-  let normA = 0;
-  let normB = 0;
-  for (let i = 0; i < a.length; i++) {
-    dot += a[i] * b[i];
-    normA += a[i] * a[i];
-    normB += b[i] * b[i];
-  }
-  if (normA === 0 || normB === 0) return 0;
-  return dot / (Math.sqrt(normA) * Math.sqrt(normB));
-}
 
 /**
  * Mixture of Experts (MoE) アダプター。
@@ -85,7 +70,7 @@ export class MoeAdapter implements WarpAdapter {
     let bestScore = -Infinity;
 
     for (const [id, centroid] of this.centroids.entries()) {
-      const score = computeCosineSimilarity(vectorArray, centroid);
+      const score = cosineSimilarity(vectorArray, centroid);
       if (score > bestScore) {
         bestScore = score;
         bestExpert = id;
