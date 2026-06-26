@@ -5,6 +5,53 @@ All notable changes to WarpVector will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-06-26
+
+### Added
+
+#### New Packages
+- **`@warpvector/train`** — Training and fine-tuning module extracted from `@warpvector/ml`
+  - Includes `SoftWhiteningAdapter`, `TripletTrainer`, `BaseTrainer`, and all training-related utilities
+  - Dedicated package for backend-heavy training tasks, keeping the core lightweight for edge inference
+- **`@warpvector/rerank`** — Reranking module extracted into its own package
+  - Exports `ColbertAdapter` for ColBERT-based late interaction reranking
+  - Clean separation of reranking concerns from the core pipeline
+- **`@warpvector/eval`** — RAG Evaluation Kit (NEW)
+  - Built-in RAG pipeline evaluator with metrics: Precision@K, Recall@K, NDCG@K, MRR, MAP
+  - CLI tool (`warpvector-eval`) for automated evaluation runs
+  - JSON/Markdown report generation for evaluation results
+
+#### Playground / Warpvector Studio
+- Upgraded visualization engine with animation state snapshots and improved canvas rendering
+- Enhanced UI helper utilities for interactive demos
+
+#### Infrastructure
+- **tsconfig共通テンプレート化**: `tsconfig.package.json` / `tsconfig.package.build.json` shared configs for all sub-packages
+- Centralized vector math operations into `@warpvector/core/math/vector.ts`
+
+### Changed
+
+#### Breaking Changes
+- **QuantizationAdapter API統一**: `tune()` method removed; use `encode()` for all quantization operations
+- **WarpPipeline final stage handling**: Updated to use the unified `encode`-based pattern
+- **Training utilities移行**: `SoftWhiteningAdapter` and related training modules moved from `@warpvector/ml` to `@warpvector/train`; update imports accordingly
+- **Adam optimizer removed**: Removed built-in Adam optimizer from ml package (use `@warpvector/train` instead)
+
+#### Refactoring
+- Formalized architecture separation between edge inference (`@warpvector/core`, `@warpvector/ml`) and backend-heavy tasks (`@warpvector/train`, `@warpvector/eval`)
+- Updated AutoML metrics and `MoeAdapter` to align with the new evaluation schema
+- Consolidated documentation and import paths to reflect the training/reranking module migration
+
+#### Documentation
+- New MoE, training, and security adapter documentation in API reference and README
+- Architecture separation formally documented with updated package descriptions
+- README import paths corrected for new package structure
+
+### Testing
+- **297 tests** across 44 files — All Passed ✅
+- **1,579 expect()** calls
+- Updated test coverage badge in README
+
 ## [0.3.2] - 2026-06-25
 
 ### Added
