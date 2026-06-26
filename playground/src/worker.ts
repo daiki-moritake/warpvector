@@ -5,7 +5,7 @@ env.allowLocalModels = false;
 env.useBrowserCache = true;
 
 class PipelineSingleton {
-  static task = 'feature-extraction';
+  static task: 'feature-extraction' = 'feature-extraction';
   static model = 'Xenova/all-MiniLM-L6-v2';
   static instance: any = null;
 
@@ -51,6 +51,6 @@ self.addEventListener('message', async (event) => {
       self.postMessage({ id, status: 'complete', embeddings });
     }
   } catch (err) {
-    self.postMessage({ id, status: 'error', error: (err as Error).message });
+    self.postMessage({ id, status: 'error', error: err instanceof Error ? err.message : String(err) });
   }
 });

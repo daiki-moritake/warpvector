@@ -9,6 +9,7 @@ export default defineConfig({
       '@warpvector/core': resolve(__dirname, '../packages/core/src/index.ts'),
       '@warpvector/ml': resolve(__dirname, '../packages/ml/src/index.ts'),
       '@warpvector/extras': resolve(__dirname, '../packages/extras/src/index.ts'),
+      '@warpvector/eval': resolve(__dirname, '../packages/eval/src/index.ts'),
     },
   },
   build: {

@@ -37,7 +37,7 @@ export const nextPrismaTemplate: TemplateDefinition = {
   title: pc.bold('Next.js + Prisma + pgvector') + pc.dim(' — Full-stack RAG app'),
   description: 'Production-ready with PostgreSQL',
 
-  generate(dir: string, name: string) {
+  generate(dir: string, name: string, version: string) {
     writePackageJson(dir, {
       name,
       version: '0.1.0',
@@ -51,9 +51,10 @@ export const nextPrismaTemplate: TemplateDefinition = {
         next: '14.2.0',
         react: '^18',
         'react-dom': '^18',
-        warpvector: '^0.2.0',
-        '@warpvector/core': '^0.2.0',
-        '@warpvector/ml': '^0.2.0',
+        'warpvector': `^${version}`,
+        '@warpvector/core': `^${version}`,
+        '@warpvector/ml': `^${version}`,
+        '@warpvector/train': `^${version}`,
         '@prisma/client': '^5.0.0',
         'sql-template-tag': '^5.2.1',
       },

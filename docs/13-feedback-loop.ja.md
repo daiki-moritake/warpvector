@@ -36,7 +36,7 @@ graph TD
 ### 基本的な使い方
 
 ```typescript
-import { FeedbackCollector } from "@warpvector/ml";
+import { FeedbackCollector } from "@warpvector/train";
 
 const collector = new FeedbackCollector({
   dwellThresholdMs: 3000,  // 3秒以上の閲覧 = positive
@@ -106,7 +106,7 @@ collector.flush();
 学習率の自動減衰とバッチ学習のタイミング制御を行います。
 
 ```typescript
-import { TripletTrainer, AdaptiveScheduler } from "@warpvector/ml";
+import { TripletTrainer, AdaptiveScheduler } from "@warpvector/train";
 
 const trainer = new TripletTrainer(1536);
 const scheduler = new AdaptiveScheduler(trainer, {
@@ -163,7 +163,7 @@ const restored = AdaptiveScheduler.importState(
 複数ユーザーの学習結果を FedAvg で集約し、グローバルベースラインを更新します。
 
 ```typescript
-import { FederatedAggregator } from "@warpvector/ml";
+import { FederatedAggregator } from "@warpvector/train";
 
 const aggregator = new FederatedAggregator(globalBaseWeights, 1536);
 
@@ -198,11 +198,7 @@ W_new = W_base + Σ (count_i / total_count) × (W_i − W_base)
 ## 実践例: E コマース検索の全体フロー
 
 ```typescript
-import {
-  FeedbackCollector,
-  AdaptiveScheduler,
-  TripletTrainer,
-} from "@warpvector/ml";
+import { FeedbackCollector, AdaptiveScheduler, TripletTrainer } from "@warpvector/train";
 import { IntentAdapter } from "@warpvector/core";
 
 // 初期化

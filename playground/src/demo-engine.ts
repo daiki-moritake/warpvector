@@ -5,9 +5,10 @@
  * intent-based vector transformations.
  * Enhanced with Real LLM Embeddings, PCA Projection, Whitening, and Quantization.
  */
-import { IntentAdapter, initWasm } from '@warpvector/core';
+import { IntentAdapter, initWasm, cosineSimilarity } from '@warpvector/core';
 import { WhiteningAdapter } from '@warpvector/ml';
-import { QuantizationAdapter, type QuantizationType } from '@warpvector/extras';
+import { QuantizationAdapter, type QuantizationType, TaskArithmetic } from '@warpvector/extras';
+import { calculateNDCG, calculateRecall } from '@warpvector/eval';
 
 // all-MiniLM-L6-v2 uses 384 dimensions
 export const DIM = 384;
@@ -88,16 +89,8 @@ export function generateIntentMatrix(
   return { matrix, bias };
 }
 
-export function cosineSim(a: Float32Array, b: Float32Array): number {
-  let dot = 0, normA = 0, normB = 0;
-  for (let i = 0; i < a.length; i++) {
-    dot += a[i] * b[i];
-    normA += a[i] * a[i];
-    normB += b[i] * b[i];
-  }
-  if (normA === 0 || normB === 0) return 0;
-  return dot / (Math.sqrt(normA) * Math.sqrt(normB));
-}
+// Re-export cosineSimilarity for external consumers
+export { cosineSimilarity };
 
 export function projectTo2D(
   vec: Float32Array,
@@ -211,6 +204,7 @@ export interface DemoState {
   basis2: Float32Array;
   wasmReady: boolean;
   intentsList: { key: string; name: string; desc: string; icon: string; color: string }[];
+  lastMergedWeights?: { matrix: number[]; bias: number[] } | null;
 }
 
 export interface RankedDoc extends DocPoint {
@@ -227,7 +221,7 @@ export interface BenchmarkResult {
 }
 
 // Greatly Expanded Sample Dataset
-const INITIAL_DATA = {
+const INITIAL_DATA: Record<'en' | 'ja', SourceData> = {
   en: {
     tech: [
       { name: "TypeScript WASM Guide", text: "A comprehensive guide on running WebAssembly in TypeScript applications for high performance computing." },
@@ -316,23 +310,50 @@ const INITIAL_DATA = {
   }
 };
 
-const CATEGORY_COLORS = {
-  tech: '#3b82f6',
-  business: '#10b981',
-  medical: '#f43f5e',
-  general: '#94a3b8'
+export type DataCategory = 'tech' | 'business' | 'medical' | 'general';
+export interface DataItem { name: string; text: string; }
+export type SourceData = Record<DataCategory, DataItem[]>;
+
+export interface CategoryMeta {
+  icon: string;
+  dotColor: string;
+  bgColor: string;
+  label: Record<'en' | 'ja', string>;
+}
+
+export const CATEGORY_META: Record<DataCategory, CategoryMeta> = {
+  tech:     { icon: '💻', dotColor: '#3b82f6', bgColor: 'rgba(59,130,246,0.15)',  label: { en: 'Technology', ja: 'テクノロジー' } },
+  business: { icon: '📊', dotColor: '#10b981', bgColor: 'rgba(16,185,129,0.15)',  label: { en: 'Business',   ja: 'ビジネス' } },
+  medical:  { icon: '🏥', dotColor: '#f43f5e', bgColor: 'rgba(244,63,94,0.15)',   label: { en: 'Medical',    ja: '医療' } },
+  general:  { icon: '📌', dotColor: '#94a3b8', bgColor: 'rgba(148,163,184,0.15)', label: { en: 'General',    ja: '一般' } },
 };
 
-const DEFAULT_INTENTS = {
+const INTENT_STRENGTH = 1.2;
+
+/** Maps intent keys to DataCategory for deriving icon/color from CATEGORY_META */
+const INTENT_CATEGORY_MAP: Record<string, DataCategory> = {
+  technology: 'tech',
+  business: 'business',
+  medical: 'medical',
+};
+
+interface IntentDefinition {
+  key: string;
+  name: string;
+  desc: string;
+  text: string;
+}
+
+const DEFAULT_INTENTS: Record<'en' | 'ja', IntentDefinition[]> = {
   en: [
-    { key: 'technology', name: 'Technology', desc: 'Technical & programming focus', icon: '💻', color: 'rgba(59,130,246,0.15)', text: "I want highly technical documentation, software engineering concepts, coding techniques, and system architecture." },
-    { key: 'business', name: 'Business', desc: 'Business & finance focus', icon: '📊', color: 'rgba(16,185,129,0.15)', text: "I am interested in business strategy, financial analysis, startup funding, and enterprise sales tactics." },
-    { key: 'medical', name: 'Medical', desc: 'Healthcare & science focus', icon: '🏥', color: 'rgba(244,63,94,0.15)', text: "Show me medical research, clinical trials, healthcare data compliance, and genomics information." }
+    { key: 'technology', name: 'Technology', desc: 'Technical & programming focus', text: "I want highly technical documentation, software engineering concepts, coding techniques, and system architecture." },
+    { key: 'business', name: 'Business', desc: 'Business & finance focus', text: "I am interested in business strategy, financial analysis, startup funding, and enterprise sales tactics." },
+    { key: 'medical', name: 'Medical', desc: 'Healthcare & science focus', text: "Show me medical research, clinical trials, healthcare data compliance, and genomics information." }
   ],
   ja: [
-    { key: 'technology', name: 'テクノロジー', desc: '技術とプログラミング重視', icon: '💻', color: 'rgba(59,130,246,0.15)', text: "高度な技術ドキュメント、ソフトウェアエンジニアリングの概念、コーディング手法、システムアーキテクチャが欲しいです。" },
-    { key: 'business', name: 'ビジネス', desc: 'ビジネスと金融重視', icon: '📊', color: 'rgba(16,185,129,0.15)', text: "ビジネス戦略、財務分析、スタートアップ資金調達、エンタープライズ営業戦術に興味があります。" },
-    { key: 'medical', name: '医療', desc: 'ヘルスケアと科学重視', icon: '🏥', color: 'rgba(244,63,94,0.15)', text: "医学研究、臨床試験、ヘルスケアデータコンプライアンス、ゲノミクス情報を見せてください。" }
+    { key: 'technology', name: 'テクノロジー', desc: '技術とプログラミング重視', text: "高度な技術ドキュメント、ソフトウェアエンジニアリングの概念、コーディング手法、システムアーキテクチャが欲しいです。" },
+    { key: 'business', name: 'ビジネス', desc: 'ビジネスと金融重視', text: "ビジネス戦略、財務分析、スタートアップ資金調達、エンタープライズ営業戦術に興味があります。" },
+    { key: 'medical', name: '医療', desc: 'ヘルスケアと科学重視', text: "医学研究、臨床試験、ヘルスケアデータコンプライアンス、ゲノミクス情報を見せてください。" }
   ]
 };
 
@@ -348,9 +369,11 @@ export async function createDemoState(
 
   const allDocs: { category: string, name: string, text: string, color: string }[] = [];
   const sourceData = INITIAL_DATA[lang];
-  for (const cat of Object.keys(sourceData)) {
-    for (const item of sourceData[cat as keyof typeof sourceData]) {
-      allDocs.push({ category: cat, name: item.name, text: item.text, color: CATEGORY_COLORS[cat as keyof typeof CATEGORY_COLORS] });
+  const dataCategories: DataCategory[] = ['tech', 'business', 'medical', 'general'];
+  for (const cat of dataCategories) {
+    if (!(cat in sourceData)) continue;
+    for (const item of sourceData[cat]) {
+      allDocs.push({ category: cat, name: item.name, text: item.text, color: CATEGORY_META[cat].dotColor });
     }
   }
 
@@ -391,14 +414,16 @@ export async function createDemoState(
 
   for (let i = 0; i < defaultIntents.length; i++) {
     const intentEmb = embeddings[eIdx++];
-    const { matrix, bias } = generateIntentMatrix(DIM, intentEmb, 1.2);
+    const { matrix, bias } = generateIntentMatrix(DIM, intentEmb, INTENT_STRENGTH);
     adapter.addIntent(defaultIntents[i].key, { matrix, bias });
+    const catKey = INTENT_CATEGORY_MAP[defaultIntents[i].key] ?? 'general';
+    const meta = CATEGORY_META[catKey];
     intentsList.push({
       key: defaultIntents[i].key,
       name: defaultIntents[i].name,
       desc: defaultIntents[i].desc,
-      icon: defaultIntents[i].icon,
-      color: defaultIntents[i].color
+      icon: meta.icon,
+      color: meta.bgColor
     });
   }
 
@@ -446,7 +471,7 @@ export async function addCustomIntent(
 ) {
   const [intentVec] = await getEmbeddings([text]);
   const key = 'custom_' + Date.now();
-  const { matrix, bias } = generateIntentMatrix(DIM, intentVec, 1.2);
+  const { matrix, bias } = generateIntentMatrix(DIM, intentVec, INTENT_STRENGTH);
   state.adapter.addIntent(key, { matrix, bias });
   
   state.intentsList.push({
@@ -462,7 +487,7 @@ export async function addCustomIntent(
 
 // Helper to apply optimizations pipeline
 function applyPipeline(state: DemoState, baseVector: Float32Array, applyIntent: (v: Float32Array) => Float32Array): Float32Array {
-  let v: any = new Float32Array(baseVector);
+  let v: Float32Array = new Float32Array(baseVector);
   
   // 1. Whitening (De-bias the space)
   if (state.useWhitening) {
@@ -473,35 +498,71 @@ function applyPipeline(state: DemoState, baseVector: Float32Array, applyIntent: 
   v = applyIntent(v);
 
   // 3. Quantization (Compression)
-  if (state.quantMode === 'int8') {
-    const quantizer = new QuantizationAdapter({ type: 'int8', dim: DIM });
-    v = decodeInt8(quantizer.tune(v) as Int8Array, DIM);
-  } else if (state.quantMode === 'binary') {
-    const quantizer = new QuantizationAdapter({ type: 'binary', dim: DIM });
-    v = decodeBinary(quantizer.tune(v) as Uint8Array, DIM);
+  if (state.quantMode !== 'none') {
+    const quantizer = new QuantizationAdapter({ type: state.quantMode, dim: DIM });
+    const quantized = quantizer.tune(v);
+    if (state.quantMode === 'int8' && quantized instanceof Int8Array) {
+      v = decodeInt8(quantized, DIM);
+    } else if (state.quantMode === 'binary' && quantized instanceof Uint8Array) {
+      v = decodeBinary(quantized, DIM);
+    }
   }
 
   return v;
 }
 
-export function transformWithIntent(
-  state: DemoState,
-  intent: string | null,
-): { latencyMs: number; rankings: RankedDoc[] } {
-  const t0 = performance.now();
+function getExpectedCategory(intentKey: string): string | null {
+  if (intentKey.includes('technology') || intentKey.includes('tech')) return 'tech';
+  if (intentKey.includes('business')) return 'business';
+  if (intentKey.includes('medical')) return 'medical';
+  return null;
+}
 
-  const intentFunc = (v: Float32Array) => (intent && intent !== 'none') ? state.adapter.tune(v, intent) : v;
+export interface EvalMetrics {
+  ndcg3: number;
+  recall3: number;
+  expectedCategory: string | null;
+}
+
+function computeEvalMetrics(state: DemoState, rankings: RankedDoc[], activeIntentKey: string | null): EvalMetrics {
+  if (!activeIntentKey || activeIntentKey === 'none') {
+    return { ndcg3: 0, recall3: 0, expectedCategory: null };
+  }
+  const expectedCategory = getExpectedCategory(activeIntentKey);
+  if (!expectedCategory) {
+    return { ndcg3: 0, recall3: 0, expectedCategory: null };
+  }
+
+  const expectedIds = state.docs
+    .filter(d => d.category === expectedCategory)
+    .map(d => String(d.id));
+  const retrievedIds = rankings.slice(0, 3).map(r => String(r.id));
+
+  const ndcg3 = calculateNDCG(retrievedIds, expectedIds, 3);
+  const recall3 = calculateRecall(retrievedIds, expectedIds, 3);
+
+  return { ndcg3, recall3, expectedCategory };
+}
+
+/** Rank documents by cosine similarity to a query vector */
+function rankByCosineSim(docs: DocPoint[], queryVec: Float32Array, useBase = false): RankedDoc[] {
+  return docs.map((doc) => ({
+    ...doc,
+    score: cosineSimilarity(useBase ? doc.baseVector : doc.currentVector, queryVec),
+  })).sort((a, b) => b.score - a.score);
+}
+
+/** Apply the optimization pipeline to all docs/query, update positions, and compute rankings */
+function applyAndRank(
+  state: DemoState,
+  intentFunc: (v: Float32Array) => Float32Array,
+): { latencyMs: number; rankings: RankedDoc[]; vanillaRankings: RankedDoc[] } {
+  const t0 = performance.now();
 
   for (const doc of state.docs) {
     doc.currentVector = applyPipeline(state, doc.baseVector, intentFunc);
   }
   state.query.currentVector = applyPipeline(state, state.query.baseVector, intentFunc);
-
-  // Keep the basis fixed for better visualization (do not recalculate)
-  // const allCurrentVecs = [...state.docs.map(d => d.currentVector), state.query.currentVector];
-  // const { b1, b2 } = computeDynamicBasis(allCurrentVecs, DIM);
-  // state.basis1 = b1;
-  // state.basis2 = b2;
 
   for (const doc of state.docs) {
     doc.pos = projectTo2D(doc.currentVector, state.basis1, state.basis2);
@@ -509,60 +570,97 @@ export function transformWithIntent(
   state.query.pos = projectTo2D(state.query.currentVector, state.basis1, state.basis2);
 
   const latencyMs = performance.now() - t0;
+  const rankings = rankByCosineSim(state.docs, state.query.currentVector);
+  const vanillaRankings = rankByCosineSim(state.docs, state.query.baseVector, true);
 
-  const rankings = state.docs.map((doc) => ({
-    ...doc,
-    score: cosineSim(doc.currentVector, state.query.currentVector),
-  })).sort((a, b) => b.score - a.score);
+  return { latencyMs, rankings, vanillaRankings };
+}
 
-  return { latencyMs, rankings };
+export function transformWithIntent(
+  state: DemoState,
+  intent: string | null,
+): { latencyMs: number; rankings: RankedDoc[]; vanillaRankings: RankedDoc[]; metrics: EvalMetrics } {
+  const isActive = intent != null && intent !== 'none';
+  const intentFunc = (v: Float32Array) => isActive ? state.adapter.tune(v, intent) : v;
+  const { latencyMs, rankings, vanillaRankings } = applyAndRank(state, intentFunc);
+
+  if (isActive) {
+    try {
+      const parsed = JSON.parse(state.adapter.exportState());
+      state.lastMergedWeights = parsed.intents[intent] || null;
+    } catch (e) {
+      console.error(e);
+      state.lastMergedWeights = null;
+    }
+  } else {
+    state.lastMergedWeights = null;
+  }
+
+  const metrics = computeEvalMetrics(state, rankings, intent);
+  return { latencyMs, rankings, vanillaRankings, metrics };
 }
 
 export function transformWithBlend(
   state: DemoState,
   weights: Record<string, number>,
-): { latencyMs: number; rankings: RankedDoc[]; codeSnippet: string } {
+): { latencyMs: number; rankings: RankedDoc[]; vanillaRankings: RankedDoc[]; codeSnippet: string; metrics: EvalMetrics } {
   const activeWeights: Record<string, number> = {};
   for (const [k, v] of Object.entries(weights)) {
     if (v > 0.01) activeWeights[k] = v;
   }
   const hasActive = Object.keys(activeWeights).length > 0;
-  
-  const intentFunc = (v: Float32Array) => hasActive ? state.adapter.tuneBlended(v, activeWeights) : v;
 
-  const t0 = performance.now();
-
-  for (const doc of state.docs) {
-    doc.currentVector = applyPipeline(state, doc.baseVector, intentFunc);
+  // Merge intent weights via TaskArithmetic
+  if (hasActive) {
+    try {
+      const parsed = JSON.parse(state.adapter.exportState());
+      const tasks = Object.entries(activeWeights).map(([key, scale]) => {
+        const intentW = parsed.intents[key];
+        if (!intentW) throw new Error(`Intent ${key} not found for merging`);
+        return {
+          weights: { matrix: new Float32Array(intentW.matrix), bias: new Float32Array(intentW.bias) },
+          scale
+        };
+      });
+      const merged = TaskArithmetic.merge(tasks);
+      state.lastMergedWeights = {
+        matrix: merged.matrix instanceof Float32Array ? Array.from(merged.matrix) : [],
+        bias: merged.bias instanceof Float32Array ? Array.from(merged.bias) : []
+      };
+      state.adapter.addIntent("__merged__", merged);
+    } catch (e) {
+      console.error("TaskArithmetic merge failed:", e);
+      state.lastMergedWeights = null;
+    }
+  } else {
+    state.lastMergedWeights = null;
   }
-  state.query.currentVector = applyPipeline(state, state.query.baseVector, intentFunc);
 
-  // Keep the basis fixed
-  // const allCurrentVecs = [...state.docs.map(d => d.currentVector), state.query.currentVector];
-  // const { b1, b2 } = computeDynamicBasis(allCurrentVecs, DIM);
-  // state.basis1 = b1;
-  // state.basis2 = b2;
+  const intentFunc = (v: Float32Array) => hasActive ? state.adapter.tune(v, "__merged__") : v;
+  const { latencyMs, rankings, vanillaRankings } = applyAndRank(state, intentFunc);
 
-  for (const doc of state.docs) {
-    doc.pos = projectTo2D(doc.currentVector, state.basis1, state.basis2);
+  // Clean up temporary merged intent
+  if (hasActive) {
+    try { state.adapter.removeIntent("__merged__"); } catch (e) { console.error(e); }
   }
-  state.query.pos = projectTo2D(state.query.currentVector, state.basis1, state.basis2);
 
-  const latencyMs = performance.now() - t0;
+  // Evaluate against the highest-weighted intent
+  let topIntentKey: string | null = null;
+  let maxWeight = 0;
+  for (const [k, v] of Object.entries(activeWeights)) {
+    if (v > maxWeight) { maxWeight = v; topIntentKey = k; }
+  }
+  const metrics = computeEvalMetrics(state, rankings, topIntentKey);
 
-  const rankings = state.docs.map((doc) => ({
-    ...doc,
-    score: cosineSim(doc.currentVector, state.query.currentVector),
-  })).sort((a, b) => b.score - a.score);
-
+  // Generate code snippet
   const weightsStr = Object.entries(activeWeights)
-    .map(([k, v]) => `  "${k}": ${v.toFixed(2)}`)
+    .map(([k, v]) => `  { weights: ${k}Weights, scale: ${v.toFixed(2)} }`)
     .join(',\n');
   const codeSnippet = hasActive
-    ? `const warped = adapter.tuneBlended(\n  baseVector,\n  {\n${weightsStr}\n  }\n);`
+    ? `// Task Arithmetic (Model Merging)\nconst mergedWeights = TaskArithmetic.merge([\n${weightsStr}\n]);\n\nadapter.addIntent("merged", mergedWeights);\nconst warped = adapter.tune(baseVector, "merged");`
     : `// No intent applied\nconst result = baseVector;`;
 
-  return { latencyMs, rankings, codeSnippet };
+  return { latencyMs, rankings, vanillaRankings, codeSnippet, metrics };
 }
 
 export function runBenchmark(
@@ -643,15 +741,6 @@ export async function autoLearnIntents(
 
   // Replace adapter intents with learned ones
   const learnedCategories: string[] = [];
-  const CATEGORY_ICONS: Record<string, string> = {
-    tech: '💻', business: '📊', medical: '🏥', general: '📌',
-  };
-  const CATEGORY_COLORS_MAP: Record<string, string> = {
-    tech: 'rgba(59,130,246,0.15)',
-    business: 'rgba(16,185,129,0.15)',
-    medical: 'rgba(244,63,94,0.15)',
-    general: 'rgba(148,163,184,0.15)',
-  };
 
   for (const cat of categories) {
     if (intents[cat]) {
@@ -666,8 +755,8 @@ export async function autoLearnIntents(
         key: 'auto_' + cat,
         name: `🤖 ${cat.charAt(0).toUpperCase() + cat.slice(1)}`,
         desc: 'Auto-learned (InfoNCE)',
-        icon: CATEGORY_ICONS[cat] || '✨',
-        color: CATEGORY_COLORS_MAP[cat] || 'rgba(148,163,184,0.15)',
+        icon: (CATEGORY_META[cat as DataCategory] || CATEGORY_META.general).icon,
+        color: (CATEGORY_META[cat as DataCategory] || CATEGORY_META.general).bgColor,
       };
 
       if (existingIdx >= 0) {

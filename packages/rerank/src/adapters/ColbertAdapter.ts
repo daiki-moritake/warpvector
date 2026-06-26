@@ -15,16 +15,37 @@ export class ColbertAdapter {
   private getWasmExports(): {
     memory: WebAssembly.Memory;
     colbertMaxSimWasm: CallableFunction;
-  } {
+  } | null {
     if (!this.wasm) {
-      throw new Error(
-        "ColbertAdapter requires WASM. Call initWasm() before using ColbertAdapter.",
-      );
+      return null;
     }
     return this.wasm.exports as {
       memory: WebAssembly.Memory;
       colbertMaxSimWasm: CallableFunction;
     };
+  }
+
+  private scoreFallback(
+    queryTokens: Float32Array,
+    documentTokens: Float32Array,
+    dim: number,
+  ): number {
+    const numQueryTokens = queryTokens.length / dim;
+    const numDocTokens = documentTokens.length / dim;
+    let totalScore = 0;
+
+    for (let q = 0; q < numQueryTokens; q++) {
+      let maxSim = -Infinity;
+      for (let d = 0; d < numDocTokens; d++) {
+        let sim = 0;
+        for (let i = 0; i < dim; i++) {
+          sim += queryTokens[q * dim + i] * documentTokens[d * dim + i];
+        }
+        if (sim > maxSim) maxSim = sim;
+      }
+      totalScore += maxSim;
+    }
+    return totalScore;
   }
 
   /**
@@ -54,7 +75,11 @@ export class ColbertAdapter {
       );
     }
 
-    const { memory, colbertMaxSimWasm } = this.getWasmExports();
+    const exports = this.getWasmExports();
+    if (!exports) {
+      return this.scoreFallback(queryTokens, documentTokens, dim);
+    }
+    const { memory, colbertMaxSimWasm } = exports;
 
     const queryBytes = queryTokens.byteLength;
     const docBytes = documentTokens.byteLength;
@@ -96,7 +121,15 @@ export class ColbertAdapter {
       );
     }
 
-    const { memory, colbertMaxSimWasm } = this.getWasmExports();
+    const exports = this.getWasmExports();
+    if (!exports) {
+      // JS Fallback
+      return documentTokensArray.map((doc, index) => ({
+        index,
+        score: this.scoreFallback(queryTokens, doc, dim),
+      })).sort((a, b) => b.score - a.score);
+    }
+    const { memory, colbertMaxSimWasm } = exports;
 
     // ドキュメントの中で最大の長さを探す
     let maxDocLen = 0;

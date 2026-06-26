@@ -1,4 +1,4 @@
-import { WarpAdapter, InputVector, OutputVector } from "@warpvector/core";
+import { type FinalStageAdapter, type OutputVector } from "@warpvector/core";
 import { QuantizationAdapter, QuantizationConfig } from "./QuantizationAdapter";
 
 export interface SafeQuantizationOptions extends QuantizationConfig {
@@ -15,7 +15,7 @@ export interface SafeQuantizationOptions extends QuantizationConfig {
  * オーバーフローやNaNによって量子化後の値が破壊されるのを防ぐため、
  * 事前に厳密なサニタイズとクリッピングを行います。
  */
-export class SafeQuantizationAdapter implements WarpAdapter {
+export class SafeQuantizationAdapter implements FinalStageAdapter {
   private baseAdapter: QuantizationAdapter;
   private options: SafeQuantizationOptions;
 
@@ -50,7 +50,7 @@ export class SafeQuantizationAdapter implements WarpAdapter {
     // QuantizationAdapter は初期化不要
   }
 
-  public tune(vector: InputVector): OutputVector {
+  public encode(vector: Float32Array): OutputVector {
     const len = vector.length;
     const safeVector = new Float32Array(len);
     
@@ -82,7 +82,7 @@ export class SafeQuantizationAdapter implements WarpAdapter {
     }
 
     // サニタイズされた安全なベクトルを本家のQuantizationAdapterに渡す
-    return this.baseAdapter.tune(safeVector);
+    return this.baseAdapter.encode(safeVector);
   }
 
   public exportState(): string {

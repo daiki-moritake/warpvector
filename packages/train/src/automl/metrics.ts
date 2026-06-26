@@ -1,4 +1,4 @@
-import { InputVector, OutputVector } from "@warpvector/core";
+import { InputVector, OutputVector, computeVectorScore } from "@warpvector/core";
 
 export type VectorType = InputVector | OutputVector;
 
@@ -9,19 +9,13 @@ export interface SearchExample<T = VectorType> {
 }
 
 /**
- * コサイン類似度の計算
+ * ベクトルの類似度スコアの計算
+ * - Float32: コサイン類似度
+ * - Int8: 内積
+ * - Binary: 一致したビット数 (次元数 - ハミング距離)
  */
-export function computeCosineSimilarity(a: VectorType, b: VectorType): number {
-  let dot = 0;
-  let normA = 0;
-  let normB = 0;
-  for (let i = 0; i < a.length; i++) {
-    dot += a[i] * b[i];
-    normA += a[i] * a[i];
-    normB += b[i] * b[i];
-  }
-  if (normA === 0 || normB === 0) return 0;
-  return dot / (Math.sqrt(normA) * Math.sqrt(normB));
+export function computeSimilarityScore(a: VectorType, b: VectorType): number {
+  return computeVectorScore(a as any, b as any);
 }
 
 /**
@@ -36,12 +30,12 @@ export function getPositiveRank(
   positive: VectorType,
   negatives: VectorType[] = []
 ): number {
-  const posScore = computeCosineSimilarity(query, positive);
+  const posScore = computeSimilarityScore(query, positive);
   
   // 順位（自分よりスコアが高い negative の数 + 1）
   let rank = 1;
   for (const neg of negatives) {
-    const negScore = computeCosineSimilarity(query, neg);
+    const negScore = computeSimilarityScore(query, neg);
     if (negScore > posScore) {
       rank++;
     }

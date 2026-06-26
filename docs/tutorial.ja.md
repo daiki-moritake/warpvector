@@ -59,22 +59,18 @@ const adapter = new IntentAdapter(3);
 // 第3次元（多様性スコア）を半分に抑える変換を表します。
 adapter.addIntent("similarity", {
   matrix: [
-    [2, 0, 0],   // 第1次元を2倍に強調
-    [0, 1, 0],   // 第2次元はそのまま
+    [2, 0, 0], // 第1次元を2倍に強調
+    [0, 1, 0], // 第2次元はそのまま
     [0, 0, 0.5], // 第3次元を半分に
-  ],
-  bias: [0, 0, 0], // バイアスなし
+  ], bias: [0, 0, 0], // バイアスなし
 });
 
 // 「多様性重視」の意図行列
 adapter.addIntent("diversity", {
   matrix: [
     [0.5, 0, 0], // 第1次元を半分に
-    [0, 1, 0],
-    [0, 0, 2],   // 第3次元を2倍に強調
-  ],
-  bias: [0, 0, 0],
-});
+    [0, 1, 0], [0, 0, 2], // 第3次元を2倍に強調
+  ], bias: [0, 0, 0], });
 
 // ベクトルを変換
 const query = [0.8, 0.5, 0.3];
@@ -99,21 +95,12 @@ const pipeline = new WarpPipeline(3)
   .addIntent({
     search: {
       matrix: [
-        [2, 0, 0],
-        [0, 1, 0],
-        [0, 0, 1],
-      ],
-      bias: [0.1, 0, 0],
-    },
-  })
+        [2, 0, 0], [0, 1, 0], [0, 0, 1], ], bias: [0.1, 0, 0], }, })
   .addProjection(2, {
     search: {
       matrix: [
         [1, 0, 0], // 第1・第2次元だけを取り出す
-        [0, 1, 0],
-      ],
-    },
-  });
+        [0, 1, 0], ], }, });
 
 // 実行
 const result = pipeline.run([0.5, 0.8, 0.3], { intent: "search" });
@@ -138,21 +125,11 @@ const pipeline = new WarpPipeline(3)
   .addIntent({
     search: {
       matrix: [
-        [1, 0, 0],
-        [0, 1, 0],
-        [0, 0, 1],
-      ],
-      bias: [0, 0, 0],
-    },
-  })
+        [1, 0, 0], [0, 1, 0], [0, 0, 1], ], bias: [0, 0, 0], }, })
   .addProjection(2, {
     search: {
       matrix: [
-        [1, 0, 0],
-        [0, 1, 0],
-      ],
-    },
-  })
+        [1, 0, 0], [0, 1, 0], ], }, })
   .setFinalStage("QuantizationAdapter", quantizer);
 
 const result = pipeline.run([0.5, 0.8, 0.3], { intent: "search" });

@@ -19,8 +19,8 @@
  * ```
  */
 
-// Re-export experimental features from @warpvector/extras
-export { ColbertAdapter } from "@warpvector/extras";
+// Re-export experimental features from @warpvector/extras and @warpvector/rerank
+export { ColbertAdapter } from "@warpvector/rerank";
 export { VsaAdapter, type VsaOptions } from "@warpvector/extras";
 export { AnomalyDetectionAdapter } from "@warpvector/extras";
 export {

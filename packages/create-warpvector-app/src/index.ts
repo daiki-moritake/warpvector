@@ -41,7 +41,7 @@ program.action(async () => {
   // プロジェクト生成
   console.log(pc.cyan(`\nCreating project in ${projectDir}...`));
   fs.mkdirSync(projectDir, { recursive: true });
-  template.generate(projectDir, response.projectName);
+  template.generate(projectDir, response.projectName, pkg.version);
   createTsConfig(projectDir);
 
   // Next steps

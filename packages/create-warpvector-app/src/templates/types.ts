@@ -15,7 +15,7 @@ export interface TemplateDefinition {
   description: string;
 
   /** プロジェクトファイルを生成する */
-  generate: (dir: string, name: string) => void;
+  generate: (dir: string, name: string, version: string) => void;
 
   /**
    * テンプレート固有の「次のステップ」コマンドを返す
