@@ -46,7 +46,8 @@
     "dist"
   ],
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "playground"
   ],
   "scripts": {
     "sync:versions": "bun run scripts/sync-versions.ts",
