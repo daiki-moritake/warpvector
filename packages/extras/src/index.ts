@@ -7,7 +7,6 @@ import {
 import { AnomalyDetectionAdapter } from "./adapters/AnomalyDetectionAdapter";
 import { SafeQuantizationAdapter } from "./adapters/SafeQuantizationAdapter";
 
-export * from "./adapters/ColbertAdapter";
 export * from "./adapters/QuantizationAdapter";
 export * from "./adapters/SafeQuantizationAdapter";
 export * from "./adapters/AnomalyDetectionAdapter";

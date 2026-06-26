@@ -32,7 +32,8 @@
   "license": "MIT",
   "dependencies": {
     "@warpvector/core": "workspace:*",
-    "@warpvector/extras": "workspace:*"
+    "@warpvector/extras": "workspace:*",
+    "@warpvector/rerank": "workspace:*"
   },
   "devDependencies": {
     "@types/bun": "^1.3.14",
