@@ -88,6 +88,9 @@
   ],
   "author": "Daiki Moritake",
   "license": "MIT",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/daiki-moritake/warpvector.git"
