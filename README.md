@@ -147,7 +147,7 @@ const bizResult  = adapter.tune(queryVector, "business");
 ### Auto-Generate Intent Matrices (NEW)
 
 ```typescript
-import { IntentMatrixFactory } from 'warpvector/ml';
+import { IntentMatrixFactory } from 'warpvector/train';
 import { IntentAdapter } from 'warpvector';
 
 // No manual matrix needed — just provide category samples
