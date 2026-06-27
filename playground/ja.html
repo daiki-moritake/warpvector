@@ -70,6 +70,60 @@
     </div>
   </section>
 
+  <!-- Uniqueness Section -->
+  <section id="uniqueness" class="features reveal" style="padding-top: 2rem; padding-bottom: 2rem;">
+    <div class="section-header">
+      <h2 class="section-title">エコシステムにおける独自性</h2>
+      <p class="section-desc">エッジネイティブ・ゼロ依存・純粋なTypeScript。重いPythonインフラを必要とせず、高度なベクトル最適化をフロントエンドに解放します。</p>
+    </div>
+    
+    <div class="features-grid" style="grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));">
+      <!-- vs LLM Frameworks -->
+      <div class="feature-card" style="border-top: 3px solid var(--accent-cyan); display: flex; flex-direction: column;">
+        <div style="font-size: 12px; font-weight: 700; color: var(--accent-cyan); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">vs. 巨大なLLMフレームワーク</div>
+        <h3>極小ミドルウェアとしての独立性</h3>
+        <p style="flex-grow: 1;">LlamaIndexやLangChain等の一部にも同等の概念は存在しますが、巨大な依存関係を伴います。WarpVectorはこれを<strong>WASM最適化された独立したミドルウェア</strong>として抽出し、Cloudflare Workers等で単体で超高速に動作します。</p>
+        
+        <!-- Simulator 1: Latency Race -->
+        <div class="simulator-box">
+          <div class="sim-header">
+            <span>推論スピード対決 (1,000件バッチ)</span>
+            <button id="simRaceBtn" class="sim-btn">▶ 実行</button>
+          </div>
+          <div class="sim-race-track">
+            <div class="sim-label">WarpVector (WASM Edge) <span id="simRaceWarpTime" class="sim-time">--</span></div>
+            <div class="sim-bar-bg"><div id="simRaceWarpBar" class="sim-bar sim-bar-cyan"></div></div>
+          </div>
+          <div class="sim-race-track" style="margin-top: 8px;">
+            <div class="sim-label">Python API (Network) <span id="simRacePyTime" class="sim-time">--</span></div>
+            <div class="sim-bar-bg"><div id="simRacePyBar" class="sim-bar sim-bar-muted"></div></div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- vs Backend ML -->
+      <div class="feature-card" style="border-top: 3px solid var(--accent-green); display: flex; flex-direction: column;">
+        <div style="font-size: 12px; font-weight: 700; color: var(--accent-green); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">vs. バックエンドMLライブラリ</div>
+        <h3>高度な数学的最適化をTypeScriptで</h3>
+        <p style="flex-grow: 1;">ベクトルの等方化（Whitening）や対照学習、量子化など、FaissやSentence-Transformersのような<strong>Python/C++の重いインフラが必要だった処理をTypeScriptネイティブに再構築</strong>し、エッジランタイムに解放しました。</p>
+        
+        <!-- Simulator 2: Terminal Install Size -->
+        <div class="simulator-box">
+          <div class="sim-header">
+            <span>依存関係インストールサイズ比較</span>
+            <button id="simTermBtn" class="sim-btn">▶ 実行</button>
+          </div>
+          <div class="sim-terminal">
+            <div class="sim-term-line"><span class="sim-prompt">$</span> npm install warpvector</div>
+            <div id="simTermNpmOutput" class="sim-term-output"></div>
+            <div class="sim-term-line" style="margin-top: 8px;"><span class="sim-prompt">$</span> pip install torch faiss-cpu</div>
+            <div id="simTermPipOutput" class="sim-term-output"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- Features Section -->
   <section id="features" class="features reveal">
     <div class="section-header">

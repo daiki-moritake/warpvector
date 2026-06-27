@@ -59,6 +59,17 @@ graph TD
 
 ---
 
+## 🌍 エコシステムにおける独自性 (Why WarpVector?)
+
+WarpVectorは、**エッジネイティブ・ゼロ依存・TypeScript製**という点で、既存のエコシステムにおいて極めてユニークな立ち位置を持っています。
+
+*   **vs. 巨大なLLMフレームワーク (LlamaIndex / LangChain)**
+    一部のフレームワークには「Embedding Adapters」という同等の概念が存在しますが、巨大な依存関係の一部に過ぎません。WarpVectorはこれを**WASM最適化された極小のミドルウェア**として抽出し、Cloudflare Workersなどのエッジ環境でも単体で超高速（サブミリ秒）に動作するよう設計されています。
+*   **vs. バックエンドMLライブラリ (Faiss / Sentence-Transformers)**
+    ベクトルの等方化（Whitening）、対照学習、最適化直積量子化（OPQ）などは元来PythonやC++の重いインフラが必要でした。WarpVectorはこれらの**高度な数学的最適化をTypeScriptネイティブに再構築**し、フロントエンドやエッジランタイムに解放しました。
+
+---
+
 ## 🎯 5つの強力なユースケース
 
 `WarpVector` を既存の RAG やベクトル検索システムに組み込むことで、以下の課題を解決できます。
