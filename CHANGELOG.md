@@ -4,6 +4,13 @@ All notable changes to WarpVector will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [0.6.1] - 2026-06-27
+
+### Fixed
+- **WebGPU Memory Leak**: Explicitly destroy temporary GPU buffers (`GPUBufferUsage`) after GPU execution in `WebGpuIntentAdapter` to prevent VRAM exhaustion and browser tab crashes during high-throughput workloads.
+- **Worker Initialization Bug**: Fixed an issue where calling `WarpWorkerClient.init()` did not propagate the initialization state (`pipelineState`) to the workers because the method implementation was empty.
+- **Worker Pool Edge Case**: Fixed an edge case in `WarpWorkerPool.terminate()` where active workers returning late responses could corrupt internal state or cause unhandled rejections by properly clearing the active job map.
+
 ## [0.6.0] - 2026-06-27
 
 ### Added
