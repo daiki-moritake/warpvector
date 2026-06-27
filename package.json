@@ -65,6 +65,7 @@
     "playground"
   ],
   "scripts": {
+    "release": "bun run scripts/release.ts",
     "sync:versions": "bun run scripts/sync-versions.ts",
     "prebuild": "bun run typecheck",
     "build:wasm": "bun run scripts/build-wasm.ts",
