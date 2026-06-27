@@ -124,7 +124,7 @@ const pipeline = new WarpPipeline(1536)
 
 await pipeline.init();
 
-const result = pipeline.run(queryVector, { intent: "tech" });
+const result = await pipeline.run(queryVector, { intent: "tech" });
 ```
 
 **異方性の除去 → 意図の反映 → 非線形変換** を一気通貫で実行することで、各段階が相乗効果を発揮し、検索精度を最大化できます。

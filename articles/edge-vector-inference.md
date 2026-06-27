@@ -111,8 +111,8 @@ export default {
 WarpVector の `InfoNCETrainer` を使えば、ユーザーのクリックログをもとにエッジ上で直接オンライン学習（対照学習）を行うことも可能です。
 
 ```typescript
-import { InfoNCETrainer } from "warpvector";
-import { FeedbackCollector } from "warpvector/ml";
+import { InfoNCETrainer } from "warpvector/train";
+import { FeedbackCollector } from "warpvector/train";
 
 const trainer = new InfoNCETrainer(1536);
 const collector = new FeedbackCollector({ dwellThresholdMs: 3000 });
