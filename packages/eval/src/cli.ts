@@ -204,8 +204,8 @@ async function main() {
   console.log("-".repeat(70));
 
   const showMetricRow = (label: string, vanVal: number, warpVal: number, isLatency = false) => {
-    let diff = warpVal - vanVal;
-    let impPct = vanVal !== 0 ? (diff / vanVal) * 100 : 0;
+    const diff = warpVal - vanVal;
+    const impPct = vanVal !== 0 ? (diff / vanVal) * 100 : 0;
     
     // 遅延の場合は低い方が良いので、符号や計算が逆になるが、単純な増減率として表示し
     // 括弧内でミリ秒を表示する

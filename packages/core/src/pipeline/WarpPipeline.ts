@@ -19,7 +19,9 @@ import { AdapterRegistry } from "./AdapterRegistry";
 import { FormatRegistry } from "./FormatRegistry";
 import { WarpPipelineError } from "../errors";
 import { MetricsCollector, type PipelineMetrics } from "../metrics";
-import { wasmMutex } from "../wasm/wasm-loader";
+import { wasmMutex, initWasm } from "../wasm/wasm-loader";
+import { WarpTracer } from "../telemetry/WarpTracer";
+import { globalWasmPool } from "../wasm/WasmPool";
 
 export interface PipelineStep {
   type: string;
@@ -230,6 +232,10 @@ export class WarpPipeline {
    */
   public async init(): Promise<void> {
     if (this._initialized) return;
+    
+    // WasmPoolはランタイムで必須になったため初期化する
+    await initWasm();
+
     for (const step of this.steps) {
       if (typeof step.adapter.init === "function") {
         await step.adapter.init();
@@ -265,7 +271,10 @@ export class WarpPipeline {
       return vector instanceof Float32Array ? vector : new Float32Array(vector);
     }
 
-    const stopRun = this._metrics.startRun();
+    const wasmCtx = globalWasmPool.acquire();
+    try {
+      globalWasmPool.setCurrentSyncContext(wasmCtx);
+      const stopRun = this._metrics.startRun();
 
     let currentVector: Float32Array =
       vector instanceof Float32Array ? vector : new Float32Array(vector);
@@ -313,8 +322,12 @@ export class WarpPipeline {
       }
     }
 
-    stopRun?.();
-    return currentVector;
+      stopRun?.();
+      return currentVector;
+    } finally {
+      globalWasmPool.clearCurrentSyncContext();
+      globalWasmPool.release(wasmCtx);
+    }
   }
 
   /**
@@ -331,20 +344,36 @@ export class WarpPipeline {
   ): Promise<OutputVector[]> {
     await this.ensureInitialized();
     const batchSize = vectors.length;
-    const stopBatch = this._metrics.startBatchRun(batchSize);
 
-    let currentVectors = new Array<Float32Array>(batchSize);
-    for (let i = 0; i < batchSize; i++) {
-      const v = vectors[i];
-      currentVectors[i] = v instanceof Float32Array ? v : new Float32Array(v);
-    }
+    const wasmCtx = globalWasmPool.acquire();
+    try {
+      globalWasmPool.setCurrentSyncContext(wasmCtx);
+      const stopBatch = this._metrics.startBatchRun(batchSize);
 
-    for (let si = 0; si < this.steps.length; si++) {
+      let currentVectors = new Array<Float32Array>(batchSize);
+      for (let i = 0; i < batchSize; i++) {
+        const v = vectors[i];
+        currentVectors[i] = v instanceof Float32Array ? v : new Float32Array(v);
+      }
+
+      for (let si = 0; si < this.steps.length; si++) {
       const step = this.steps[si];
       const stopStep = this._metrics.startStep(step.type);
       try {
-        if (typeof step.adapter.tuneBatch === "function") {
-          // tuneBatch メソッドがある場合は一括処理を委譲
+        if (typeof step.adapter.tuneBatchAsync === "function") {
+          // tuneBatchAsync メソッドがある場合は非同期一括処理を委譲（WebGPU等）
+          const results = await step.adapter.tuneBatchAsync(
+            currentVectors,
+            context?.intent || "default",
+          );
+          for (let i = 0; i < batchSize; i++) {
+            if (!(results[i] instanceof Float32Array)) {
+               throw new Error(`Intermediate adapter ${step.type} must return Float32Array in tuneBatchAsync.`);
+            }
+          }
+          currentVectors = results as Float32Array[];
+        } else if (typeof step.adapter.tuneBatch === "function") {
+          // tuneBatch メソッドがある場合は同期一括処理を委譲（WASM/SIMD等）
           const results = step.adapter.tuneBatch(
             currentVectors,
             context?.intent || "default",
@@ -400,8 +429,12 @@ export class WarpPipeline {
       }
     }
 
-    stopBatch?.();
-    return currentVectors;
+      stopBatch?.();
+      return currentVectors;
+    } finally {
+      globalWasmPool.clearCurrentSyncContext();
+      globalWasmPool.release(wasmCtx);
+    }
   }
 
   /**
@@ -426,12 +459,10 @@ export class WarpPipeline {
     for await (const vector of vectorStream) {
       buffer.push(vector);
       if (buffer.length >= batchSize) {
-        // WASMメモリの排他制御付きでバッチ処理
+        // WASM Instance PoolによりrunBatch内部で自動的に排他制御・並行処理される
         const batch = buffer;
         buffer = [];
-        const results = await wasmMutex.runExclusive(async () =>
-          await this.runBatch(batch, context),
-        );
+        const results = await this.runBatch(batch, context);
         for (const res of results) {
           yield res;
         }
@@ -439,9 +470,7 @@ export class WarpPipeline {
     }
 
     if (buffer.length > 0) {
-      const results = await wasmMutex.runExclusive(async () =>
-        await this.runBatch(buffer, context),
-      );
+      const results = await this.runBatch(buffer, context);
       for (const res of results) {
         yield res;
       }

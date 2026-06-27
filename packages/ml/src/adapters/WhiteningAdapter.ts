@@ -150,7 +150,7 @@ export class WhiteningAdapter implements WarpAdapter {
       for (let k = 0; k < this.numComponents; k++) {
         const w = this.components[k];
 
-        let y = innerProduct(w, x_residual);
+        const y = innerProduct(w, x_residual);
 
         addScaledVector(w, x_residual, this.learningRate * y);
         addScaledVector(w, w, -this.learningRate * y * y);
@@ -172,7 +172,7 @@ export class WhiteningAdapter implements WarpAdapter {
   public tune(vector: number[] | Float32Array): Float32Array {
     assertDimension(vector, this.dim, "WhiteningAdapter.tune");
 
-    let result = new Float32Array(this.dim);
+    const result = new Float32Array(this.dim);
 
     // 1. 平均の減算
     for (let i = 0; i < this.dim; i++) {
@@ -184,7 +184,7 @@ export class WhiteningAdapter implements WarpAdapter {
       const w = this.components[k];
       // reject(result, w) だが、w は既に正規化済みなので計算を最適化できる
       // u・u = 1 なので、スカラー値は単なる内積 v・u
-      let dot = innerProduct(result, w);
+      const dot = innerProduct(result, w);
       addScaledVector(result, w, -dot);
     }
 
