@@ -61,17 +61,17 @@ graph TD
 
 ```mermaid
 graph LR
-    subgraph Diffusion["① 拡散（コサイン類似度のみ）"]
-        A[正解ノード] -.->|スコアが薄まる| B(ノイズノード)
-        A -.->|スコアが薄まる| C(ノイズノード)
+    subgraph Diffusion["① 拡散 (コサイン類似度のみ)"]
+        A["正解ノード"] -.->|スコアが薄まる| B["ノイズノード"]
+        A -.->|スコアが薄まる| C["ノイズノード"]
     end
 
-    subgraph TimeReversal["② 時間反転（逆拡散）"]
-        B1(ノイズノード) -->|スコアが凝縮| A1[正解ノード]
-        C1(ノイズノード) -->|スコアが凝縮| A1
+    subgraph TimeReversal["② 時間反転 (逆拡散)"]
+        B1["ノイズノード"] -->|スコアが凝縮| A1["正解ノード"]
+        C1["ノイズノード"] -->|スコアが凝縮| A1
     end
 
-    Diffusion -->|TimeReversalReranker| TimeReversal
+    A -.->|TimeReversalReranker| A1
     style A fill:#fc8181,stroke:#e53e3e
     style A1 fill:#68d391,stroke:#38a169
 ```
@@ -147,13 +147,13 @@ for (let iter = 0; iter < this.iterations; iter++) {
 ```mermaid
 graph TD
     subgraph RumorNetwork["多重散乱のイメージ"]
-        Query((クエリ)) -.->|一次スコア| DocA[文書A]
-        Query -.->|一次スコア| DocB[文書B]
-        Query -.->|高い一次スコア| DocD(孤立した文書D)
+        Query["クエリ"] -.->|一次スコア| DocA["文書A"]
+        Query -.->|一次スコア| DocB["文書B"]
+        Query -.->|高い一次スコア| DocD["孤立した文書D"]
 
-        DocA <==>|お互いに裏付け| DocB
-        DocB <==>|お互いに裏付け| DocC[文書C]
-        DocA <==>|お互いに裏付け| DocC
+        DocA <-->|お互いに裏付け| DocB
+        DocB <-->|お互いに裏付け| DocC["文書C"]
+        DocA <-->|お互いに裏付け| DocC
     end
 
     style DocD fill:#cbd5e0,stroke:#718096
@@ -261,16 +261,14 @@ protected executeWasm(flatVectors: Float32Array, S0: Float32Array, N: number, di
 
 ```mermaid
 graph TD
-    subgraph TR["TimeReversalReranker（時間反転）"]
-        direction TB
+    subgraph TR["TimeReversalReranker (時間反転)"]
         TR_1["初期スコアがぼやけた状態"] --> TR_2["時間を逆再生してシャープ化"]
-        TR_2 --> TR_OUT["少数の『極めて関連度が高いノード』が急峻に浮上"]
+        TR_2 --> TR_OUT["少数の極めて関連度が高いノードが急峻に浮上"]
     end
 
-    subgraph MS["MultipathScatteringReranker（多重散乱）"]
-        direction TB
-        MS_1["ノード同士がスコアを反射・伝播"] --> MS_2["コミュニティ全体の『支持率』を計算"]
-        MS_2 --> MS_OUT["孤立ノード（ノイズ）が沈み、関連群全体が浮上"]
+    subgraph MS["MultipathScatteringReranker (多重散乱)"]
+        MS_1["ノード同士がスコアを反射・伝播"] --> MS_2["コミュニティ全体の支持率を計算"]
+        MS_2 --> MS_OUT["孤立ノードが沈み、関連群全体が浮上"]
     end
 ```
 
