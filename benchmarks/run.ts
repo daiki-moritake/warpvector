@@ -23,15 +23,15 @@ async function runBenchmark() {
   console.log("Measuring Int8 Scalar Quantization...");
   const startInt8 = performance.now();
   for (let i = 0; i < NUM_VECTORS; i++) {
-    int8Adapter.tune(vectors.subarray(i * DIM, (i + 1) * DIM));
+    int8Adapter.encode(vectors.subarray(i * DIM, (i + 1) * DIM));
   }
   const endInt8 = performance.now();
-  console.log(`Int8 Quantization: ${(endInt8 - startInt8).toFixed(2)} ms (${Math.round(NUM_VECTORS / ((endInt8 - startInt8) / 1000))} vecs/sec)`);
+  console.log(`Int8 Quantization: ${((NUM_VECTORS / (endInt8 - startInt8)) * 1000).toFixed(0)} vecs/sec`);
 
-  console.log("Measuring Binary (1-bit) Quantization...");
+  console.log("Measuring Binary Quantization...");
   const startBin = performance.now();
   for (let i = 0; i < NUM_VECTORS; i++) {
-    binaryAdapter.tune(vectors.subarray(i * DIM, (i + 1) * DIM));
+    binaryAdapter.encode(vectors.subarray(i * DIM, (i + 1) * DIM));
   }
   const endBin = performance.now();
   console.log(`Binary Quantization: ${(endBin - startBin).toFixed(2)} ms (${Math.round(NUM_VECTORS / ((endBin - startBin) / 1000))} vecs/sec)`);

@@ -4,6 +4,14 @@ All notable changes to WarpVector will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [0.5.1] - 2026-06-27
+
+### Performance
+
+#### 1. Quantization SIMD Acceleration
+- **Int8 Quantization**: 劇的な高速化を達成 (約3倍のスループット向上). `quantizeToInt8Wasm` 関数に対してSIMD命令 (`f32x4.nearest`, `i32x4.trunc_sat_f32x4_s`, `i8x16.narrow_i16x8_s` など) を適用し、条件分岐やスカラ演算を完全に排除.
+- **Binary Quantization**: `quantizeToBinaryWasm` に対してもSIMD最適化 (`f32x4.gt`, `i32x4.bitmask`) とビットシフト演算を用いたインラインパッキング処理を導入し、さらに処理効率を向上.
+
 ## [0.5.0] - 2026-06-27
 
 ### ⚠️ BREAKING CHANGES
