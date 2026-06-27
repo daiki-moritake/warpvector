@@ -14,6 +14,7 @@ import {
   ProjectionAdapter,
   ProjectionWeights,
 } from "../adapters/ProjectionAdapter";
+import { AlignmentAdapter } from "../adapters/AlignmentAdapter";
 import { VectorDBAdapter } from "../adapters/VectorDBAdapter";
 import { AdapterRegistry } from "./AdapterRegistry";
 import { FormatRegistry } from "./FormatRegistry";
@@ -727,6 +728,9 @@ WarpPipeline.registerAdapter("LoraIntentAdapter", (state) =>
 );
 WarpPipeline.registerAdapter("ProjectionAdapter", (state) =>
   ProjectionAdapter.importState(state as string),
+);
+WarpPipeline.registerAdapter("AlignmentAdapter", (state) =>
+  AlignmentAdapter.importState(state as string),
 );
 
 // 組み込みフォーマットを初期登録
