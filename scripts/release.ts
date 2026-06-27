@@ -47,13 +47,15 @@ async function run() {
     console.log(`✅ Created tag v${version}.`);
   }
 
-  // 6. プッシュ用の手順を案内
-  console.log(`\n🎉 Release v${version} is ready!`);
-  console.log(`To publish this release to the remote repository, run:`);
-  console.log(`  git push origin main`); // 普段の作業ブランチに合わせて適宜変更してください
-  console.log(`  git push origin v${version}`);
-  console.log(`\nThen, to create a GitHub Release automatically:`);
-  console.log(`  gh release create v${version} -F ${notesPath} -t "Release v${version}"\n`);
+  // 6. リモートへのプッシュとGitHubリリースの作成
+  console.log(`\n🚀 Pushing to remote repository...`);
+  await $`git push origin main`;
+  await $`git push origin v${version}`;
+
+  console.log(`\n🚀 Creating GitHub Release...`);
+  await $`gh release create v${version} -F ${notesPath} -t "Release v${version}"`;
+
+  console.log(`\n🎉 All done! Release v${version} is fully published to GitHub.`);
 }
 
 run().catch((error) => {
