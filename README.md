@@ -183,9 +183,9 @@ import { QuantizationAdapter } from 'warpvector/extras';
 
 // 1. Compose the pipeline
 const pipeline = new WarpPipeline(1536)
-  .addStep("MlpAdapter", new MlpAdapter(layers))
+  .addStep(new MlpAdapter(layers))
   .addIntent({ "domain_x": intentWeights })
-  .setFinalStage("QuantizationAdapter", new QuantizationAdapter({ type: "int8", dim: 1536 }));
+  .setFinalStage(new QuantizationAdapter({ type: "int8", dim: 1536 }));
 
 // 2. Async init (WASM setup, etc.)
 await pipeline.init();

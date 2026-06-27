@@ -167,10 +167,22 @@ export class WarpPipeline {
    * パイプラインの run() 実行時、全ての WarpAdapter による変換が完了した後に
    * FinalStageAdapter.encode() が呼ばれます。
    *
-   * @param type アダプタの識別子 (例: "QuantizationAdapter")
-   * @param adapter FinalStageAdapter を実装したインスタンス
+   * @param typeOrAdapter アダプタの識別子 (例: "QuantizationAdapter") または FinalStageAdapter インスタンス
+   * @param adapter FinalStageAdapter を実装したインスタンス（第一引数が文字列の場合のみ必要）
    */
-  public setFinalStage(type: string, adapter: FinalStageAdapter): this {
+  public setFinalStage(typeOrAdapter: string | FinalStageAdapter, adapterParam?: FinalStageAdapter): this {
+    let type: string;
+    let adapter: FinalStageAdapter;
+
+    if (typeof typeOrAdapter === "string") {
+      type = typeOrAdapter;
+      if (!adapterParam) throw new Error("adapterParam is required when first argument is a string.");
+      adapter = adapterParam;
+    } else {
+      adapter = typeOrAdapter;
+      type = adapter.constructor.name;
+    }
+
     this.finalStage = { type, adapter };
     return this;
   }
@@ -218,10 +230,22 @@ export class WarpPipeline {
    * カスタムアダプタを直接パイプラインの末尾に追加します。
    * (ビルダーパターンで独自の拡張アダプタを組み込む際に使用します)
    *
-   * @param type アダプタの識別子（レジストリ登録名と一致させることを推奨）
-   * @param adapter WarpAdapterを実装したインスタンス
+   * @param typeOrAdapter アダプタの識別子 または WarpAdapter インスタンス
+   * @param adapter WarpAdapterを実装したインスタンス（第一引数が文字列の場合のみ必要）
    */
-  public addStep(type: string, adapter: WarpAdapter): this {
+  public addStep(typeOrAdapter: string | WarpAdapter, adapterParam?: WarpAdapter): this {
+    let type: string;
+    let adapter: WarpAdapter;
+
+    if (typeof typeOrAdapter === "string") {
+      type = typeOrAdapter;
+      if (!adapterParam) throw new Error("adapterParam is required when first argument is a string.");
+      adapter = adapterParam;
+    } else {
+      adapter = typeOrAdapter;
+      type = adapter.constructor.name;
+    }
+
     this.steps.push({ type, adapter });
     return this;
   }
