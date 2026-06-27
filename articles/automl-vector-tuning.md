@@ -88,7 +88,23 @@ npx warpvector-eval --input results.json --k 10 --format markdown
 
 ### 1. メモリオーバーヘッドを抑えるストリーミング評価 (`O(1)` メモリ)
 
-一般的な機械学習の評価では、データセット全体を一度に変換（エンコード）してメモリに保持しがちですが、これではサーバーのメモリを圧迫します。WarpVector では、 **1件ずつ推論（パイプライン実行）してスコアを加算するストリーミング方式** を採用することで、メモリオーバーヘッドを `O(1)` に抑えています。
+一般的な機械学習の評価では、データセット全体を一度に変換（エンコード）してメモリに一括保持しがちですが、これではデータ規模に比例してサーバーのメモリを圧迫してしまいます。
+
+WarpVector では、 **1件ずつ推論（パイプライン実行）してスコアを加算するストリーミング方式** を採用することで、評価中のメモリオーバーヘッドを常に最小限（`O(1)`）に抑えています。
+
+```mermaid
+graph TD
+    subgraph Batch["❌ 一般的なバッチ方式 (メモリ負荷: O(N))"]
+        B_Data[全データセット] -->|一括エンコード| B_Mem[巨大なメモリ配列]
+        B_Mem -->|まとめて精度評価| B_Score[スコア算出]
+    end
+
+    subgraph Streaming["✅ WarpVectorの方式 (メモリ負荷: O(1))"]
+        S_Data[全データセット] -->|1件ずつ取得| S_Step[パイプライン推論]
+        S_Step -->|スコアを加算| S_Accum[アキュムレータ (変数)]
+        S_Step -.->|メモリ解放| S_Data
+    end
+```
 
 ```typescript
 // PipelineAutoTuner.ts 内の評価ループの簡略版
@@ -113,7 +129,27 @@ private async evaluatePipeline(pipeline: WarpPipeline, metric: MetricType): Prom
 
 ### 2. パラメータの直積グリッド生成と探索
 
-探索空間（`searchSpace`）として渡された各パラメータの配列から、再帰を用いてすべての組み合わせ（直積）を動的に生成し、順次パイプラインを組み立てて評価します。
+探索空間（`searchSpace`）として渡された各パラメータの配列から、再帰を用いてすべての組み合わせ（直積）のグリッドを動的に生成し、順次パイプラインを組み立てて評価します。
+
+```mermaid
+graph LR
+    subgraph Space["探索空間 (Search Space)"]
+        LR["learningRate (2種) <br> [0.01, 0.02]"]
+        NC["numComponents (2種) <br> [1, 2]"]
+    end
+
+    subgraph Grid["直積グリッド (4通りの組み合わせ)"]
+        G1["組合せ1: LR=0.01, NC=1"]
+        G2["組合せ2: LR=0.01, NC=2"]
+        G3["組合せ3: LR=0.02, NC=1"]
+        G4["組合せ4: LR=0.02, NC=2"]
+    end
+
+    LR --> Grid
+    NC --> Grid
+
+    Grid -->|順次評価| Best["最良のパイプライン構成を決定"]
+```
 
 ```typescript
 // ハイパーパラメータの探索空間定義
