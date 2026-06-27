@@ -3,255 +3,365 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>WarpVector Playground — ベクトル空間の動的変形デモ</title>
-  <meta name="description" content="WarpVectorの実際のWASMアクセラレーション付きアフィン変換がブラウザで動作する様子を体験できます。シミュレーションではなく、本物のライブラリが動いています。">
+  <title>WarpVector — 動的ベクトル空間ミドルウェア</title>
+  <meta name="description" content="ゼロ依存のTypeScriptミドルウェア。WASMアクセラレーションによるアフィン変換、量子化、ColBERTを用いて、実行時にベクトル空間を動的変形（ワープ）させます。再学習は不要です。">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./src/style.css">
 </head>
 <body>
   <!-- Loading Overlay -->
   <div id="loadingOverlay">
     <div class="spinner"></div>
-    <div id="loadingText" style="font-weight:600; font-size:16px;">LLMを初期化中...</div>
+    <div id="loadingText" style="font-weight:600; font-size:16px;">エンジン初期化中...</div>
     <div id="loadingSubtext" style="color:var(--text-secondary); font-size:12px; font-family:'JetBrains Mono', monospace;">モデルの初回ダウンロードには少し時間がかかります</div>
   </div>
 
   <div class="bg-grid"></div>
   <div class="bg-glow"></div>
-  <div class="app">
-    <header class="header animate-in">
-      <div class="header__badge"><span>リアル WASM デモ</span></div>
-      <h1>WarpVector Playground</h1>
-      <p><strong>実際の warpvector ライブラリ</strong>が WASM アクセラレーション付きでブラウザ上で動作しています。すべてのドット移動は本物の <code>IntentAdapter.tune()</code> 呼び出しです。</p>
-      <p class="header__lang"><a href="./index.html">🌐 English version</a></p>
-    </header>
+  <div class="bg-glow bg-glow-purple"></div>
 
-    <div class="main-grid">
-      <!-- Left: Canvas -->
-      <div class="card animate-in">
-        <div class="card__header">
-          <div class="card__title">
-            <span class="card__title-icon" style="background:rgba(59,130,246,0.15);color:var(--accent-blue);">⬡</span>
-            ベクトル空間
-            <span class="dim-badge">32次元 → 2D</span>
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="navbar-container">
+      <div class="navbar-logo">
+        <span class="logo-icon">⬡</span>
+        <span class="logo-text">WarpVector</span>
+      </div>
+      <div class="navbar-links">
+        <a href="#features">エコシステム</a>
+        <a href="#demo">デモ</a>
+        <a href="https://github.com/daiki-moritake/warpvector" target="_blank" class="nav-github">
+          <svg height="20" width="20" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg>
+        </a>
+        <a href="./index.html" class="nav-lang">🌐 EN</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero Section -->
+  <section class="hero">
+    <div class="hero-content">
+      <a href="https://github.com/daiki-moritake/warpvector/releases" target="_blank" class="hero-badge">
+        <span class="hero-badge-tag">NEW</span>
+        <span class="hero-badge-text">v0.5.0 リリース: 非同期化・評価キット搭載 →</span>
+      </a>
+      <h1 class="hero-title">
+        Warp Embeddings<br>
+        <span class="gradient-text">At Runtime.</span>
+      </h1>
+      <p class="hero-subtitle">
+        ベクトル空間の動的変形のためのゼロ依存 TypeScript ミドルウェア。<br>WASM アフィン変換、量子化、Late Interaction（ColBERT）を用いて、再学習なしでベクトル検索を劇的に進化させます。
+      </p>
+      <div class="hero-actions">
+        <a href="#demo" class="btn btn-primary">インタラクティブデモ</a>
+        <a href="https://www.npmjs.com/package/warpvector" target="_blank" class="btn btn-outline">npm install warpvector</a>
+      </div>
+      
+      <!-- Mini Tech Stack -->
+      <div class="hero-tech">
+        <span>Powered by:</span>
+        <div class="tech-badge">WASM</div>
+        <div class="tech-badge">SIMD</div>
+        <div class="tech-badge">Zero Deps</div>
+        <div class="tech-badge">Edge Ready</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Section -->
+  <section id="features" class="features reveal">
+    <div class="section-header">
+      <h2 class="section-title">The WarpVector Ecosystem</h2>
+      <p class="section-desc">エッジでの超高速推論と、バックエンドでの高度な機械学習トレーニングのために設計されたモジュールアーキテクチャ。</p>
+    </div>
+    
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(59,130,246,0.15);color:var(--accent-blue);">⚡</div>
+        <h3>Edge Inference <span>@warpvector/core</span></h3>
+        <p>WASMで高速化されたパイプライン。完全非同期、OpenTelemetryによるトレーシング対応、Cloudflare Workersでの動作をサポート。</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(139,92,246,0.15);color:var(--accent-purple);">🧠</div>
+        <h3>Contrastive Learning <span>@warpvector/train</span></h3>
+        <p>InfoNCE 対照学習とTriplet Networkにより、ドキュメントのカテゴリ分類から最適なインテント行列を自動学習します。</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(245,158,11,0.15);color:var(--accent-amber);">📏</div>
+        <h3>RAG Evaluation <span>@warpvector/eval</span></h3>
+        <p>RAGパイプラインの Precision@K, Recall@K, NDCG@K を厳密に測定するための組み込み評価キット。</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(16,185,129,0.15);color:var(--accent-green);">🔄</div>
+        <h3>Late Interaction <span>@warpvector/rerank</span></h3>
+        <p>ColBERT スタイルのトークンレベル MaxSim リランキングを実装し、Top-K の検索精度を飛躍的に向上させます。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Demo Section -->
+  <section id="demo" class="demo-section reveal">
+    <div class="section-header">
+      <h2 class="section-title">インタラクティブデモ</h2>
+      <p class="section-desc">ブラウザ上で実際の WASM <code style="color:#38bdf8;">tune()</code> 関数が 384 次元の空間を操作する様子を体験してください。</p>
+    </div>
+
+    <!-- The actual App Container starts here -->
+    <div class="app">
+      <div class="main-grid">
+        <!-- Left: Canvas -->
+        <div class="card animate-in">
+          <div class="card__header">
+            <div class="card__title">
+              <span class="card__title-icon" style="background:rgba(59,130,246,0.15);color:var(--accent-blue);">⬡</span>
+              ベクトル空間
+              <span class="dim-badge">384-dim → 2D</span>
+            </div>
+            <span style="font-size:12px;display:flex;align-items:center;gap:8px;">
+              <span class="wasm-badge" id="wasmBadge">読込中…</span>
+              <span style="color:var(--text-muted);" id="intentLabel">通常検索</span>
+            </span>
           </div>
-          <span style="font-size:12px;display:flex;align-items:center;gap:8px;">
-            <span class="wasm-badge" id="wasmBadge">読込中…</span>
-            <span style="color:var(--text-muted);" id="intentLabel">通常検索</span>
-          </span>
-        </div>
-        <div class="card__body">
-          <div class="canvas-wrapper">
-            <canvas id="vectorCanvas"></canvas>
-            <div class="canvas-legend">
-              <span><span class="dot" style="background:var(--accent-blue);"></span> ドキュメント</span>
-              <span><span class="dot" style="background:var(--accent-amber);"></span> クエリ</span>
-              <span><span class="dot" style="background:var(--accent-green);"></span> 最近傍</span>
+          <div class="card__body">
+            <div class="canvas-wrapper">
+              <canvas id="vectorCanvas"></canvas>
+              <div class="canvas-legend">
+                <span><span class="dot" style="background:var(--accent-blue);"></span> ドキュメント</span>
+                <span><span class="dot" style="background:var(--accent-amber);"></span> クエリ</span>
+                <span><span class="dot" style="background:var(--accent-green);"></span> 最近傍</span>
+              </div>
             </div>
-          </div>
-          <div class="metrics-bar">
-            <div class="metric-card">
-              <div class="metric-card__value" id="metricLatency">—</div>
-              <div class="metric-card__label">変換レイテンシ</div>
+            <div class="metrics-bar">
+              <div class="metric-card">
+                <div class="metric-card__value" id="metricLatency">—</div>
+                <div class="metric-card__label">変換レイテンシ</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-card__value" id="metricTopSim">—</div>
+                <div class="metric-card__label">Top-1 類似度</div>
+              </div>
+              <div class="metric-card">
+                <div class="metric-card__value" id="metricRankDelta">—</div>
+                <div class="metric-card__label">順位改善</div>
+              </div>
+              <div class="metric-card" id="evalPanel" style="display:none; border-left: 1px dashed rgba(139, 92, 246, 0.2); padding-left: 12px;">
+                <div class="metric-card__value" style="color: #a78bfa;"><span id="metricNdcg">—</span> / <span id="metricRecall">—</span></div>
+                <div class="metric-card__label">NDCG@3 / Recall@3 (<span id="metricExpectedCat">—</span>)</div>
+              </div>
             </div>
-            <div class="metric-card">
-              <div class="metric-card__value" id="metricTopSim">—</div>
-              <div class="metric-card__label">Top-1 類似度</div>
-            </div>
-            <div class="metric-card">
-              <div class="metric-card__value" id="metricRankDelta">—</div>
-              <div class="metric-card__label">順位改善</div>
-            </div>
-            <div class="metric-card" id="evalPanel" style="display:none; border-left: 1px dashed rgba(139, 92, 246, 0.2); padding-left: 12px;">
-              <div class="metric-card__value" style="color: #a78bfa;"><span id="metricNdcg">—</span> / <span id="metricRecall">—</span></div>
-              <div class="metric-card__label">NDCG@3 / Recall@3 (<span id="metricExpectedCat">—</span>)</div>
-            </div>
-          </div>
-          <!-- Live Code -->
-          <div class="code-panel">
-            <div class="code-label">実行中の API コール</div>
-            <pre><code id="codeSnippet">// No intent applied
+            <!-- Live Code -->
+            <div class="code-panel">
+              <div class="code-label">実行中の API コール</div>
+              <pre><code id="codeSnippet">// No intent applied
 const result = baseVector;</code></pre>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Controls + Rankings -->
+        <div style="display:flex;flex-direction:column;gap:24px;">
+          <!-- Optimization & Compression Card -->
+          <div class="card animate-in">
+            <div class="card__header">
+              <div class="card__title">
+                <span class="card__title-icon" style="background:rgba(245,158,11,0.15);color:var(--accent-amber);">⚡</span>
+                最適化と圧縮
+              </div>
+            </div>
+            <div class="card__body">
+              <div class="optimization-control">
+                <div class="control-header">
+                  <span>1. 白色化 (Whitening)</span>
+                  <label class="toggle-switch">
+                    <input type="checkbox" id="whiteningToggle">
+                    <span class="slider round"></span>
+                  </label>
+                </div>
+                <p class="control-desc">異方性を修正し、ドットを均等に散らばらせて検索解像度を向上させます。</p>
+              </div>
+
+              <div class="optimization-control" style="margin-top: 16px;">
+                <div class="control-header">
+                  <span>2. 量子化 (Quantization)</span>
+                  <span class="memory-badge" id="memoryBadge">1536 Bytes/vec</span>
+                </div>
+                <p class="control-desc">超圧縮技術。最大 32 倍に圧縮しても順位が維持されることを確認してください。</p>
+                <div class="radio-group" id="quantizationGroup" style="margin-top: 10px;">
+                  <label class="radio-btn active"><input type="radio" name="quantMode" value="none" checked> Float32</label>
+                  <label class="radio-btn"><input type="radio" name="quantMode" value="int8"> Int8</label>
+                  <label class="radio-btn"><input type="radio" name="quantMode" value="binary"> Binary</label>
+                </div>
+
+                <!-- Cost Simulator -->
+                <div class="cost-simulator" style="margin-top: 16px; padding: 12px; background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 8px;">
+                  <div style="font-size: 13px; font-weight: 600; color: var(--accent-green); margin-bottom: 8px; display: flex; justify-content: space-between;">
+                    <span>ROI シミュレーター (100万ベクトル)</span>
+                    <span id="costSavingBadge" style="background: rgba(16, 185, 129, 0.15); padding: 2px 8px; border-radius: 12px; font-size: 11px;">$0 削減</span>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; font-size: 12px; color: var(--text-secondary);">
+                    <span>推定DBストレージ:</span>
+                    <strong id="costStorage" style="color: var(--text-primary);">6.0 GB</strong>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; font-size: 12px; color: var(--text-secondary); margin-top: 4px;">
+                    <span>推定月額クラウド費用:</span>
+                    <strong id="costMonthly" style="color: var(--text-primary);">約 $180 / 月</strong>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card animate-in">
+            <div class="card__header">
+              <div class="card__title">
+                <span class="card__title-icon" style="background:rgba(139,92,246,0.15);color:var(--accent-purple);">◈</span>
+                検索インテント
+              </div>
+              <div style="display:flex; gap:8px;">
+                <button class="mode-toggle" id="exportBtn" style="background:rgba(16,185,129,0.1); border-color:rgba(16,185,129,0.3); color:#10b981;">💾 重みをエクスポート</button>
+                <button class="mode-toggle" id="modeToggle">⇄ ブレンドモード</button>
+              </div>
+            </div>
+            <div class="card__body">
+              <!-- Single Intent Panel -->
+              <div id="singleIntentPanel">
+                <div class="intent-group" id="intentGroup">
+                  <!-- Dynamically generated -->
+                </div>
+
+                <div class="custom-intent-form">
+                  <p><strong>インテントを動的追加：</strong>文字列からLLMベクトルを生成し、新しい変換行列を作成します。</p>
+                  <form id="customIntentForm" class="input-form">
+                    <input type="text" id="customIntentInput" placeholder="例: I want technical architecture docs" required>
+                    <button type="submit" id="customIntentSubmit">追加</button>
+                  </form>
+                </div>
+              </div>
+              <!-- Blend Panel (hidden by default) -->
+              <div id="blendPanel" style="display:none;">
+                <div class="blend-group" id="blendGroup">
+                  <!-- Dynamically generated -->
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Rankings -->
+          <div class="card animate-in">
+            <div class="card__header">
+              <div class="card__title">
+                <span class="card__title-icon" style="background:rgba(6,182,212,0.15);color:var(--accent-cyan);">≡</span>
+                検索ランキング
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-muted);">
+                <span>A/B 比較</span>
+                <label class="toggle-switch" title="Compare Mode">
+                  <input type="checkbox" id="compareToggle">
+                  <span class="slider round"></span>
+                </label>
+              </div>
+            </div>
+            <div class="card__body">
+              <form id="queryForm" class="input-form">
+                <input type="text" id="queryInput" placeholder="クエリを入力..." required>
+                <button type="submit" id="querySubmit">検索</button>
+              </form>
+              <div class="ranking-list" id="rankingList"></div>
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- Right: Controls + Rankings -->
-      <div style="display:flex;flex-direction:column;gap:24px;">
-
-        <!-- Optimization & Compression Card -->
+      <!-- Bottom: Benchmark -->
+      <div class="bottom-grid">
         <div class="card animate-in">
           <div class="card__header">
             <div class="card__title">
               <span class="card__title-icon" style="background:rgba(245,158,11,0.15);color:var(--accent-amber);">⚡</span>
-              最適化と圧縮
+              バッチ処理パフォーマンス
             </div>
+            <span class="dim-badge">1,000 ベクトル × 384-dim</span>
           </div>
           <div class="card__body">
-            <div class="optimization-control">
-              <div class="control-header">
-                <span>1. 白色化 (Whitening)</span>
-                <label class="toggle-switch">
-                  <input type="checkbox" id="whiteningToggle">
-                  <span class="slider round"></span>
-                </label>
-              </div>
-              <p class="control-desc">異方性を修正し、ドットを均等に散らばらせて検索解像度を向上させます。</p>
-            </div>
-
-            <div class="optimization-control" style="margin-top: 16px;">
-              <div class="control-header">
-                <span>2. 量子化 (Quantization)</span>
-                <span class="memory-badge" id="memoryBadge">1536 Bytes/vec</span>
-              </div>
-              <p class="control-desc">超圧縮技術。最大 32 倍に圧縮しても順位が維持されることを確認してください。</p>
-              <div class="radio-group" id="quantizationGroup" style="margin-top: 10px;">
-                <label class="radio-btn active"><input type="radio" name="quantMode" value="none" checked> Float32</label>
-                <label class="radio-btn"><input type="radio" name="quantMode" value="int8"> Int8</label>
-                <label class="radio-btn"><input type="radio" name="quantMode" value="binary"> Binary</label>
-              </div>
-
-              <!-- Cost Simulator -->
-              <div class="cost-simulator" style="margin-top: 16px; padding: 12px; background: rgba(16, 185, 129, 0.05); border: 1px solid rgba(16, 185, 129, 0.2); border-radius: 8px;">
-                <div style="font-size: 13px; font-weight: 600; color: var(--accent-green); margin-bottom: 8px; display: flex; justify-content: space-between;">
-                  <span>ROI シミュレーター (100万ベクトル)</span>
-                  <span id="costSavingBadge" style="background: rgba(16, 185, 129, 0.15); padding: 2px 8px; border-radius: 12px; font-size: 11px;">$0 削減</span>
-                </div>
-                <div style="display: flex; justify-content: space-between; font-size: 12px; color: var(--text-secondary);">
-                  <span>推定DBストレージ:</span>
-                  <strong id="costStorage" style="color: var(--text-primary);">6.0 GB</strong>
-                </div>
-                <div style="display: flex; justify-content: space-between; font-size: 12px; color: var(--text-secondary); margin-top: 4px;">
-                  <span>推定月額クラウド費用:</span>
-                  <strong id="costMonthly" style="color: var(--text-primary);">約 $180 / 月</strong>
-                </div>
-              </div>
-            </div>
+            <button class="bench-btn" id="benchBtn">▶ ベンチマーク実行</button>
+            <div id="benchResult"></div>
           </div>
         </div>
-
         <div class="card animate-in">
           <div class="card__header">
             <div class="card__title">
-              <span class="card__title-icon" style="background:rgba(139,92,246,0.15);color:var(--accent-purple);">◈</span>
-              検索インテント
+              <span class="card__title-icon" style="background:rgba(139,92,246,0.15);color:var(--accent-purple);">🤖</span>
+              インテント自動学習
             </div>
-            <div style="display:flex; gap:8px;">
-              <button class="mode-toggle" id="exportBtn" style="background:rgba(16,185,129,0.1); border-color:rgba(16,185,129,0.3); color:#10b981;">💾 重みをエクスポート</button>
-              <button class="mode-toggle" id="modeToggle">⇄ ブレンドモード</button>
-            </div>
+            <span class="dim-badge">IntentMatrixFactory</span>
           </div>
           <div class="card__body">
-            <!-- Single Intent Panel -->
-            <div id="singleIntentPanel">
-              <div class="intent-group" id="intentGroup">
-                <!-- Dynamically generated -->
-              </div>
-              
-              <div class="custom-intent-form">
-                <p><strong>インテントを動的追加：</strong>文字列からLLMベクトルを生成し、新しい変換行列を作成します。</p>
-                <form id="customIntentForm" class="input-form">
-                  <input type="text" id="customIntentInput" placeholder="例: I want technical architecture docs" required>
-                  <button type="submit" id="customIntentSubmit">追加</button>
-                </form>
-              </div>
-            </div>
-            <!-- Blend Panel (hidden by default) -->
-            <div id="blendPanel" style="display:none;">
-              <div class="blend-group" id="blendGroup">
-                <!-- Dynamically generated -->
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Rankings -->
-        <div class="card animate-in">
-          <div class="card__header">
-            <div class="card__title">
-              <span class="card__title-icon" style="background:rgba(6,182,212,0.15);color:var(--accent-cyan);">≡</span>
-              検索ランキング
-            </div>
-            <div style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text-muted);">
-              <span>A/B 比較</span>
-              <label class="toggle-switch" title="Compare Mode">
-                <input type="checkbox" id="compareToggle">
-                <span class="slider round"></span>
-              </label>
-            </div>
-          </div>
-          <div class="card__body">
-            <form id="queryForm" class="input-form">
-              <input type="text" id="queryInput" placeholder="クエリを入力..." required>
-              <button type="submit" id="querySubmit">検索</button>
-            </form>
-            <div class="ranking-list" id="rankingList"></div>
+            <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;line-height:1.6;">
+              <code>@warpvector/train</code> の <code style="color:var(--accent-purple);">IntentMatrixFactory</code> を用いて、ドキュメントのカテゴリから <strong style="color:var(--text-primary);">InfoNCE 対照学習</strong>で最適なIntent行列を自動生成します。
+            </p>
+            <button class="bench-btn" id="autoLearnBtn" style="background:linear-gradient(135deg, rgba(139,92,246,0.2), rgba(59,130,246,0.2));border-color:rgba(139,92,246,0.3);">🧠 ドキュメントから自動学習</button>
+            <div id="autoLearnResult" style="margin-top:12px;"></div>
           </div>
         </div>
       </div>
+    </div> <!-- End App Container -->
+  </section>
+
+  <!-- Usage Snippet -->
+  <section class="code-section reveal">
+    <div class="section-header">
+      <h2 class="section-title">直感的な API</h2>
+      <p class="section-desc">Pipeline API を使って、複雑な機械学習の変換処理を簡潔に記述できます。</p>
     </div>
+    <div class="code-block-wrapper">
+      <div class="code-mac-header">
+        <span></span><span></span><span></span>
+      </div>
+      <pre><code><span class="token-keyword">import</span> { WarpPipeline, IntentAdapter, QuantizationAdapter } <span class="token-keyword">from</span> <span class="token-string">'@warpvector/core'</span>;
 
-    <!-- Bottom: Benchmark + How it works -->
-    <div class="bottom-grid">
-      <div class="card animate-in">
-        <div class="card__header">
-          <div class="card__title">
-            <span class="card__title-icon" style="background:rgba(245,158,11,0.15);color:var(--accent-amber);">⚡</span>
-            バッチ処理パフォーマンス
-          </div>
-          <span class="dim-badge">1,000 ベクトル × 32次元</span>
-        </div>
-        <div class="card__body">
-          <button class="bench-btn" id="benchBtn">▶ ベンチマーク実行</button>
-          <div id="benchResult"></div>
-        </div>
-      </div>
-      <div class="card animate-in">
-        <div class="card__header">
-          <div class="card__title">
-            <span class="card__title-icon" style="background:rgba(139,92,246,0.15);color:var(--accent-purple);">🤖</span>
-            インテント自動学習
-          </div>
-          <span class="dim-badge">IntentMatrixFactory</span>
-        </div>
-        <div class="card__body">
-          <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;line-height:1.6;">
-            <code style="color:var(--accent-purple);">IntentMatrixFactory</code> がドキュメントのカテゴリから <strong style="color:var(--text-primary);">InfoNCE 対照学習</strong>で最適なIntent行列を自動生成します。
-          </p>
-          <button class="bench-btn" id="autoLearnBtn" style="background:linear-gradient(135deg, rgba(139,92,246,0.2), rgba(59,130,246,0.2));border-color:rgba(139,92,246,0.3);">🧠 ドキュメントから自動学習</button>
-          <div id="autoLearnResult" style="margin-top:12px;"></div>
-        </div>
-      </div>
-      <div class="card animate-in">
-        <div class="card__header">
-          <div class="card__title">
-            <span class="card__title-icon" style="background:rgba(16,185,129,0.15);color:var(--accent-green);">✦</span>
-            仕組み
-          </div>
-        </div>
-        <div class="card__body" style="font-size:13px;color:var(--text-secondary);line-height:1.7;">
-          <p>このデモは<strong style="color:var(--text-primary);">実際の warpvector ライブラリ</strong>をブラウザ上で実行しています：</p>
-          <ol style="margin-top:10px;padding-left:18px;display:flex;flex-direction:column;gap:6px;">
-            <li>15個のドキュメントを <code style="color:var(--accent-cyan);">Float32Array[32]</code> ベクトルとして生成</li>
-            <li><code style="color:var(--accent-cyan);">IntentAdapter</code> を実際のアフィン変換行列で初期化</li>
-            <li>インテント選択時に <code style="color:var(--accent-cyan);">.tune()</code> や <code style="color:var(--accent-cyan);">.tuneBlended()</code> を呼び出し</li>
-            <li>WASM の <code style="color:var(--accent-cyan);">tuneBatchWasm()</code> が行列乗算を高速化</li>
-            <li>変換後のベクトルを Gram-Schmidt 基底で2Dに射影して描画</li>
-          </ol>
-        </div>
-      </div>
+<span class="token-comment">// 1. パイプラインの初期化</span>
+<span class="token-keyword">const</span> pipeline = <span class="token-keyword">new</span> WarpPipeline(1536)
+  .add(<span class="token-keyword">new</span> IntentAdapter({
+    <span class="token-string">'beginner'</span>: matrixA,
+    <span class="token-string">'expert'</span>: matrixB
+  }))
+  .setFinalStage(<span class="token-keyword">new</span> QuantizationAdapter(<span class="token-string">'int8'</span>));
+
+<span class="token-comment">// 2. 実行時にベクトルをワープ（非同期化）</span>
+<span class="token-keyword">const</span> result = <span class="token-keyword">await</span> pipeline.run({
+  vector: queryEmbedding,
+  context: { intent: <span class="token-string">'expert'</span> }
+});
+
+console.log(result.vector); <span class="token-comment">// 超圧縮されたInt8Array（expertインテントに特化）</span></code></pre>
     </div>
+  </section>
 
-    <footer class="footer">
-      <p><a href="https://github.com/daiki-moritake/warpvector" target="_blank">WarpVector</a> で構築 — 実際の <code>IntentAdapter.tune()</code> が WASM 経由でブラウザ内で実行されています。</p>
-      <p style="margin-top:8px;"><a href="https://github.com/daiki-moritake/warpvector" target="_blank">GitHub</a> · <a href="https://www.npmjs.com/package/warpvector" target="_blank">npm</a></p>
-    </footer>
-  </div>
+  <footer class="footer">
+    <p>Powered by <a href="https://github.com/daiki-moritake/warpvector" target="_blank">WarpVector</a> v0.5.0</p>
+    <div class="footer-links">
+      <a href="https://github.com/daiki-moritake/warpvector" target="_blank">GitHub</a>
+      <a href="https://www.npmjs.com/package/warpvector" target="_blank">npm</a>
+      <a href="https://github.com/daiki-moritake/warpvector/tree/main/docs" target="_blank">ドキュメント</a>
+    </div>
+  </footer>
+
   <script type="module">
     import { initPlayground } from './src/main.ts';
     initPlayground('ja');
+
+    // Scroll reveal animation
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('active');
+        }
+      });
+    }, { threshold: 0.1 });
+
+    document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
   </script>
 </body>
 </html>
