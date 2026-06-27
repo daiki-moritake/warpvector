@@ -12,8 +12,16 @@
 
 It sits between your embedding model and vector database, applying fast in-memory affine transformations to bring semantic distances closer to the user's **true intent**.
 
-## 🎮 [Try the Interactive Playground (Demo)](https://daiki-moritake.github.io/warpvector/)
-**Experience real-time vector space transformation and quantization in your browser via WASM.**
+<div align="center">
+  <br />
+  <a href="https://daiki-moritake.github.io/warpvector/">
+    <img src="https://img.shields.io/badge/%F0%9F%8E%AE_Playground_(Interactive_Demo)-232F3E?style=for-the-badge&logo=WebAssembly&logoColor=white" alt="Try the Interactive Playground" height="40" />
+  </a>
+  <br />
+  <b>Experience real-time vector space transformation and quantization in your browser via WASM.</b>
+  <br />
+  <br />
+</div>
 
 > 📖 [日本語版 README](./README.ja.md)
 

@@ -8,10 +8,16 @@
 
 `warpvector` は、AIモデルの再学習や重い再推論を行うことなく、検索クエリやコンテキスト（意図）に応じてベクトル空間を動的に変形させる、TypeScriptネイティブの軽量ミドルウェア・ユーティリティです。
 
-データベースとアプリケーションの間に立ち、インメモリの高速なアフィン変換によって、データの意味的距離をユーザーの「真の意図」に極限まで近づけます。
-
-## 🎮 [インタラクティブデモ (Playground) を試す](https://daiki-moritake.github.io/warpvector/ja.html)
-**ブラウザ上でWASMによるリアルタイムのベクトル空間変換（Warping）や量子化の様子を、直感的なUIで体験できます。**
+<div align="center">
+  <br />
+  <a href="https://daiki-moritake.github.io/warpvector/ja.html">
+    <img src="https://img.shields.io/badge/%F0%9F%8E%AE_Playground_(Interactive_Demo)-232F3E?style=for-the-badge&logo=WebAssembly&logoColor=white" alt="インタラクティブデモを試す" height="40" />
+  </a>
+  <br />
+  <b>ブラウザ上でWASMによるリアルタイムのベクトル空間変換や量子化を直感的なUIで体験できます。</b>
+  <br />
+  <br />
+</div>
 
 > 📖 [English README](./README.md)
 
