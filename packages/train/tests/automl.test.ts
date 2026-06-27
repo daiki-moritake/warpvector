@@ -1,18 +1,18 @@
 import { expect, test, describe, beforeAll } from "bun:test";
 import { WarpPipeline, IntentAdapter } from "@warpvector/core";
-import { computeCosineSimilarity, getPositiveRank, calculateMRR, calculateRecall } from "../src/automl/metrics";
+import { computeSimilarityScore, getPositiveRank, calculateMRR, calculateRecall } from "../src/automl/metrics";
 import { PipelineAutoTuner } from "../src/automl/PipelineAutoTuner";
 import { SearchExample } from "../src/automl/metrics";
 
 import { InputVector } from "@warpvector/core";
 
 describe("AutoML Metrics", () => {
-  test("computeCosineSimilarity", () => {
+  test("computeSimilarityScore", () => {
     const a = [1, 0];
     const b = [0, 1];
     const c = [1, 0];
-    expect(computeCosineSimilarity(a, b)).toBeCloseTo(0);
-    expect(computeCosineSimilarity(a, c)).toBeCloseTo(1);
+    expect(computeSimilarityScore(a, b)).toBeCloseTo(0);
+    expect(computeSimilarityScore(a, c)).toBeCloseTo(1);
   });
 
   test("getPositiveRank", () => {

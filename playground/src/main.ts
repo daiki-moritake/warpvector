@@ -10,18 +10,38 @@ import {
   transformWithBlend,
   runBenchmark,
   autoLearnIntents,
-  cosineSim,
+  cosineSimilarity,
   projectTo2D,
   updateQuery,
   addCustomIntent,
   DIM,
+  CATEGORY_META,
   type DemoState,
   type RankedDoc,
   type BenchmarkResult,
   type AutoLearnResult,
+  type EvalMetrics,
+  type DataCategory,
 } from './demo-engine.ts';
 
 type Lang = 'en' | 'ja';
+interface Point2D { x: number; y: number; }
+
+// UI Constants
+const RANKING_DISPLAY_COUNT = 8;
+const ANIM_DURATION_MS = 900;
+const CANVAS_PADDING = 0.15;
+const BLEND_ACTIVE_THRESHOLD = 0.05;
+const TOP_N_CONNECTIONS = 3;
+const HOVER_RADIUS_PX = 10;
+
+const QUANT_SPECS: Record<'none' | 'int8' | 'binary', {
+  badge: string; storageGB: number; monthlyCost: number;
+}> = {
+  none:   { badge: '1536 Bytes/vec', storageGB: 6.0,  monthlyCost: 180 },
+  int8:   { badge: '384 Bytes/vec',  storageGB: 1.5,  monthlyCost: 45 },
+  binary: { badge: '48 Bytes/vec',   storageGB: 0.18, monthlyCost: 5 },
+};
 
 const LABELS: Record<Lang, {
   queryLabel: string;
@@ -37,6 +57,11 @@ const LABELS: Record<Lang, {
   customIntentName: string;
   customIntentDesc: string;
   addingIntent: string;
+  autoLearnBtn: string;
+  autoLearning: string;
+  autoLearnDone: string;
+  autoLearnCategories: string;
+  autoLearnTime: string;
 }> = {
   en: {
     queryLabel: 'Query',
@@ -80,15 +105,54 @@ const LABELS: Record<Lang, {
   },
 };
 
+function getElement(id: string): HTMLElement {
+  const el = document.getElementById(id);
+  if (!el) throw new Error(`Element #${id} not found`);
+  return el;
+}
+
+function getCanvas(id: string): HTMLCanvasElement {
+  const el = document.getElementById(id);
+  if (el instanceof HTMLCanvasElement) return el;
+  throw new Error(`Canvas #${id} not found`);
+}
+
+function isValidQuantMode(v: string): v is 'none' | 'int8' | 'binary' {
+  return v === 'none' || v === 'int8' || v === 'binary';
+}
+
+/** Wrap an async action with button loading state management */
+async function withButtonLoading(
+  buttonId: string,
+  loadingText: string,
+  action: () => Promise<void>,
+): Promise<void> {
+  const btn = document.getElementById(buttonId);
+  let origText = '';
+  if (btn instanceof HTMLButtonElement) {
+    origText = btn.textContent || '';
+    btn.textContent = loadingText;
+    btn.disabled = true;
+  }
+  try {
+    await action();
+  } finally {
+    if (btn instanceof HTMLButtonElement) {
+      btn.textContent = origText;
+      btn.disabled = false;
+    }
+  }
+}
+
 export async function initPlayground(lang: Lang) {
-  const canvas = document.getElementById('vectorCanvas') as HTMLCanvasElement;
+  const canvas = getCanvas('vectorCanvas');
   const ctx = canvas.getContext('2d')!;
   const labels = LABELS[lang];
 
   // Loading UI handling
-  const loadingOverlay = document.getElementById('loadingOverlay')!;
-  const loadingText = document.getElementById('loadingText')!;
-  const loadingSubtext = document.getElementById('loadingSubtext')!;
+  const loadingOverlay = getElement('loadingOverlay');
+  const loadingText = getElement('loadingText');
+  const loadingSubtext = getElement('loadingSubtext');
 
   const progressCallback = (status: string, data?: any) => {
     if (status === 'init_model') {
@@ -110,7 +174,7 @@ export async function initPlayground(lang: Lang) {
     if (loadingOverlay) loadingOverlay.style.display = 'none'; // Hide overlay
   } catch (err) {
     if (loadingText) loadingText.textContent = 'Error loading model';
-    if (loadingSubtext) loadingSubtext.textContent = (err as Error).message;
+    if (loadingSubtext) loadingSubtext.textContent = (err instanceof Error ? err.message : String(err));
     console.error(err);
     return;
   }
@@ -123,13 +187,14 @@ export async function initPlayground(lang: Lang) {
   }
 
   // Set initial query input text
-  const queryInput = document.getElementById('queryInput') as HTMLInputElement;
-  if (queryInput) queryInput.value = state.query.text;
+  const queryInput = document.getElementById('queryInput');
+  if (!(queryInput instanceof HTMLInputElement)) throw new Error('queryInput not found');
+  queryInput.value = state.query.text;
 
   // Build intent buttons dynamically
   function renderIntentButtons() {
-    const singlePanel = document.getElementById('intentGroup')!;
-    const blendGroup = document.getElementById('blendGroup')!;
+    const singlePanel = document.getElementById('intentGroup');
+    const blendGroup = document.getElementById('blendGroup');
     if (!singlePanel || !blendGroup) return;
     
     singlePanel.innerHTML = `
@@ -174,7 +239,8 @@ export async function initPlayground(lang: Lang) {
     // Re-bind slider events
     document.querySelectorAll<HTMLInputElement>('.blend-slider').forEach(slider => {
       slider.addEventListener('input', () => {
-        const intentKey = slider.dataset.intent!;
+        const intentKey = slider.dataset.intent;
+        if (!intentKey) return;
         blendWeights[intentKey] = parseInt(slider.value) / 100;
         const valueEl = slider.parentElement?.querySelector('.blend-value');
         if (valueEl) valueEl.textContent = slider.value + '%';
@@ -188,7 +254,9 @@ export async function initPlayground(lang: Lang) {
   let currentRankings = baseRankings;
   let currentIntent = 'none';
   let isBlendMode = false;
+  let isCompareMode = false;
   let blendWeights: Record<string, number> = {};
+  let lastLatencyMs = 0;
 
   // Animation state (Dynamic 384D interpolation)
   let animFrameId: number | null = null;
@@ -212,30 +280,35 @@ export async function initPlayground(lang: Lang) {
     const allY = [...positions.map(p => p.y), queryPos.y];
     const minX = Math.min(...allX), maxX = Math.max(...allX);
     const minY = Math.min(...allY), maxY = Math.max(...allY);
-    // Add small margin so points don't clip
     const rangeX = maxX - minX || 1;
     const rangeY = maxY - minY || 1;
-    const padding = 0.15;
     return {
-      normalize: (pos: { x: number; y: number }) => ({
-        x: padding + (1 - 2 * padding) * (pos.x - minX) / rangeX,
-        y: padding + (1 - 2 * padding) * (pos.y - minY) / rangeY,
+      normalize: (pos: Point2D) => ({
+        x: CANVAS_PADDING + (1 - 2 * CANVAS_PADDING) * (pos.x - minX) / rangeX,
+        y: CANVAS_PADDING + (1 - 2 * CANVAS_PADDING) * (pos.y - minY) / rangeY,
       }),
     };
   }
 
-  function initDisplayState() {
+  /** Snapshot current state vectors into animation targets */
+  function captureAnimTargets() {
     animTargetVectors = state.docs.map(d => new Float32Array(d.currentVector));
     animTargetQueryVector = new Float32Array(state.query.currentVector);
     animTargetBasis1 = new Float32Array(state.basis1);
     animTargetBasis2 = new Float32Array(state.basis2);
-    
-    // Copy target to start
+  }
+
+  /** Copy current animation targets to starts (for interpolation) */
+  function copyTargetsToStarts() {
     animStartVectors = animTargetVectors.map(v => new Float32Array(v));
     animStartQueryVector = new Float32Array(animTargetQueryVector);
     animStartBasis1 = new Float32Array(animTargetBasis1);
     animStartBasis2 = new Float32Array(animTargetBasis2);
-    
+  }
+
+  function initDisplayState() {
+    captureAnimTargets();
+    copyTargetsToStarts();
     updateCurrentFramePositions(1);
   }
 
@@ -270,7 +343,9 @@ export async function initPlayground(lang: Lang) {
 
   // Canvas resize
   function resizeCanvas() {
-    const rect = canvas.parentElement!.getBoundingClientRect();
+    const parent = canvas.parentElement;
+    if (!parent) return;
+    const rect = parent.getBoundingClientRect();
     const dpr = window.devicePixelRatio || 1;
     canvas.width = rect.width * dpr;
     canvas.height = rect.height * dpr;
@@ -285,8 +360,7 @@ export async function initPlayground(lang: Lang) {
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    const w = canvas.width / (window.devicePixelRatio || 1);
-    const h = canvas.height / (window.devicePixelRatio || 1);
+    const { w, h } = getCanvasSize();
 
     const { normalize } = normalizePositions(animCurrentPositions, animCurrentQueryPos);
 
@@ -295,7 +369,7 @@ export async function initPlayground(lang: Lang) {
       const pos = normalize(animCurrentPositions[i]);
       const dx = pos.x * w - x;
       const dy = pos.y * h - y;
-      if (dx * dx + dy * dy < 100) { // 10px radius
+      if (dx * dx + dy * dy < HOVER_RADIUS_PX * HOVER_RADIUS_PX) {
         found = i;
         break;
       }
@@ -307,16 +381,14 @@ export async function initPlayground(lang: Lang) {
     }
   });
 
-  // Drawing
-  function drawFrame() {
-    const w = canvas.width / (window.devicePixelRatio || 1);
-    const h = canvas.height / (window.devicePixelRatio || 1);
-    ctx.clearRect(0, 0, w, h);
+  /** Canvas logical size (accounting for device pixel ratio) */
+  function getCanvasSize(): { w: number; h: number } {
+    const dpr = window.devicePixelRatio || 1;
+    return { w: canvas.width / dpr, h: canvas.height / dpr };
+  }
 
-    const { normalize } = normalizePositions(animCurrentPositions, animCurrentQueryPos);
-    const queryDisplayPos = normalize(animCurrentQueryPos);
-
-    // Grid
+  // Drawing sub-functions
+  function drawGrid(w: number, h: number) {
     ctx.strokeStyle = 'rgba(255,255,255,0.03)';
     ctx.lineWidth = 1;
     for (let i = 0; i <= 10; i++) {
@@ -324,16 +396,15 @@ export async function initPlayground(lang: Lang) {
       ctx.beginPath(); ctx.moveTo(p * w, 0); ctx.lineTo(p * w, h); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(0, p * h); ctx.lineTo(w, p * h); ctx.stroke();
     }
+  }
 
-    const top1Id = currentRankings[0]?.id;
-
-    // Connection lines to top-3
-    for (let i = 0; i < Math.min(3, currentRankings.length); i++) {
+  function drawConnectionLines(w: number, h: number, queryPos: Point2D, normalize: (pos: Point2D) => Point2D) {
+    for (let i = 0; i < Math.min(TOP_N_CONNECTIONS, currentRankings.length); i++) {
       const doc = currentRankings[i];
       const pos = normalize(animCurrentPositions[doc.id]);
       const alpha = [0.25, 0.12, 0.06][i];
       ctx.beginPath();
-      ctx.moveTo(queryDisplayPos.x * w, queryDisplayPos.y * h);
+      ctx.moveTo(queryPos.x * w, queryPos.y * h);
       ctx.lineTo(pos.x * w, pos.y * h);
       ctx.strokeStyle = `rgba(245, 158, 11, ${alpha})`;
       ctx.lineWidth = 1.5;
@@ -341,14 +412,15 @@ export async function initPlayground(lang: Lang) {
       ctx.stroke();
       ctx.setLineDash([]);
     }
+  }
 
-    // Document dots
+  function drawDocDots(w: number, h: number, normalize: (pos: Point2D) => Point2D, top1Id: number | undefined) {
     state.docs.forEach((doc, i) => {
       const pos = normalize(animCurrentPositions[i]);
       const x = pos.x * w, y = pos.y * h;
       const isTop1 = doc.id === top1Id;
       const isHover = doc.id === hoverDocId;
-      const radius = isTop1 ? 7 : (isHover ? 6 : 4); // Slightly smaller normal dots for more documents
+      const radius = isTop1 ? 7 : (isHover ? 6 : 4);
 
       if (isTop1) {
         const grad = ctx.createRadialGradient(x, y, 0, x, y, 24);
@@ -363,21 +435,17 @@ export async function initPlayground(lang: Lang) {
       ctx.fill();
       ctx.strokeStyle = isTop1 ? 'rgba(16, 185, 129, 0.5)' : 'rgba(255,255,255,0.1)';
       ctx.lineWidth = 1.5; ctx.stroke();
-      
-      // Only draw text if top1 or hovered, to avoid clutter with 30-40 items
+
       if (isTop1 || isHover) {
         ctx.fillStyle = isTop1 ? '#f1f5f9' : 'rgba(241,245,249,0.9)';
         ctx.font = `${isTop1 ? 500 : 400} 11px Inter, system-ui`;
         ctx.textAlign = 'center';
         ctx.fillText(doc.name, x, y - radius - 6);
       }
-      
-      // Hover tooltip text
+
       if (isHover) {
         ctx.fillStyle = '#f1f5f9';
         ctx.font = '11px Inter, system-ui';
-        
-        // Wrap text
         const words = doc.text.split(' ');
         let line = '';
         let yy = y + radius + 14;
@@ -394,9 +462,10 @@ export async function initPlayground(lang: Lang) {
         ctx.fillText(line, x, yy);
       }
     });
+  }
 
-    // Query marker
-    const qx = queryDisplayPos.x * w, qy = queryDisplayPos.y * h;
+  function drawQueryMarker(w: number, h: number, queryPos: Point2D) {
+    const qx = queryPos.x * w, qy = queryPos.y * h;
     const qGrad = ctx.createRadialGradient(qx, qy, 0, qx, qy, 30);
     qGrad.addColorStop(0, 'rgba(245, 158, 11, 0.25)');
     qGrad.addColorStop(1, 'rgba(245, 158, 11, 0)');
@@ -412,38 +481,78 @@ export async function initPlayground(lang: Lang) {
     ctx.textAlign = 'center'; ctx.fillText(`"${state.query.text}"`, qx, qy - 16);
   }
 
+  // Main draw orchestrator
+  function drawFrame() {
+    const { w, h } = getCanvasSize();
+    ctx.clearRect(0, 0, w, h);
+
+    const { normalize } = normalizePositions(animCurrentPositions, animCurrentQueryPos);
+    const queryDisplayPos = normalize(animCurrentQueryPos);
+    const top1Id = currentRankings[0]?.id;
+
+    drawGrid(w, h);
+    drawConnectionLines(w, h, queryDisplayPos, normalize);
+    drawDocDots(w, h, normalize, top1Id);
+    drawQueryMarker(w, h, queryDisplayPos);
+  }
+
   // Update rankings UI
   function updateRankingsUI(rankings: RankedDoc[], latencyMs: number) {
-    const listEl = document.getElementById('rankingList')!;
+    const listEl = getElement('rankingList');
     listEl.innerHTML = '';
 
-    document.getElementById('metricLatency')!.textContent = latencyMs.toFixed(2) + 'ms';
-    document.getElementById('metricTopSim')!.textContent = rankings[0]?.score.toFixed(3) ?? '—';
+    getElement('metricLatency').textContent = latencyMs.toFixed(2) + 'ms';
+    getElement('metricTopSim').textContent = rankings[0]?.score.toFixed(3) ?? '—';
 
     let bestImprovement = 0;
 
-    rankings.slice(0, 8).forEach((doc, i) => {
-      const vanillaRank = baseRankings.findIndex(d => d.id === doc.id);
-      const improvement = vanillaRank - i;
-      const isRelevant = improvement > 0; // Highlight anything that improved
-      if (improvement > bestImprovement) bestImprovement = improvement;
+    const renderList = (docs: RankedDoc[], isBaseline: boolean) => {
+      let html = '';
+      docs.slice(0, RANKING_DISPLAY_COUNT).forEach((doc, i) => {
+        const vanillaRank = baseRankings.findIndex(d => d.id === doc.id);
+        const improvement = vanillaRank - i;
+        const isRelevant = !isBaseline && improvement > 0;
+        if (!isBaseline && improvement > bestImprovement) bestImprovement = improvement;
 
-      const item = document.createElement('div');
-      item.className = 'ranking-item' + (isRelevant ? ' highlight' : '');
-      item.innerHTML = `
-        <span class="ranking-rank">${i + 1}</span>
-        <span class="ranking-name">${doc.name}</span>
-        <span class="ranking-score">${doc.score.toFixed(3)}</span>
-        <span class="ranking-change ${improvement > 0 ? 'up' : improvement < 0 ? 'down' : 'same'}">
-          ${improvement > 0 ? '↑' + improvement : improvement < 0 ? '↓' + Math.abs(improvement) : '—'}
-        </span>
+        const highlightClass = isRelevant ? ' highlight' : '';
+        const changeHtml = isBaseline 
+          ? `<span class="ranking-change same">—</span>`
+          : `<span class="ranking-change ${improvement > 0 ? 'up' : improvement < 0 ? 'down' : 'same'}">
+              ${improvement > 0 ? '↑' + improvement : improvement < 0 ? '↓' + Math.abs(improvement) : '—'}
+             </span>`;
+
+        html += `
+          <div class="ranking-item${highlightClass}">
+            <span class="ranking-rank">${i + 1}</span>
+            <span class="ranking-name" title="${doc.name}">${doc.name}</span>
+            <span class="ranking-score">${doc.score.toFixed(3)}</span>
+            ${changeHtml}
+          </div>
+        `;
+      });
+      return html;
+    };
+
+    if (isCompareMode) {
+      listEl.className = 'compare-grid';
+      listEl.innerHTML = `
+        <div class="compare-col">
+          <div class="compare-header">${lang === 'ja' ? 'Vanilla (変換前)' : 'Vanilla (Baseline)'}</div>
+          <div class="ranking-list">${renderList(baseRankings, true)}</div>
+        </div>
+        <div class="compare-col">
+          <div class="compare-header">${lang === 'ja' ? 'Warped (変換後)' : 'Warped (Current)'}</div>
+          <div class="ranking-list">${renderList(rankings, false)}</div>
+        </div>
       `;
-      listEl.appendChild(item);
-    });
+    } else {
+      listEl.className = 'ranking-list';
+      listEl.innerHTML = renderList(rankings, false);
+    }
 
-    const deltaEl = document.getElementById('metricRankDelta')!;
+    const deltaEl = getElement('metricRankDelta');
     const isActive = isBlendMode
-      ? Object.values(blendWeights).some(v => v > 0.05)
+      ? Object.values(blendWeights).some(v => v > BLEND_ACTIVE_THRESHOLD)
       : currentIntent !== 'none';
     deltaEl.textContent = isActive && bestImprovement > 0
       ? '+' + bestImprovement + ' ' + labels.rankUnit
@@ -458,19 +567,10 @@ export async function initPlayground(lang: Lang) {
 
   // Animate transition (Dynamic 384D Interpolation)
   function animateTransition(latencyMs: number, rankings: RankedDoc[]) {
-    // 1. Copy current TARGETS to STARTS
-    animStartVectors = animTargetVectors.map(v => new Float32Array(v));
-    animStartQueryVector = new Float32Array(animTargetQueryVector);
-    animStartBasis1 = new Float32Array(animTargetBasis1);
-    animStartBasis2 = new Float32Array(animTargetBasis2);
+    copyTargetsToStarts();
+    captureAnimTargets();
 
-    // 2. Set new TARGETS from DemoState
-    animTargetVectors = state.docs.map(d => new Float32Array(d.currentVector));
-    animTargetQueryVector = new Float32Array(state.query.currentVector);
-    animTargetBasis1 = new Float32Array(state.basis1);
-    animTargetBasis2 = new Float32Array(state.basis2);
-
-    const duration = 900; // Slightly longer for a majestic camera rotation feel
+    const duration = ANIM_DURATION_MS;
     const startTime = performance.now();
 
     function step(timestamp: number) {
@@ -489,6 +589,7 @@ export async function initPlayground(lang: Lang) {
     if (animFrameId) cancelAnimationFrame(animFrameId);
     animFrameId = requestAnimationFrame(step);
 
+    lastLatencyMs = latencyMs;
     updateRankingsUI(rankings, latencyMs);
   }
 
@@ -509,17 +610,19 @@ export async function initPlayground(lang: Lang) {
   // Switch single intent
   function switchIntent(intentKey: string) {
     currentIntent = intentKey;
-    const { latencyMs, rankings } = transformWithIntent(state, intentKey === 'none' ? null : intentKey);
+    const { latencyMs, rankings, metrics } = transformWithIntent(state, intentKey === 'none' ? null : intentKey);
     currentRankings = rankings;
 
     // Update intent label
     const btn = document.querySelector(`.intent-btn[data-intent="${intentKey}"]`);
-    document.getElementById('intentLabel')!.textContent =
+    getElement('intentLabel').textContent =
       btn?.querySelector('.intent-btn__name')?.textContent ?? '';
 
     // Update button states
     document.querySelectorAll('.intent-btn').forEach(b => {
-      b.classList.toggle('active', (b as HTMLElement).dataset.intent === intentKey);
+      if (b instanceof HTMLElement) {
+        b.classList.toggle('active', b.dataset.intent === intentKey);
+      }
     });
 
     // Code snippet
@@ -528,32 +631,36 @@ export async function initPlayground(lang: Lang) {
       : `const warped = adapter.tune(\n  baseVector,\n  "${intentKey}"\n);`;
     updateCodeSnippet(code);
 
+    updateEvalUI(metrics);
+
     animateTransition(latencyMs, rankings);
   }
 
   // Apply blend from sliders
   function applyBlend() {
-    const { latencyMs, rankings, codeSnippet } = transformWithBlend(state, blendWeights);
+    const { latencyMs, rankings, codeSnippet, metrics } = transformWithBlend(state, blendWeights);
     currentRankings = rankings;
     updateCodeSnippet(codeSnippet);
 
     // Update intent label
     const parts: string[] = [];
     for (const [k, v] of Object.entries(blendWeights)) {
-      if (v > 0.05) parts.push(`${k} ${Math.round(v * 100)}%`);
+      if (v > BLEND_ACTIVE_THRESHOLD) parts.push(`${k} ${Math.round(v * 100)}%`);
     }
-    document.getElementById('intentLabel')!.textContent =
+    getElement('intentLabel').textContent =
       parts.length > 0 ? parts.join(' + ') : (lang === 'ja' ? '通常検索' : 'Vanilla Search');
+
+    updateEvalUI(metrics);
 
     animateTransition(latencyMs, rankings);
   }
 
   // Mode toggle
-  const modeToggle = document.getElementById('modeToggle') as HTMLButtonElement | null;
+  const modeToggle = document.getElementById('modeToggle');
   const singlePanel = document.getElementById('singleIntentPanel');
   const blendPanel = document.getElementById('blendPanel');
 
-  if (modeToggle) {
+  if (modeToggle instanceof HTMLButtonElement) {
     modeToggle.addEventListener('click', () => {
       isBlendMode = !isBlendMode;
       modeToggle.textContent = isBlendMode
@@ -576,12 +683,21 @@ export async function initPlayground(lang: Lang) {
   }
 
   // Whitening Toggle
-  const whiteningToggle = document.getElementById('whiteningToggle') as HTMLInputElement | null;
-  if (whiteningToggle) {
+  const whiteningToggle = document.getElementById('whiteningToggle');
+  if (whiteningToggle instanceof HTMLInputElement) {
     whiteningToggle.addEventListener('change', () => {
       state.useWhitening = whiteningToggle.checked;
       recomputeBaseRankings();
       applyCurrentState();
+    });
+  }
+
+  // Compare Toggle
+  const compareToggle = document.getElementById('compareToggle');
+  if (compareToggle instanceof HTMLInputElement) {
+    compareToggle.addEventListener('change', () => {
+      isCompareMode = compareToggle.checked;
+      updateRankingsUI(currentRankings, lastLatencyMs);
     });
   }
 
@@ -590,50 +706,38 @@ export async function initPlayground(lang: Lang) {
   const memoryBadge = document.getElementById('memoryBadge');
   if (quantGroup && memoryBadge) {
     quantGroup.addEventListener('change', (e) => {
-      const target = e.target as HTMLInputElement;
-      if (target.name === 'quantMode') {
-        state.quantMode = target.value as 'none' | 'int8' | 'binary';
+      if (e.target instanceof HTMLInputElement) {
+        const target = e.target;
+        if (target.name !== 'quantMode') return;
+        const value = target.value;
+        if (isValidQuantMode(value)) {
+          state.quantMode = value;
         
-        // Update styling
-        quantGroup.querySelectorAll('.radio-btn').forEach(l => l.classList.remove('active'));
-        target.closest('.radio-btn')?.classList.add('active');
+          // Update styling
+          quantGroup.querySelectorAll('.radio-btn').forEach(l => l.classList.remove('active'));
+          target.closest('.radio-btn')?.classList.add('active');
 
-        // Update badge and cost simulator
-        const costStorage = document.getElementById('costStorage');
-        const costMonthly = document.getElementById('costMonthly');
-        const costSavingBadge = document.getElementById('costSavingBadge');
-        
-        let storageGB = 6.0;
-        let monthlyCost = 180;
-        let savedCost = 0;
+          // Update badge and cost simulator
+          const spec = QUANT_SPECS[state.quantMode];
+          const baseCost = QUANT_SPECS.none.monthlyCost;
+          const savedCost = baseCost - spec.monthlyCost;
+          memoryBadge.textContent = spec.badge;
 
-        if (state.quantMode === 'none') {
-          memoryBadge.textContent = '1536 Bytes/vec';
-          storageGB = 6.0;
-          monthlyCost = 180;
-          savedCost = 0;
-        } else if (state.quantMode === 'int8') {
-          memoryBadge.textContent = '384 Bytes/vec';
-          storageGB = 1.5;
-          monthlyCost = 45;
-          savedCost = 180 - 45;
-        } else if (state.quantMode === 'binary') {
-          memoryBadge.textContent = '48 Bytes/vec';
-          storageGB = 0.18;
-          monthlyCost = 5;
-          savedCost = 180 - 5;
+          const costStorage = document.getElementById('costStorage');
+          const costMonthly = document.getElementById('costMonthly');
+          const costSavingBadge = document.getElementById('costSavingBadge');
+
+          if (costStorage && costMonthly && costSavingBadge) {
+            costStorage.textContent = spec.storageGB.toFixed(2) + ' GB';
+            costMonthly.textContent = lang === 'ja' ? `約 $${spec.monthlyCost} / 月` : `~$${spec.monthlyCost} / mo`;
+            costSavingBadge.textContent = lang === 'ja' ? `$${savedCost} 削減` : `$${savedCost} saved`;
+            costSavingBadge.style.color = savedCost > 0 ? '#10b981' : 'inherit';
+            costSavingBadge.style.background = savedCost > 0 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.1)';
+          }
+
+          recomputeBaseRankings();
+          applyCurrentState();
         }
-
-        if (costStorage && costMonthly && costSavingBadge) {
-          costStorage.textContent = storageGB.toFixed(2) + ' GB';
-          costMonthly.textContent = lang === 'ja' ? `約 $${monthlyCost} / 月` : `~$${monthlyCost} / mo`;
-          costSavingBadge.textContent = lang === 'ja' ? `$${savedCost} 削減` : `$${savedCost} saved`;
-          costSavingBadge.style.color = savedCost > 0 ? '#10b981' : 'inherit';
-          costSavingBadge.style.background = savedCost > 0 ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.1)';
-        }
-
-        recomputeBaseRankings();
-        applyCurrentState();
       }
     });
   }
@@ -641,8 +745,10 @@ export async function initPlayground(lang: Lang) {
   // Single intent buttons
   document.getElementById('intentGroup')?.addEventListener('click', (e) => {
     if (isBlendMode) return;
-    const btn = (e.target as HTMLElement).closest('.intent-btn') as HTMLElement | null;
-    if (btn?.dataset.intent) switchIntent(btn.dataset.intent);
+    if (!(e.target instanceof HTMLElement)) return;
+    const btn = e.target.closest('.intent-btn');
+    if (!(btn instanceof HTMLElement)) return;
+    if (btn.dataset.intent) switchIntent(btn.dataset.intent);
   });
 
   // Query Submit
@@ -651,18 +757,11 @@ export async function initPlayground(lang: Lang) {
     if (!queryInput) return;
     const text = queryInput.value.trim();
     if (!text) return;
-    
-    // Show spinner in input
-    const btn = document.getElementById('querySubmit') as HTMLButtonElement;
-    const origText = btn.textContent;
-    btn.textContent = '...';
-    btn.disabled = true;
 
-    await updateQuery(state, text);
-    
-    btn.textContent = origText;
-    btn.disabled = false;
-    
+    await withButtonLoading('querySubmit', '...', async () => {
+      await updateQuery(state, text);
+    });
+
     recomputeBaseRankings();
     applyCurrentState();
   });
@@ -670,36 +769,29 @@ export async function initPlayground(lang: Lang) {
   // Add Custom Intent
   document.getElementById('customIntentForm')?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const input = document.getElementById('customIntentInput') as HTMLInputElement;
+    const input = document.getElementById('customIntentInput');
+    if (!(input instanceof HTMLInputElement)) return;
     const text = input.value.trim();
     if (!text) return;
 
-    const btn = document.getElementById('customIntentSubmit') as HTMLButtonElement;
-    const origText = btn.textContent;
-    btn.textContent = labels.addingIntent;
-    btn.disabled = true;
-
-    // Generate random hue for icon
     const hue = Math.floor(Math.random() * 360);
     const color = `hsla(${hue}, 80%, 60%, 0.15)`;
-    
-    const key = await addCustomIntent(state, labels.customIntentName, text, '✨', color);
-    
-    btn.textContent = origText;
-    btn.disabled = false;
+
+    let key = '';
+    await withButtonLoading('customIntentSubmit', labels.addingIntent, async () => {
+      key = await addCustomIntent(state, labels.customIntentName, text, '✨', color);
+    });
     input.value = '';
 
-    // Re-render UI
     renderIntentButtons();
-    
     if (!isBlendMode) {
       switchIntent(key);
     }
   });
 
   // Benchmark
-  const benchBtn = document.getElementById('benchBtn') as HTMLButtonElement | null;
-  if (benchBtn) {
+  const benchBtn = document.getElementById('benchBtn');
+  if (benchBtn instanceof HTMLButtonElement) {
     benchBtn.addEventListener('click', () => {
       benchBtn.disabled = true;
       benchBtn.textContent = labels.running;
@@ -735,12 +827,8 @@ export async function initPlayground(lang: Lang) {
   }
 
   // Auto-learn Intents
-  const autoLearnBtn = document.getElementById('autoLearnBtn') as HTMLButtonElement | null;
-  if (autoLearnBtn) {
-    autoLearnBtn.addEventListener('click', async () => {
-      autoLearnBtn.disabled = true;
-      autoLearnBtn.textContent = labels.autoLearning;
-
+  document.getElementById('autoLearnBtn')?.addEventListener('click', async () => {
+    await withButtonLoading('autoLearnBtn', labels.autoLearning, async () => {
       try {
         const result = await autoLearnIntents(state);
         const resultEl = document.getElementById('autoLearnResult');
@@ -759,14 +847,55 @@ export async function initPlayground(lang: Lang) {
             </div>
           `;
         }
-        // Re-render intent buttons to include the new auto-learned ones
         renderIntentButtons();
       } catch (err) {
         console.error('Auto-learn failed:', err);
       }
+    });
+  });
 
-      autoLearnBtn.disabled = false;
-      autoLearnBtn.textContent = labels.autoLearnBtn;
+  // 精度評価UIの更新
+  function updateEvalUI(metrics: EvalMetrics) {
+    const ndcgEl = document.getElementById('metricNdcg');
+    const recallEl = document.getElementById('metricRecall');
+    const catEl = document.getElementById('metricExpectedCat');
+    const panelEl = document.getElementById('evalPanel');
+    if (!ndcgEl || !recallEl || !catEl) return;
+
+    if (!metrics.expectedCategory) {
+      if (panelEl) panelEl.style.display = 'none';
+      ndcgEl.textContent = recallEl.textContent = catEl.textContent = '—';
+      return;
+    }
+
+    if (panelEl) panelEl.style.display = 'block';
+    ndcgEl.textContent = metrics.ndcg3.toFixed(4);
+    recallEl.textContent = (metrics.recall3 * 100).toFixed(1) + '%';
+
+    const meta = CATEGORY_META[metrics.expectedCategory as DataCategory];
+    catEl.textContent = meta
+      ? `${meta.label[lang]} (${meta.icon})`
+      : metrics.expectedCategory;
+  }
+
+  // マージされた重みのエクスポート
+  const exportBtn = document.getElementById('exportBtn');
+  if (exportBtn) {
+    exportBtn.addEventListener('click', () => {
+      if (!state.lastMergedWeights) {
+        alert(lang === 'ja' 
+          ? 'エクスポートするマージ済みの重みがありません。インテントを選択するか、ブレンドしてください。' 
+          : 'No merged weights to export. Please select or blend intents.');
+        return;
+      }
+
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state.lastMergedWeights, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `warpvector_merged_intent_${Date.now()}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
     });
   }
 

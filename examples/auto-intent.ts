@@ -7,7 +7,7 @@
  * 実行: bun run examples/auto-intent.ts
  */
 import { IntentAdapter, WarpPipeline, cosineSimilarity, normalize } from "@warpvector/core";
-import { IntentMatrixFactory } from "@warpvector/ml";
+import { IntentMatrixFactory } from "@warpvector/train";
 
 // ========================================
 // 1. 擬似的な Embedding 関数

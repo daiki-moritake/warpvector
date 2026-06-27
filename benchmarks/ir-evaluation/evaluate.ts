@@ -10,7 +10,8 @@
  * 実行: bun run benchmarks/ir-evaluation/evaluate.ts
  */
 import { IntentAdapter, WarpPipeline } from "@warpvector/core";
-import { WhiteningAdapter, IntentMatrixFactory } from "@warpvector/ml";
+import { WhiteningAdapter } from "@warpvector/ml";
+import { IntentMatrixFactory } from "@warpvector/train";
 
 // --- IR評価メトリクス ---
 

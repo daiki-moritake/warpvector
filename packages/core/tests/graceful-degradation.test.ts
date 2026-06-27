@@ -100,7 +100,7 @@ describe("Graceful Degradation", () => {
     test("QuantizationAdapter が空配列を処理してもクラッシュしない", () => {
       const adapter = new QuantizationAdapter({ type: "int8", dim: 0 });
       // dim=0 の場合でもクラッシュせず空の結果を返す
-      const result = adapter.tune(new Float32Array(0));
+      const result = adapter.encode(new Float32Array(0));
       expect(result.length).toBe(0);
     });
 
@@ -175,13 +175,13 @@ describe("Graceful Degradation", () => {
 
       // 大きな値
       const large = new Float32Array([1e6, -1e6, 1e6, -1e6]);
-      const result1 = adapter.tune(large);
+      const result1 = adapter.encode(large);
       expect(result1).toBeInstanceOf(Int8Array);
       expect(result1.length).toBe(4); // dim=4 → 4 bytes Int8
 
       // 小さな値
       const tiny = new Float32Array([1e-10, -1e-10, 0, 1e-10]);
-      const result2 = adapter.tune(tiny);
+      const result2 = adapter.encode(tiny);
       expect(result2).toBeInstanceOf(Int8Array);
     });
 
@@ -190,7 +190,7 @@ describe("Graceful Degradation", () => {
       const adapter = new QuantizationAdapter({ type: "binary", dim });
 
       const vec1 = Float32Array.from({ length: dim }, (_, i) => Math.sin(i));
-      const result = adapter.tune(vec1);
+      const result = adapter.encode(vec1);
 
       // 64次元 → 8バイト (64/8 = 8)
       expect(result).toBeInstanceOf(Uint8Array);

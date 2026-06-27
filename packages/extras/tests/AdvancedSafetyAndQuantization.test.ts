@@ -1,5 +1,6 @@
 import { expect, test, describe } from "bun:test";
-import { MlpAdapter, WhiteningAdapter, BaseTrainer } from "@warpvector/ml";
+import { MlpAdapter, WhiteningAdapter } from "@warpvector/ml";
+import { BaseTrainer } from "@warpvector/train";
 import {
   WarpPipeline,
   VectorDBAdapter,
@@ -93,8 +94,8 @@ describe("Advanced Safety, Memory allocation, and Quantization Tests", () => {
     const rawVector1 = [0.01, -0.05, 0.02, 0.03, -0.01, 0.04, 0.0, 0.01];
     const rawVector2 = [0.02, 0.01, -0.04, 0.01, 0.02, -0.03, 0.01, 0.02];
 
-    const q1 = adapter.tune(rawVector1) as Int8Array;
-    const q2 = adapter.tune(rawVector2) as Int8Array;
+    const q1 = adapter.encode(new Float32Array(rawVector1)) as Int8Array;
+    const q2 = adapter.encode(new Float32Array(rawVector2)) as Int8Array;
 
     // サイズが dim + 4 (12バイト) になっているはず
     expect(q1.length).toBe(12);

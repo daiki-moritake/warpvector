@@ -24,11 +24,10 @@ describe("WarpPipeline", () => {
             [0, 1, 0],
           ],
         },
-      })
-      .addStep(
-        "QuantizationAdapter",
-        new QuantizationAdapter({ type: "int8", dim: 2 }),
-      );
+      });
+
+    const finalStage = new QuantizationAdapter({ type: "int8", dim: 2 });
+    pipeline.setFinalStage("QuantizationAdapter", finalStage);
 
     const input = [0.5, 1.0, 1.5];
 
@@ -65,23 +64,25 @@ describe("WarpPipeline", () => {
           ],
           bias: [0, 0, 0, 0, 0, 0, 0, 0],
         },
-      })
-      .addStep(
-        "QuantizationAdapter",
-        new QuantizationAdapter({ type: "binary", dim: 8 }),
-      );
+      });
+
+    pipeline.setFinalStage(
+      "QuantizationAdapter",
+      new QuantizationAdapter({ type: "binary", dim: 8 }),
+    );
 
     const state = pipeline.exportState();
-    expect(state.steps.length).toBe(3);
+    expect(state.steps.length).toBe(2);
     expect(state.steps[0].type).toBe("WhiteningAdapter");
     expect(state.steps[1].type).toBe("IntentAdapter");
-    expect(state.steps[2].type).toBe("QuantizationAdapter");
+    expect(state.finalStage?.type).toBe("QuantizationAdapter");
 
     const restoredPipeline = WarpPipeline.importState(state);
 
     const restoredState = restoredPipeline.exportState();
-    expect(restoredState.steps.length).toBe(3);
+    expect(restoredState.steps.length).toBe(2);
     expect(restoredState.steps[0].type).toBe("WhiteningAdapter");
+    expect(restoredState.finalStage?.type).toBe("QuantizationAdapter");
   });
 
   test("throws error when importing empty states", () => {

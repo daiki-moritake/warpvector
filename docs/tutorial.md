@@ -53,26 +53,21 @@ import { IntentAdapter } from "@warpvector/core";
 const adapter = new IntentAdapter(3);
 
 // Register an intent matrix focused on "similarity"
-// This matrix represents a transformation that doubles the 1st dimension (semantic similarity),
-// and halves the 3rd dimension (diversity score).
+// This matrix represents a transformation that doubles the 1st dimension (semantic similarity), // and halves the 3rd dimension (diversity score).
 adapter.addIntent("similarity", {
   matrix: [
-    [2, 0, 0],   // Double the 1st dimension
-    [0, 1, 0],   // Keep the 2nd dimension as is
+    [2, 0, 0], // Double the 1st dimension
+    [0, 1, 0], // Keep the 2nd dimension as is
     [0, 0, 0.5], // Halve the 3rd dimension
-  ],
-  bias: [0, 0, 0], // No bias
+  ], bias: [0, 0, 0], // No bias
 });
 
 // An intent matrix focused on "diversity"
 adapter.addIntent("diversity", {
   matrix: [
     [0.5, 0, 0], // Halve the 1st dimension
-    [0, 1, 0],
-    [0, 0, 2],   // Double the 3rd dimension
-  ],
-  bias: [0, 0, 0],
-});
+    [0, 1, 0], [0, 0, 2], // Double the 3rd dimension
+  ], bias: [0, 0, 0], });
 
 // Transform the vector
 const query = [0.8, 0.5, 0.3];
@@ -97,21 +92,12 @@ const pipeline = new WarpPipeline(3)
   .addIntent({
     search: {
       matrix: [
-        [2, 0, 0],
-        [0, 1, 0],
-        [0, 0, 1],
-      ],
-      bias: [0.1, 0, 0],
-    },
-  })
+        [2, 0, 0], [0, 1, 0], [0, 0, 1], ], bias: [0.1, 0, 0], }, })
   .addProjection(2, {
     search: {
       matrix: [
         [1, 0, 0], // Extract only the 1st and 2nd dimensions
-        [0, 1, 0],
-      ],
-    },
-  });
+        [0, 1, 0], ], }, });
 
 // Execute
 const result = pipeline.run([0.5, 0.8, 0.3], { intent: "search" });
@@ -135,21 +121,11 @@ const pipeline = new WarpPipeline(3)
   .addIntent({
     search: {
       matrix: [
-        [1, 0, 0],
-        [0, 1, 0],
-        [0, 0, 1],
-      ],
-      bias: [0, 0, 0],
-    },
-  })
+        [1, 0, 0], [0, 1, 0], [0, 0, 1], ], bias: [0, 0, 0], }, })
   .addProjection(2, {
     search: {
       matrix: [
-        [1, 0, 0],
-        [0, 1, 0],
-      ],
-    },
-  })
+        [1, 0, 0], [0, 1, 0], ], }, })
   .setFinalStage("QuantizationAdapter", quantizer);
 
 const result = pipeline.run([0.5, 0.8, 0.3], { intent: "search" });

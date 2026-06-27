@@ -20,7 +20,7 @@ import {
   allocateWasmMemory,
   withWasmMemoryStack,
 } from "../wasm/wasm-loader";
-import { WarpAdapter } from "../interfaces/WarpAdapter";
+import { WarpAdapter, TransformOutput } from "../interfaces/WarpAdapter";
 
 /**
  * 意図（コンテキスト）ごとの変換情報を定義するインターフェース
@@ -187,14 +187,14 @@ export class IntentAdapter implements WarpAdapter {
    * @param {number[] | Float32Array} baseVector - 変換元のベクトル
    * @param {string} intent - 適用する意図（intent）の名前
    * @param {Activation} [activation] - （オプション）変換後に適用する非線形活性化関数
-   * @returns {Float32Array} 変換後のベクトル
+   * @returns {TransformOutput} 変換後のベクトル
    * @throws {Error} ベクトルの次元数が一致しない場合、または指定された意図が存在しない場合にエラーをスローします。
    */
   public tune(
     baseVector: number[] | Float32Array,
     intent: string,
     activation?: Activation,
-  ): Float32Array {
+  ): TransformOutput {
     assertDimension(baseVector, this.dimension, "Base vector");
 
     const matrix = this.matrices.get(intent);
@@ -212,7 +212,7 @@ export class IntentAdapter implements WarpAdapter {
     bias: Float32Array,
     baseVectors: (number[] | Float32Array)[],
     activation?: Activation,
-  ): Float32Array[] {
+  ): TransformOutput[] {
     const batchSize = baseVectors.length;
     const instance = getWasmInstance();
 
@@ -255,7 +255,7 @@ export class IntentAdapter implements WarpAdapter {
           batchSize,
         );
 
-        const results = new Array<Float32Array>(batchSize);
+        const results = new Array<TransformOutput>(batchSize);
         // メモリが拡張された可能性があるため、再度ビューを取得
         const outF32Mem = new Float32Array(memory.buffer);
         const resultsFloatOffset = resultsPtr / 4;
@@ -272,7 +272,7 @@ export class IntentAdapter implements WarpAdapter {
     }
 
     // --- WASMが使えない場合のフォールバック (純粋なJS処理) ---
-    const results = new Array<Float32Array>(batchSize);
+    const results = new Array<TransformOutput>(batchSize);
     for (let k = 0; k < batchSize; k++) {
       const baseVector = baseVectors[k];
       assertDimension(baseVector, this.dimension, `Base vector at index ${k}`);
@@ -292,14 +292,14 @@ export class IntentAdapter implements WarpAdapter {
    * @param {(number[] | Float32Array)[]} baseVectors - 変換元のベクトルの配列 (2次元配列)
    * @param {string} intent - 適用する意図（intent）の名前
    * @param {Activation} [activation] - （オプション）非線形活性化関数
-   * @returns {Float32Array[]} 変換後のベクトルの配列
+   * @returns {TransformOutput[]} 変換後のベクトルの配列
    * @throws {Error} 指定された意図が存在しない場合や入力ベクトルの次元が不正な場合にエラーをスローします。
    */
   public tuneBatch(
     baseVectors: (number[] | Float32Array)[],
     intent: string,
     activation?: Activation,
-  ): Float32Array[] {
+  ): TransformOutput[] {
     const matrix = this.matrices.get(intent);
     const bias = this.biases.get(intent);
 
@@ -316,14 +316,14 @@ export class IntentAdapter implements WarpAdapter {
    * @param {number[] | Float32Array} baseVector - 変換元のベクトル
    * @param {Record<string, number>} blendWeights - 意図の名前と重みのマッピング (例: { riskAnalysis: 0.7, economicImpact: 0.3 })
    * @param {Activation} [activation] - （オプション）非線形活性化関数
-   * @returns {Float32Array} 変換後のベクトル
+   * @returns {TransformOutput} 変換後のベクトル
    * @throws {Error} 入力ベクトルの次元が不正な場合、または指定された意図が存在しない場合にエラーをスローします。
    */
   public tuneBlended(
     baseVector: number[] | Float32Array,
     blendWeights: Record<string, number>,
     activation?: Activation,
-  ): Float32Array {
+  ): TransformOutput {
     assertDimension(baseVector, this.dimension, "Base vector");
 
     // ブレンドされた合成行列とバイアスを一時的に計算
@@ -338,14 +338,14 @@ export class IntentAdapter implements WarpAdapter {
    * @param {(number[] | Float32Array)[]} baseVectors - 変換元のベクトルの配列
    * @param {Record<string, number>} blendWeights - 意図の名前と重みのマッピング
    * @param {Activation} [activation] - （オプション）非線形活性化関数
-   * @returns {Float32Array[]} 変換後のベクトルの配列
+   * @returns {TransformOutput[]} 変換後のベクトルの配列
    * @throws {Error} ベクトルの次元数が一致しない場合、または指定された意図が存在しない場合にエラーをスローします。
    */
   public tuneBatchBlended(
     baseVectors: (number[] | Float32Array)[],
     blendWeights: Record<string, number>,
     activation?: Activation,
-  ): Float32Array[] {
+  ): TransformOutput[] {
     const { matrix, bias } = this.computeBlendedWeights(blendWeights);
     return this.executeBatchAffine(matrix, bias, baseVectors, activation);
   }
@@ -358,13 +358,13 @@ export class IntentAdapter implements WarpAdapter {
    *
    * @param {number[] | Float32Array} baseVector - ユーザーからのクエリベクトルなど
    * @param {Activation} [activation] - （オプション）非線形活性化関数
-   * @returns {Float32Array} 動的ブレンドによって変換されたベクトル
+   * @returns {TransformOutput} 動的ブレンドによって変換されたベクトル
    * @throws {Error} ベースベクトルの次元が異なる場合、またはルーティングベクトルが一つも存在しない場合にエラーをスローします。
    */
   public tuneAutoBlended(
     baseVector: number[] | Float32Array,
     activation?: Activation,
-  ): Float32Array {
+  ): TransformOutput {
     assertDimension(baseVector, this.dimension, "Base vector");
 
     const intentNames: string[] = [];

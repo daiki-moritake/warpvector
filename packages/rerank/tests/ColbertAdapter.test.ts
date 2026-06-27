@@ -91,4 +91,20 @@ describe("ColbertAdapter (Late Interaction)", () => {
     expect(results[1].index).toBe(1);
     expect(results[0].score).toBeGreaterThan(results[1].score);
   });
+
+  test("works with JS fallback when WASM is not available", () => {
+    const adapter = new ColbertAdapter();
+    // 強制的に WASM を null にしてフォールバックを発動させる
+    (adapter as any).wasm = null;
+
+    const jsScore1 = adapter.score(queryTokens, docTokens1, dim);
+    const tsScore1 = tsColbertMaxSim(queryTokens, docTokens1, dim);
+    
+    expect(jsScore1).toBeCloseTo(tsScore1, 5);
+
+    const results = adapter.rank(queryTokens, [docTokens1, docTokens2], dim);
+    expect(results).toHaveLength(2);
+    expect(results[0].index).toBe(0);
+    expect(results[1].index).toBe(1);
+  });
 });

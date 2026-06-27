@@ -3,8 +3,12 @@ import { defineConfig } from "tsup";
 export default defineConfig({
   entry: {
     index: "src/index.ts",
+    ml: "src/ml.ts",
+    extras: "src/extras.ts",
     prisma: "src/prisma.ts",
     langchain: "src/langchain.ts",
+    train: "src/train.ts",
+    rerank: "src/rerank.ts",
   },
   format: ["cjs", "esm"],
   dts: { resolve: [/^@warpvector\//] },

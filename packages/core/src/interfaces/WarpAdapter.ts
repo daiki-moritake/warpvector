@@ -41,7 +41,7 @@ export interface WarpAdapter {
    *
    * @param vector 変換前のベクトル (number[] または Float32Array)
    * @param context オプションのコンテキスト情報 (意図の名前、バージョンなど)
-   * @returns 変換後のベクトル (Float32Array, 量子化の場合は Int8Array や Uint8Array)
+   * @returns 変換後のベクトル (常に Float32Array)
    *
    * @example
    * ```typescript
@@ -49,7 +49,7 @@ export interface WarpAdapter {
    * const warped = adapter.tune(rawVector, "tech");
    * ```
    */
-  tune(vector: InputVector, context?: string): OutputVector;
+  tune(vector: InputVector, context?: string): TransformOutput;
 
   /**
    * 複数のベクトルを一括で変換します（オプション実装）
@@ -64,7 +64,7 @@ export interface WarpAdapter {
    * const results = adapter.tuneBatch?.(vectors, "tech") ?? vectors.map(v => adapter.tune(v, "tech"));
    * ```
    */
-  tuneBatch?(vectors: InputVector[], context?: string): OutputVector[];
+  tuneBatch?(vectors: InputVector[], context?: string): TransformOutput[];
 
   /**
    * 非同期での初期化処理（オプション実装）

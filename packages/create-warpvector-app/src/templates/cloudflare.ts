@@ -42,7 +42,7 @@ export const cloudflareTemplate: TemplateDefinition = {
   title: pc.bold('Cloudflare Workers (Edge)') + pc.dim(' — Sub-millisecond inference'),
   description: 'Deploy to edge in seconds',
 
-  generate(dir: string, name: string) {
+  generate(dir: string, name: string, version: string) {
     writePackageJson(dir, {
       name,
       version: '0.1.0',
@@ -52,8 +52,8 @@ export const cloudflareTemplate: TemplateDefinition = {
         deploy: 'wrangler deploy',
       },
       dependencies: {
-        warpvector: '^0.2.0',
-        '@warpvector/core': '^0.2.0',
+        'warpvector': `^${version}`,
+        '@warpvector/core': `^${version}`,
       },
       devDependencies: {
         wrangler: '^3.0.0',

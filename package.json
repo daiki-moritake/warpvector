@@ -1,6 +1,6 @@
 {
   "name": "warpvector",
-  "version": "0.3.2",
+  "version": "0.4.0",
   "description": "Zero-dependency TypeScript middleware for dynamic vector space transformation. Warp embeddings at runtime with WASM-accelerated affine transforms, quantization, online learning, and ColBERT — no retraining needed.",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
@@ -11,6 +11,16 @@
       "import": "./dist/index.mjs",
       "require": "./dist/index.js"
     },
+    "./ml": {
+      "types": "./dist/ml.d.ts",
+      "import": "./dist/ml.mjs",
+      "require": "./dist/ml.js"
+    },
+    "./extras": {
+      "types": "./dist/extras.d.ts",
+      "import": "./dist/extras.mjs",
+      "require": "./dist/extras.js"
+    },
     "./prisma": {
       "types": "./dist/prisma.d.ts",
       "import": "./dist/prisma.mjs",
@@ -20,6 +30,16 @@
       "types": "./dist/langchain.d.ts",
       "import": "./dist/langchain.mjs",
       "require": "./dist/langchain.js"
+    },
+    "./train": {
+      "types": "./dist/train.d.ts",
+      "import": "./dist/train.mjs",
+      "require": "./dist/train.js"
+    },
+    "./rerank": {
+      "types": "./dist/rerank.d.ts",
+      "import": "./dist/rerank.mjs",
+      "require": "./dist/rerank.js"
     }
   },
   "files": [
@@ -30,10 +50,12 @@
   ],
   "scripts": {
     "sync:versions": "bun run scripts/sync-versions.ts",
+    "prebuild": "bun run typecheck",
     "build:wasm": "bun run scripts/build-wasm.ts",
-    "build:packages": "bun run sync:versions && bun run build:wasm && cd packages/core && bun run build && cd ../ml && bun run build && cd ../extras && bun run build && cd ../prisma && bun run build && cd ../langchain && bun run build && cd ../create-warpvector-app && bun run build",
+    "build:packages": "bun run sync:versions && bun run build:wasm && cd packages/core && bun run build && cd ../ml && bun run build && cd ../train && bun run build && cd ../rerank && bun run build && cd ../extras && bun run build && cd ../prisma && bun run build && cd ../langchain && bun run build && cd ../create-warpvector-app && bun run build && cd ../eval && bun run build",
     "build": "bun run build:packages && tsup",
     "test": "bun run build:wasm && bun test",
+    "typecheck": "tsc --noEmit",
     "bench": "bun run build:wasm && bun run benchmarks/run.ts",
     "prepublishOnly": "bun run build && node -e \"const p=require('./package.json'); const deps=Object.values(p.dependencies||{}); if(deps.some(v=>v.includes('workspace:'))) { console.error('ERROR: workspace: protocol found in dependencies'); process.exit(1); }\"",
     "format": "prettier --write \"src/**/*.ts\" \"packages/*/src/**/*.ts\" \"packages/*/tests/**/*.ts\" \"examples/**/*.ts\""

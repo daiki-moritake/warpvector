@@ -1,6 +1,5 @@
 import {
   assertDimension,
-  type WarpAdapter,
   type FinalStageAdapter,
   safeJsonParse,
   assertObject,
@@ -9,20 +8,11 @@ import {
   getWasmInstance,
   allocateWasmMemory,
   withWasmMemoryStack,
-  writeFloat32ArrayToWasm
+  writeFloat32ArrayToWasm,
+  hammingDistance,
+  int8DotProduct,
+  type OutputVector
 } from "@warpvector/core";
-
-// ハミング距離計算用のルックアップテーブル (LUT) を作成
-const POPCOUNT_LUT = new Uint8Array(256);
-for (let i = 0; i < 256; i++) {
-  let count = 0;
-  let n = i;
-  while (n > 0) {
-    count++;
-    n &= n - 1;
-  }
-  POPCOUNT_LUT[i] = count;
-}
 
 export type QuantizationType = "int8" | "binary";
 
@@ -48,7 +38,7 @@ export interface QuantizationConfig {
  * QuantizationAdapter は、Float32のベクトルを Int8 や Binary に圧縮し、
  * メモリ使用量と保存コストを劇的に（1/4 〜 1/32 に）削減します。
  */
-export class QuantizationAdapter implements WarpAdapter, FinalStageAdapter {
+export class QuantizationAdapter implements FinalStageAdapter {
   private type: QuantizationType;
   private dim: number;
   private dynamic: boolean;
@@ -67,7 +57,7 @@ export class QuantizationAdapter implements WarpAdapter, FinalStageAdapter {
     }
   }
 
-  public tune(vector: number[] | Float32Array): Int8Array | Uint8Array {
+  public encode(vector: Float32Array): OutputVector {
     assertDimension(vector, this.dim, "QuantizationAdapter.tune");
 
     if (this.wasm) {
@@ -177,75 +167,20 @@ export class QuantizationAdapter implements WarpAdapter, FinalStageAdapter {
   }
 
   /**
-   * Binary量子化された2つのベクトル間のハミング距離を計算します。
-   * ハミング距離が小さいほど類似度が高いことを意味します。
+   * @deprecated Use `hammingDistance` from `@warpvector/core` instead.
    */
   public static hammingDistance(a: Uint8Array, b: Uint8Array): number {
-    if (a.length !== b.length) throw new Error("Length mismatch");
-    let distance = 0;
-    for (let i = 0; i < a.length; i++) {
-      distance += POPCOUNT_LUT[a[i] ^ b[i]];
-    }
-    return distance;
+    return hammingDistance(a, b);
   }
 
   /**
-   * Int8量子化された2つのベクトル間のドット積（内積）を計算します。
-   * 動的スケーリングが埋め込まれている場合はスケールを戻して計算します。
+   * @deprecated Use `int8DotProduct` from `@warpvector/core` instead.
    */
   public static int8DotProduct(a: Int8Array, b: Int8Array): number {
-    if (a.length !== b.length) throw new Error("Length mismatch");
-
-    // 動的スケーリング埋め込み（dim + 4）かどうかの自動判別
-    let isDynamic = false;
-    let maxA = 1.0;
-    let maxB = 1.0;
-
-    if (a.length > 4) {
-      const dim = a.length - 4;
-      // 暗黙のtry-catchを避けてDataViewから読み取る。
-      // byteLength と length は TypedArray で等しいため範囲外アクセスは起きない。
-      const viewA = new DataView(a.buffer, a.byteOffset, a.byteLength);
-      const viewB = new DataView(b.buffer, b.byteOffset, b.byteLength);
-      maxA = viewA.getFloat32(dim, true);
-      maxB = viewB.getFloat32(dim, true);
-      
-      // 妥当な浮動小数点スケール値であるかの検証
-      if (
-        Number.isFinite(maxA) &&
-        Number.isFinite(maxB) &&
-        maxA > 0 &&
-        maxA < 1000.0 &&
-        maxB > 0 &&
-        maxB < 1000.0
-      ) {
-        isDynamic = true;
-      }
-    }
-
-    if (isDynamic) {
-      const dim = a.length - 4;
-      let dot = 0;
-      for (let i = 0; i < dim; i++) {
-        dot += a[i] * b[i];
-      }
-      return dot * (maxA / 127.0) * (maxB / 127.0);
-    } else {
-      let dot = 0;
-      for (let i = 0; i < a.length; i++) {
-        dot += a[i] * b[i];
-      }
-      return dot;
-    }
+    return int8DotProduct(a, b);
   }
 
-  /**
-   * FinalStageAdapter の実装: Float32Array を量子化します。
-   * WarpPipeline.setFinalStage() で使用される場合はこのメソッドが呼ばれます。
-   */
-  public encode(vector: Float32Array): Int8Array | Uint8Array {
-    return this.tune(vector);
-  }
+  // `encode` は既に上に定義されたため、古い `encode` や `tune` は削除。
 
   public exportState(): string {
     return JSON.stringify({

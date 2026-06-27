@@ -236,3 +236,154 @@ export function reject(
 
   return result;
 }
+
+// ハミング距離計算用のルックアップテーブル (LUT) を作成
+const POPCOUNT_LUT = new Uint8Array(256);
+for (let i = 0; i < 256; i++) {
+  let count = 0;
+  let n = i;
+  while (n > 0) {
+    count++;
+    n &= n - 1;
+  }
+  POPCOUNT_LUT[i] = count;
+}
+
+/**
+ * Binary量子化された2つのベクトル間のハミング距離を計算します。
+ * ハミング距離が小さいほど類似度が高いことを意味します。
+ */
+export function hammingDistance(a: Uint8Array, b: Uint8Array): number {
+  if (a.length !== b.length) throw new Error("Length mismatch");
+  let distance = 0;
+  for (let i = 0; i < a.length; i++) {
+    distance += POPCOUNT_LUT[a[i] ^ b[i]];
+  }
+  return distance;
+}
+
+/**
+ * Int8量子化された2つのベクトル間のドット積（内積）を計算します。
+ * 動的スケーリングが埋め込まれている場合はスケールを戻して計算します。
+ */
+export function int8DotProduct(a: Int8Array, b: Int8Array): number {
+  if (a.length !== b.length) throw new Error("Length mismatch");
+
+  // 動的スケーリング埋め込み（dim + 4）かどうかの自動判別
+  let isDynamic = false;
+  let maxA = 1.0;
+  let maxB = 1.0;
+
+  if (a.length > 4) {
+    const dim = a.length - 4;
+    // 暗黙のtry-catchを避けてDataViewから読み取る。
+    // byteLength と length は TypedArray で等しいため範囲外アクセスは起きない。
+    const viewA = new DataView(a.buffer, a.byteOffset, a.byteLength);
+    const viewB = new DataView(b.buffer, b.byteOffset, b.byteLength);
+    maxA = viewA.getFloat32(dim, true);
+    maxB = viewB.getFloat32(dim, true);
+    
+    // 妥当な浮動小数点スケール値であるかの検証
+    if (
+      Number.isFinite(maxA) &&
+      Number.isFinite(maxB) &&
+      maxA > 0 &&
+      maxA < 1000.0 &&
+      maxB > 0 &&
+      maxB < 1000.0
+    ) {
+      isDynamic = true;
+    }
+  }
+
+  if (isDynamic) {
+    const dim = a.length - 4;
+    let dot = 0;
+    for (let i = 0; i < dim; i++) {
+      dot += a[i] * b[i];
+    }
+    return dot * (maxA / 127.0) * (maxB / 127.0);
+  } else {
+    let dot = 0;
+    for (let i = 0; i < a.length; i++) {
+      dot += a[i] * b[i];
+    }
+    return dot;
+  }
+}
+
+/**
+ * Int8量子化された2つのベクトル間のコサイン類似度（-1.0〜1.0）を計算します。
+ * 動的スケーリングが埋め込まれている場合は、スケール部分（末尾4バイト）を除外して実データのみで計算します。
+ */
+export function int8CosineSimilarity(a: Int8Array, b: Int8Array): number {
+  if (a.length !== b.length) throw new Error("Length mismatch");
+
+  let isDynamic = false;
+  if (a.length > 4) {
+    const dim = a.length - 4;
+    // 暗黙のtry-catchを避けてDataViewから読み取る。
+    const viewA = new DataView(a.buffer, a.byteOffset, a.byteLength);
+    const viewB = new DataView(b.buffer, b.byteOffset, b.byteLength);
+    const maxA = viewA.getFloat32(dim, true);
+    const maxB = viewB.getFloat32(dim, true);
+    
+    if (
+      Number.isFinite(maxA) &&
+      Number.isFinite(maxB) &&
+      maxA > 0 &&
+      maxA < 1000.0 &&
+      maxB > 0 &&
+      maxB < 1000.0
+    ) {
+      isDynamic = true;
+    }
+  }
+
+  const dim = isDynamic ? a.length - 4 : a.length;
+  let dot = 0;
+  let normASq = 0;
+  let normBSq = 0;
+  
+  for (let i = 0; i < dim; i++) {
+    const valA = a[i];
+    const valB = b[i];
+    dot += valA * valB;
+    normASq += valA * valA;
+    normBSq += valB * valB;
+  }
+  
+  if (normASq === 0 || normBSq === 0) return 0;
+  return dot / (Math.sqrt(normASq) * Math.sqrt(normBSq));
+}
+
+/**
+ * 2つのベクトル間の類似度スコアを計算します。
+ * 全ての型に対して「元のFloat32空間でのコサイン類似度近似値（-1.0 〜 1.0）」という統一規格で返します。
+ * 異なるベクトル空間（型）同士の比較はエラーをスローします。
+ *
+ * - Binary(Uint8Array): ハミング距離からのコサイン近似 (1 - 2*H/dim)
+ * - Int8(Int8Array): Int8空間でのコサイン類似度
+ * - Float32(Float32Array) / number[]: 通常のコサイン類似度
+ */
+export function computeVectorScore(a: number[] | Float32Array | Int8Array | Uint8Array, b: number[] | Float32Array | Int8Array | Uint8Array): number {
+  const typeA = a instanceof Uint8Array ? "binary" : a instanceof Int8Array ? "int8" : "float";
+  const typeB = b instanceof Uint8Array ? "binary" : b instanceof Int8Array ? "int8" : "float";
+  
+  if (typeA !== typeB) {
+    throw new Error(`Cannot compute similarity between different vector types: ${typeA} and ${typeB}`);
+  }
+
+  if (a instanceof Uint8Array && b instanceof Uint8Array) {
+    const dim = a.length * 8; // ビット数
+    const h = hammingDistance(a, b);
+    return 1.0 - (2.0 * h) / dim;
+  } else if (a instanceof Int8Array && b instanceof Int8Array) {
+    return int8CosineSimilarity(a, b);
+  } else {
+    return cosineSimilarity(
+      a as number[] | Float32Array,
+      b as number[] | Float32Array
+    );
+  }
+}
