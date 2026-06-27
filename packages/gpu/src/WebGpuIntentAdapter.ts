@@ -47,7 +47,7 @@ export class WebGpuIntentAdapter implements WarpAdapter {
       @group(0) @binding(3) var<storage, read_write> outputVectors: Vector; // batched output
 
       // Parameters: x = vector index, y = output dimension index
-      @compute @workgroup_size(64)
+      @compute @workgroup_size(8, 8)
       fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
         let vectorIdx = global_id.x;
         let dimIdx = global_id.y;

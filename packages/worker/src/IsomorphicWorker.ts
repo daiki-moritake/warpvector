@@ -11,7 +11,7 @@ export interface IsomorphicWorker {
  */
 export function createWorker(scriptPath: string | URL): IsomorphicWorker {
   // Check for Web Worker environment (Browser)
-  if (typeof Worker !== 'undefined' && typeof window !== 'undefined') {
+  if (typeof Worker !== 'undefined') {
     const worker = new Worker(scriptPath);
     return {
       postMessage: (msg, transfer) => worker.postMessage(msg, transfer || []),

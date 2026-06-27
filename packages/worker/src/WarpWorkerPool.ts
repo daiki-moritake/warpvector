@@ -11,6 +11,7 @@ export class WarpWorkerPool {
   private idleWorkers: IsomorphicWorker[] = [];
   private jobQueue: { workerMessage: WorkerMessage; job: Job }[] = [];
   private activeJobs: Map<number, Job> = new Map();
+  private workerActiveJobs: Map<IsomorphicWorker, number> = new Map();
   private nextMessageId = 1;
 
   constructor(private options: WarpWorkerPoolOptions) {
@@ -30,6 +31,7 @@ export class WarpWorkerPool {
       // Depending on the use case, you might want to terminate and replace the worker.
     });
     this.workers.push(worker);
+    this.workerActiveJobs.set(worker, 0);
     this.idleWorkers.push(worker);
   }
 
@@ -44,17 +46,25 @@ export class WarpWorkerPool {
       this.activeJobs.delete(response.id);
     }
     
-    // Worker is now idle, assign next job if any
-    if (this.jobQueue.length > 0) {
-      const nextTask = this.jobQueue.shift()!;
-      this.assignJob(worker, nextTask.workerMessage, nextTask.job);
-    } else {
-      this.idleWorkers.push(worker);
+    let count = this.workerActiveJobs.get(worker) || 1;
+    count--;
+    this.workerActiveJobs.set(worker, count);
+
+    // Worker is now fully idle, assign next job if any
+    if (count === 0) {
+      if (this.jobQueue.length > 0) {
+        const nextTask = this.jobQueue.shift()!;
+        this.assignJob(worker, nextTask.workerMessage, nextTask.job);
+      } else {
+        this.idleWorkers.push(worker);
+      }
     }
   }
 
   private assignJob(worker: IsomorphicWorker, message: WorkerMessage, job: Job) {
     this.activeJobs.set(message.id, job);
+    const count = this.workerActiveJobs.get(worker) || 0;
+    this.workerActiveJobs.set(worker, count + 1);
     worker.postMessage(message);
   }
 
@@ -84,10 +94,9 @@ export class WarpWorkerPool {
         const job: Job = { id, resolve, reject };
 
         // To broadcast correctly, we temporarily skip the normal job queue for this specific message 
-        // to ensure it goes to a specific worker, but for simplicity here we just post to it and 
-        // add to activeJobs. Note: If the worker is busy, it will queue the message internally in its event loop.
-        this.activeJobs.set(id, job);
-        worker.postMessage(message);
+        // to ensure it goes to a specific worker. By using assignJob, the worker's active job count
+        // is incremented, ensuring it isn't marked as idle prematurely.
+        this.assignJob(worker, message, job);
       });
     });
     return Promise.all(promises);
