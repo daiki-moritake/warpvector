@@ -80,7 +80,7 @@ describe("IntentAdapter Core Logic", () => {
     const adapter = new IntentAdapter(dummyIntents);
     expect(() => {
       adapter.tune([1, 2], "identity"); // Missing 1 dimension
-    }).toThrow("Base vector dimension mismatch. Expected 3, got 2.");
+    }).toThrow("Dimension mismatch");
   });
 
   test("should throw error on initialization if dimensions are inconsistent", () => {
@@ -97,7 +97,7 @@ describe("IntentAdapter Core Logic", () => {
     expect(() => {
       new IntentAdapter(invalidIntents);
     }).toThrow(
-      "Intent 'badIntent' Matrix: Row dimension mismatch. Expected 3, got 2.",
+      "Dimension mismatch",
     );
   });
 
@@ -131,7 +131,7 @@ describe("IntentAdapter Core Logic", () => {
     expect(() => {
       new IntentAdapter(invalidIntents);
     }).toThrow(
-      "Intent 'badIntent' Matrix: Column dimension mismatch at row 1. Expected 3, got 2.",
+      "Dimension mismatch",
     );
   });
 

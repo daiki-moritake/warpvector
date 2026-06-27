@@ -345,7 +345,7 @@ describe("WASM vs JS equivalence", () => {
 
   // --- WarpPipeline ---
   describe("WarpPipeline", () => {
-    test("Pipeline run() がバッチ処理と等しい", () => {
+    test("Pipeline run() がバッチ処理と等しい", async () => {
       const dim = 32;
       const pipeline = new WarpPipeline(dim).addIntent({
         test: {
@@ -358,10 +358,12 @@ describe("WASM vs JS equivalence", () => {
         seededVector(dim, i + 1),
       );
 
-      const singleResults = vectors.map(
-        (v) => pipeline.run(v, { intent: "test" }) as Float32Array,
+      const singleResults = await Promise.all(
+        vectors.map(
+          async (v) => await pipeline.run(v, { intent: "test" }) as Float32Array,
+        ),
       );
-      const batchResults = pipeline.runBatch(vectors, { intent: "test" });
+      const batchResults = await pipeline.runBatch(vectors, { intent: "test" });
 
       for (let k = 0; k < vectors.length; k++) {
         for (let i = 0; i < dim; i++) {
@@ -373,7 +375,7 @@ describe("WASM vs JS equivalence", () => {
       }
     });
 
-    test("Pipeline with Intent + Projection の出力次元と決定性", () => {
+    test("Pipeline with Intent + Projection の出力次元と決定性", async () => {
       const dim = 64;
       const outDim = 16;
       const pipeline = new WarpPipeline(dim)
@@ -388,8 +390,8 @@ describe("WASM vs JS equivalence", () => {
         });
 
       const vector = seededVector(dim, 1);
-      const result1 = pipeline.run(vector, { intent: "test" }) as Float32Array;
-      const result2 = pipeline.run(vector, { intent: "test" }) as Float32Array;
+      const result1 = await pipeline.run(vector, { intent: "test" }) as Float32Array;
+      const result2 = await pipeline.run(vector, { intent: "test" }) as Float32Array;
 
       expect(result1.length).toBe(outDim);
       for (let i = 0; i < outDim; i++) {

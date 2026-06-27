@@ -2,12 +2,77 @@
 
 各メジャーバージョンアップグレードの破壊的変更とマイグレーション手順をまとめています。
 
-- [v0.3 → v0.4](#v03--v04)（最新）
+- [v0.4 → v0.5](#v04--v05)（最新）
+- [v0.3 → v0.4](#v03--v04)
 - [v0.2 → v0.3](#v02--v03)
 - [v0.1 → v0.2](#v01--v02)
 
 ---
 
+## v0.4 → v0.5
+
+### 破壊的変更
+
+#### 1. パイプラインメソッドの非同期化
+
+`run()`, `runBatch()`, `runAndFormat()`, `dryRun()` が `Promise` を返すようになりました。すべての呼び出しに `await` を追加してください。
+
+```diff
+- const result = pipeline.run(vector, { intent: "tech" });
++ const result = await pipeline.run(vector, { intent: "tech" });
+
+- const results = pipeline.runBatch(vectors);
++ const results = await pipeline.runBatch(vectors);
+
+- const formatted = pipeline.runAndFormat(vector, { format: "pgvector" });
++ const formatted = await pipeline.runAndFormat<string>(vector, { format: "pgvector" });
+
+- const debug = pipeline.dryRun(vector);
++ const debug = await pipeline.dryRun(vector);
+```
+
+> TypeScript コンパイラが `Promise<OutputVector>` と `OutputVector` の型不一致でエラーを出すため、修正箇所の検出は容易です。
+
+#### 2. エラーメッセージの英語統一
+
+構造化エラーのメッセージがすべて英語に統一されました。エラーコード（`DIMENSION_MISMATCH` 等）と `instanceof` チェーンは変更ありません。
+
+#### 3. `runAndFormat<T>()` ジェネリクス導入
+
+```typescript
+// 型安全なフォーマット出力
+const pgStr = await pipeline.runAndFormat<string>(vec, { format: "pgvector" });
+```
+
+#### 4. `QuantizationAdapter` deprecated メソッド削除
+
+```diff
+- import { QuantizationAdapter } from '@warpvector/extras';
+- QuantizationAdapter.hammingDistance(a, b)
++ import { hammingDistance } from '@warpvector/core';
++ hammingDistance(a, b)
+
+- QuantizationAdapter.int8DotProduct(a, b)
++ import { int8DotProduct } from '@warpvector/core';
++ int8DotProduct(a, b)
+```
+
+#### 5. `inputDim` の読み取り専用化
+
+外部からの書き込みはコンパイルエラーになります。読み取りは変更なしです。
+
+#### 6. `flattenMatrix` エラー型統一
+
+`WarpDimensionMismatchError` をスローするようになりました。
+
+### マイグレーション手順
+
+1. **依存関係を更新**: `npm install warpvector@0.5.0`
+2. **`await` を追加**: `pipeline.run()`, `runBatch()`, `runAndFormat()`, `dryRun()` のすべての呼び出し箇所
+3. **deprecated インポートを置換**: `QuantizationAdapter.hammingDistance` → `@warpvector/core` の `hammingDistance`
+4. **テストのエラーメッセージアサーションを更新**（文字列一致で検証している場合）
+
+---
 ## v0.3 → v0.4
 
 ### 破壊的変更

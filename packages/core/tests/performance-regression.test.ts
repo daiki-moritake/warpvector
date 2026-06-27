@@ -148,7 +148,7 @@ describe("パフォーマンス回帰テスト", () => {
     expect(avgMs).toBeLessThan(0.05);
   });
 
-  test("WarpPipeline.run() — パイプライン全体 < 2ms (768d)", () => {
+  test("WarpPipeline.run() — パイプライン全体 < 2ms (768d)", async () => {
     const intentKey = "test";
     const intents: Record<string, { matrix: Float32Array; bias: Float32Array }> = {
       [intentKey]: {
@@ -161,11 +161,11 @@ describe("パフォーマンス回帰テスト", () => {
     const vec = randomVec(DIM);
 
     // ウォームアップ
-    for (let i = 0; i < 10; i++) pipeline.run(vec, { intent: intentKey });
+    for (let i = 0; i < 10; i++) await pipeline.run(vec, { intent: intentKey });
 
     const t0 = performance.now();
     const iterations = 100;
-    for (let i = 0; i < iterations; i++) pipeline.run(vec, { intent: intentKey });
+    for (let i = 0; i < iterations; i++) await pipeline.run(vec, { intent: intentKey });
     const avgMs = (performance.now() - t0) / iterations;
 
     console.log(`  WarpPipeline.run(): ${avgMs.toFixed(3)}ms/op`);

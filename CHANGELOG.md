@@ -4,6 +4,39 @@ All notable changes to WarpVector will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [0.5.0] - 2026-06-27
+
+### ⚠️ BREAKING CHANGES
+
+#### 1. Pipeline methods are now async
+- `run()`, `runBatch()`, `runAndFormat()`, `dryRun()` now return `Promise` and require `await`
+- These methods now call `ensureInitialized()` internally, making `autoInit` seamless
+- `runStream()` behavior is unchanged (was already async)
+
+#### 2. Error messages unified to English
+- All structured error messages (`WarpDimensionMismatchError`, `WarpInitializationError`, `WarpValidationError`) are now in English
+- Error codes and `instanceof` chains remain unchanged
+
+#### 3. `runAndFormat()` generic type parameter
+- `runAndFormat<T>()` now accepts a type parameter for type-safe return values
+- Default is `unknown` (backwards compatible at the type level)
+
+#### 4. Deprecated `QuantizationAdapter` static methods removed
+- `QuantizationAdapter.hammingDistance()` → use `hammingDistance()` from `@warpvector/core`
+- `QuantizationAdapter.int8DotProduct()` → use `int8DotProduct()` from `@warpvector/core`
+
+#### 5. `WarpPipeline.inputDim` is now read-only
+- `inputDim` changed from a public property to a getter (read-only)
+- External writes will cause a compile error; reads are unchanged
+
+#### 6. `flattenMatrix` error type unified
+- `flattenMatrix()` now throws `WarpDimensionMismatchError` instead of generic `Error`
+- Enables consistent `instanceof` error handling across all dimension validation
+
+### Testing
+- **297 tests** across 44 files — All Passed ✅
+- **1,579 expect()** calls
+- No regressions
 
 ## [0.4.1] - 2026-06-27
 

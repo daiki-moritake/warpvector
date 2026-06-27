@@ -1,6 +1,6 @@
 {
   "name": "warpvector",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "description": "Zero-dependency TypeScript middleware for dynamic vector space transformation. Warp embeddings at runtime with WASM-accelerated affine transforms, quantization, online learning, and ColBERT — no retraining needed.",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
@@ -53,7 +53,7 @@
     "sync:versions": "bun run scripts/sync-versions.ts",
     "prebuild": "bun run typecheck",
     "build:wasm": "bun run scripts/build-wasm.ts",
-    "build:packages": "bun run sync:versions && bun run build:wasm && cd packages/core && bun run build && cd ../ml && bun run build && cd ../train && bun run build && cd ../rerank && bun run build && cd ../extras && bun run build && cd ../prisma && bun run build && cd ../langchain && bun run build && cd ../create-warpvector-app && bun run build && cd ../eval && bun run build",
+    "build:packages": "bun run sync:versions && bun run build:wasm && cd packages/core && bun run build && cd ../ml && bun run build && cd ../train && bun run build && cd ../rerank && bun run build && cd ../extras && bun run build && cd ../prisma && bun run build && cd ../langchain && bun run build && cd ../create-warpvector-app && bun run build && cd ../eval && bun run build && cd ../experimental && bun run build",
     "build": "bun run build:packages && tsup",
     "test": "bun run build:wasm && bun test",
     "typecheck": "tsc --noEmit",

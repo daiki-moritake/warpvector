@@ -80,12 +80,10 @@ export class WarpDimensionMismatchError extends WarpError {
     actualDim: number,
     hint?: string,
   ) {
-    const hintMsg = hint ? `\n  ヒント: ${hint}` : "";
+    const hintMsg = hint ? ` Hint: ${hint}` : "";
     super(
       "DIMENSION_MISMATCH",
-      `${component}: 入力ベクトルの次元が一致しません。\n` +
-        `  期待: ${expectedDim}\n` +
-        `  実際: ${actualDim}${hintMsg}`,
+      `${component}: Dimension mismatch. Expected ${expectedDim}, got ${actualDim}.${hintMsg}`,
     );
     this.name = "WarpDimensionMismatchError";
     this.expectedDim = expectedDim;
@@ -112,7 +110,7 @@ export class WarpInitializationError extends WarpError {
   constructor(component: string, message?: string) {
     super(
       "NOT_INITIALIZED",
-      `${component}: ${message || "初期化が完了していません。await pipeline.init() を実行してください。"}`,
+      `${component}: ${message || "Not initialized. Call await pipeline.init() first."}`,
     );
     this.name = "WarpInitializationError";
     this.component = component;
@@ -140,7 +138,7 @@ export class WarpValidationError extends WarpError {
   constructor(component: string, field: string, detail: string) {
     super(
       "VALIDATION_ERROR",
-      `${component}: フィールド '${field}' のバリデーションに失敗しました。\n  ${detail}`,
+      `${component}: Validation failed for field '${field}'. ${detail}`,
     );
     this.name = "WarpValidationError";
     this.component = component;

@@ -9,8 +9,6 @@ import {
   allocateWasmMemory,
   withWasmMemoryStack,
   writeFloat32ArrayToWasm,
-  hammingDistance,
-  int8DotProduct,
   type OutputVector
 } from "@warpvector/core";
 
@@ -164,20 +162,6 @@ export class QuantizationAdapter implements FinalStageAdapter {
     }
 
     throw new Error(`Unknown quantization type: ${this.type}`);
-  }
-
-  /**
-   * @deprecated Use `hammingDistance` from `@warpvector/core` instead.
-   */
-  public static hammingDistance(a: Uint8Array, b: Uint8Array): number {
-    return hammingDistance(a, b);
-  }
-
-  /**
-   * @deprecated Use `int8DotProduct` from `@warpvector/core` instead.
-   */
-  public static int8DotProduct(a: Int8Array, b: Int8Array): number {
-    return int8DotProduct(a, b);
   }
 
   // `encode` は既に上に定義されたため、古い `encode` や `tune` は削除。

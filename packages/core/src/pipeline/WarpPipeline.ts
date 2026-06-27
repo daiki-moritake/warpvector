@@ -139,10 +139,24 @@ export class WarpPipeline {
    * @param inputDim 入力ベクトルの次元数
    * @param options パイプラインの初期化オプション
    */
+  private _inputDim: number;
+
+  /**
+   * パイプラインの入力次元数を取得します。
+   */
+  public get inputDim(): number {
+    return this._inputDim;
+  }
+
+  /**
+   * @param inputDim 入力ベクトルの次元数
+   * @param options パイプラインの初期化オプション
+   */
   constructor(
-    public inputDim: number,
+    inputDim: number,
     options?: PipelineOptions,
   ) {
+    this._inputDim = inputDim;
     this._autoInit = options?.autoInit ?? true;
   }
 
@@ -194,7 +208,7 @@ export class WarpPipeline {
     );
     this.steps.push({ type: "ProjectionAdapter", adapter });
     // パイプラインの後続の入力次元を更新
-    this.inputDim = outputDim;
+    this._inputDim = outputDim;
     return this;
   }
 
@@ -244,7 +258,8 @@ export class WarpPipeline {
    * @param context インテントやバージョンなどのコンテキスト情報
    * @returns パイプラインを通過した最終的なベクトル (Float32Array または Uint8Array/Int8Array)
    */
-  public run(vector: InputVector, context?: RunContext): OutputVector {
+  public async run(vector: InputVector, context?: RunContext): Promise<OutputVector> {
+    await this.ensureInitialized();
     // ステップが空でfinalStageもない場合は不要な変換を避ける
     if (this.steps.length === 0 && !this.finalStage) {
       return vector instanceof Float32Array ? vector : new Float32Array(vector);
@@ -310,10 +325,11 @@ export class WarpPipeline {
    * @param context インテントやバージョンなどのコンテキスト情報
    * @returns 変換されたベクトルの配列
    */
-  public runBatch(
+  public async runBatch(
     vectors: InputVector[],
     context?: RunContext,
-  ): OutputVector[] {
+  ): Promise<OutputVector[]> {
+    await this.ensureInitialized();
     const batchSize = vectors.length;
     const stopBatch = this._metrics.startBatchRun(batchSize);
 
@@ -413,8 +429,8 @@ export class WarpPipeline {
         // WASMメモリの排他制御付きでバッチ処理
         const batch = buffer;
         buffer = [];
-        const results = await wasmMutex.runExclusive(() =>
-          this.runBatch(batch, context),
+        const results = await wasmMutex.runExclusive(async () =>
+          await this.runBatch(batch, context),
         );
         for (const res of results) {
           yield res;
@@ -423,8 +439,8 @@ export class WarpPipeline {
     }
 
     if (buffer.length > 0) {
-      const results = await wasmMutex.runExclusive(() =>
-        this.runBatch(buffer, context),
+      const results = await wasmMutex.runExclusive(async () =>
+        await this.runBatch(buffer, context),
       );
       for (const res of results) {
         yield res;
@@ -440,12 +456,12 @@ export class WarpPipeline {
    * @param context パイプラインのコンテキスト
    * @returns 指定されたデータベース形式のオブジェクトや文字列
    */
-  public runAndFormat(
+  public async runAndFormat<T = unknown>(
     vector: InputVector,
     dbOptions: FormatOptions,
     context?: RunContext,
-  ): unknown {
-    const tunedVector = this.run(vector, context);
+  ): Promise<T> {
+    const tunedVector = await this.run(vector, context);
 
     const formatFn = FormatRegistry.get(dbOptions.format);
     if (!formatFn) {
@@ -454,7 +470,7 @@ export class WarpPipeline {
       );
     }
 
-    return formatFn(tunedVector, dbOptions);
+    return formatFn(tunedVector, dbOptions) as T;
   }
 
   /**
@@ -579,10 +595,11 @@ export class WarpPipeline {
    * });
    * ```
    */
-  public dryRun(
+  public async dryRun(
     vector: InputVector,
     context?: RunContext,
-  ): DryRunStepResult[] {
+  ): Promise<DryRunStepResult[]> {
+    await this.ensureInitialized();
     const results: DryRunStepResult[] = [];
 
     let currentVector: Float32Array =

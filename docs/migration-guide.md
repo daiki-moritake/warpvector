@@ -2,12 +2,75 @@
 
 This guide covers breaking changes and migration steps for each major version upgrade.
 
-- [v0.3 → v0.4](#v03--v04) (latest)
+- [v0.4 → v0.5](#v04--v05) (latest)
+- [v0.3 → v0.4](#v03--v04)
 - [v0.2 → v0.3](#v02--v03)
 - [v0.1 → v0.2](#v01--v02)
 
 ---
 
+## v0.4 → v0.5
+
+### Breaking Changes
+
+#### 1. Pipeline methods are now async
+
+`run()`, `runBatch()`, `runAndFormat()`, and `dryRun()` now return Promises.
+
+```diff
+- const result = pipeline.run(vector, { intent: "tech" });
++ const result = await pipeline.run(vector, { intent: "tech" });
+
+- const results = pipeline.runBatch(vectors);
++ const results = await pipeline.runBatch(vectors);
+
+- const formatted = pipeline.runAndFormat(vector, { format: "pgvector" });
++ const formatted = await pipeline.runAndFormat<string>(vector, { format: "pgvector" });
+
+- const debug = pipeline.dryRun(vector);
++ const debug = await pipeline.dryRun(vector);
+```
+
+> TypeScript will flag all call sites with type errors (`Promise<OutputVector>` is not assignable to `OutputVector`), making migration straightforward.
+
+#### 2. Error messages unified to English
+
+All structured error messages are now in English. Error codes and `instanceof` chains are unchanged.
+
+#### 3. `runAndFormat<T>()` generic type parameter
+
+```typescript
+const pgStr = await pipeline.runAndFormat<string>(vec, { format: "pgvector" });
+```
+
+#### 4. Deprecated `QuantizationAdapter` static methods removed
+
+```diff
+- QuantizationAdapter.hammingDistance(a, b)
++ import { hammingDistance } from '@warpvector/core';
++ hammingDistance(a, b)
+
+- QuantizationAdapter.int8DotProduct(a, b)
++ import { int8DotProduct } from '@warpvector/core';
++ int8DotProduct(a, b)
+```
+
+#### 5. `WarpPipeline.inputDim` is now read-only
+
+External writes will cause a compile error.
+
+#### 6. `flattenMatrix` error type changed
+
+Now throws `WarpDimensionMismatchError` instead of `Error`.
+
+### Migration Steps
+
+1. **Update dependency**: `npm install warpvector@0.5.0`
+2. **Add `await`** to all `pipeline.run()`, `runBatch()`, `runAndFormat()`, `dryRun()` calls
+3. **Replace deprecated imports**: `QuantizationAdapter.hammingDistance` → `hammingDistance` from core
+4. **Update error message assertions** in tests (if matching exact strings)
+
+---
 ## v0.3 → v0.4
 
 ### Breaking Changes

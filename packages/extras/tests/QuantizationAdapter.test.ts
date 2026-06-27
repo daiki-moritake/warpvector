@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { QuantizationAdapter } from "../src/adapters/QuantizationAdapter";
-import { normalize } from "@warpvector/core";
+import { normalize, int8DotProduct, hammingDistance } from "@warpvector/core";
 
 describe("QuantizationAdapter", () => {
   test("performs int8 scalar quantization correctly", () => {
@@ -52,7 +52,7 @@ describe("QuantizationAdapter", () => {
     const a = new Int8Array([10, -5, 2]);
     const b = new Int8Array([3, 4, -1]);
     // 10*3 + (-5)*4 + 2*(-1) = 30 - 20 - 2 = 8
-    const dot = QuantizationAdapter.int8DotProduct(a, b);
+    const dot = int8DotProduct(a, b);
     expect(dot).toBe(8);
   });
 
@@ -63,7 +63,7 @@ describe("QuantizationAdapter", () => {
     const a = new Uint8Array([165]);
     const b = new Uint8Array([240]);
 
-    const distance = QuantizationAdapter.hammingDistance(a, b);
+    const distance = hammingDistance(a, b);
     expect(distance).toBe(4);
   });
 });

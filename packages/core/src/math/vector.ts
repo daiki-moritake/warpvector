@@ -1,10 +1,12 @@
+import { WarpDimensionMismatchError } from "../errors";
+
 /**
  * ベクトルの次元数を検証します。
  *
  * @param {number[] | Float32Array} vector - 検証するベクトル
  * @param {number} expectedDimension - 期待される次元数
  * @param {string} contextName - エラーメッセージ用のコンテキスト名
- * @throws {Error} 次元数が一致しない場合にエラーをスローします。
+ * @throws {WarpDimensionMismatchError} 次元数が一致しない場合にエラーをスローします。
  */
 export function assertDimension(
   vector: number[] | Float32Array,
@@ -12,8 +14,10 @@ export function assertDimension(
   contextName: string = "Vector",
 ): void {
   if (vector.length !== expectedDimension) {
-    throw new Error(
-      `${contextName} dimension mismatch. Expected ${expectedDimension}, got ${vector.length}.`,
+    throw new WarpDimensionMismatchError(
+      contextName,
+      expectedDimension,
+      vector.length,
     );
   }
 }

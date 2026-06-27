@@ -4,7 +4,7 @@ import { QuantizationAdapter } from "@warpvector/extras";
 import { WhiteningAdapter, MlpAdapter } from "@warpvector/ml";
 
 describe("WarpPipeline", () => {
-  test("chains adapters and processes vectors correctly", () => {
+  test("chains adapters and processes vectors correctly", async () => {
     // Pipeline: Intent -> Projection(to 2 dim) -> Quantization(int8)
     const pipeline = new WarpPipeline(3)
       .addIntent({
@@ -35,7 +35,7 @@ describe("WarpPipeline", () => {
     // Step 2: Projection (1st 2 elements) -> [2, 3]
     // Step 3: Quantize int8 -> clamp and int8 -> Int8Array[2, 3]
 
-    const result = pipeline.run(input, { intent: "my_intent" });
+    const result = await pipeline.run(input, { intent: "my_intent" });
 
     expect(result).toBeInstanceOf(Int8Array);
     expect(result.length).toBe(2);
@@ -89,7 +89,7 @@ describe("WarpPipeline", () => {
     expect(() => WarpPipeline.importState([])).toThrow();
   });
 
-  test("runBatch processes multiple vectors correctly", () => {
+  test("runBatch processes multiple vectors correctly", async () => {
     const pipeline = new WarpPipeline(3).addIntent({
       my_intent: {
         matrix: [
@@ -106,15 +106,15 @@ describe("WarpPipeline", () => {
       [4, 5, 6],
     ];
 
-    const result = pipeline.runBatch(batch, { intent: "my_intent" });
+    const result = await pipeline.runBatch(batch, { intent: "my_intent" });
     expect(result.length).toBe(2);
     expect(Array.from(result[0])).toEqual([2, 4, 6]);
     expect(Array.from(result[1])).toEqual([8, 10, 12]);
   });
 
-  test("runAndFormat outputs to pgvector format correctly", () => {
+  test("runAndFormat outputs to pgvector format correctly", async () => {
     const pipeline = new WarpPipeline(2); // no-op pipeline for testing formatting
-    const result = pipeline.runAndFormat(new Float32Array([0.1, 0.2]), {
+    const result = await pipeline.runAndFormat(new Float32Array([0.1, 0.2]), {
       format: "pgvector",
     });
     expect(typeof result).toBe("string");
@@ -124,9 +124,9 @@ describe("WarpPipeline", () => {
     expect((result as string).endsWith("]")).toBe(true);
   });
 
-  test("runAndFormat outputs to pinecone format correctly", () => {
+  test("runAndFormat outputs to pinecone format correctly", async () => {
     const pipeline = new WarpPipeline(2);
-    const result = pipeline.runAndFormat(new Float32Array([0.5, 1.0]), {
+    const result = await pipeline.runAndFormat(new Float32Array([0.5, 1.0]), {
       format: "pinecone",
       topK: 5,
       filter: { genre: "action" },
@@ -136,9 +136,9 @@ describe("WarpPipeline", () => {
     expect(result.filter.genre).toBe("action");
   });
 
-  test("runAndFormat outputs to redis format correctly", () => {
+  test("runAndFormat outputs to redis format correctly", async () => {
     const pipeline = new WarpPipeline(2);
-    const result = pipeline.runAndFormat([1.0, -1.0], {
+    const result = await pipeline.runAndFormat([1.0, -1.0], {
       format: "redis",
     }) as Uint8Array;
     expect(result).toBeInstanceOf(Uint8Array);
@@ -163,11 +163,11 @@ describe("WarpPipeline", () => {
     await pipeline.init();
 
     // Test if run works after init
-    const result = pipeline.run([1, 2]);
+    const result = await pipeline.run([1, 2]);
     expect(Array.from(result)).toEqual([1, 2]);
   });
 
-  test("supports custom adapters via AdapterRegistry", () => {
+  test("supports custom adapters via AdapterRegistry", async () => {
     // カスタムアダプタの定義
     class MyCustomAdapter {
       constructor(public scale: number) {}
@@ -198,7 +198,7 @@ describe("WarpPipeline", () => {
     );
 
     // カスタムアダプタが正しく実行されるか確認
-    const result = pipeline.run([1, 2, 3]);
+    const result = await pipeline.run([1, 2, 3]);
     expect(Array.from(result)).toEqual([5, 10, 15]);
 
     // さらに状態を正しくエクスポートできるか確認
@@ -209,7 +209,7 @@ describe("WarpPipeline", () => {
 
     // エクスポートした状態から完全に復元できるか確認
     const restoredPipeline = WarpPipeline.importState(exportedState);
-    const result2 = restoredPipeline.run([2, 4, 6]);
+    const result2 = await restoredPipeline.run([2, 4, 6]);
     expect(Array.from(result2)).toEqual([10, 20, 30]);
   });
 });

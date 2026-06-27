@@ -3,7 +3,7 @@ import { WarpPipeline } from "../src/pipeline/WarpPipeline";
 import { QuantizationAdapter } from "@warpvector/extras";
 
 describe("FinalStageAdapter pipeline", () => {
-  test("setFinalStage applies quantization at the end of pipeline", () => {
+  test("setFinalStage applies quantization at the end of pipeline", async () => {
     const quantizer = new QuantizationAdapter({ type: "int8", dim: 3 });
 
     const pipeline = new WarpPipeline(3)
@@ -19,14 +19,14 @@ describe("FinalStageAdapter pipeline", () => {
       })
       .setFinalStage("QuantizationAdapter", quantizer);
 
-    const result = pipeline.run([0.5, -0.3, 0.8], { intent: "my_intent" });
+    const result = await pipeline.run([0.5, -0.3, 0.8], { intent: "my_intent" });
 
     // FinalStage 経由なので Int8Array が返る
     expect(result).toBeInstanceOf(Int8Array);
     expect(result.length).toBe(3);
   });
 
-  test("pipeline without finalStage returns Float32Array", () => {
+  test("pipeline without finalStage returns Float32Array", async () => {
     const pipeline = new WarpPipeline(3).addIntent({
       default: {
         matrix: [
@@ -38,11 +38,11 @@ describe("FinalStageAdapter pipeline", () => {
       },
     });
 
-    const result = pipeline.run([1, 2, 3], { intent: "default" });
+    const result = await pipeline.run([1, 2, 3], { intent: "default" });
     expect(result).toBeInstanceOf(Float32Array);
   });
 
-  test("runBatch with finalStage quantizes all vectors", () => {
+  test("runBatch with finalStage quantizes all vectors", async () => {
     const quantizer = new QuantizationAdapter({ type: "int8", dim: 2 });
 
     const pipeline = new WarpPipeline(2)
@@ -57,7 +57,7 @@ describe("FinalStageAdapter pipeline", () => {
       })
       .setFinalStage("QuantizationAdapter", quantizer);
 
-    const results = pipeline.runBatch(
+    const results = await pipeline.runBatch(
       [
         [0.5, -0.5],
         [1.0, 0.0],
@@ -121,7 +121,7 @@ describe("FinalStageAdapter pipeline", () => {
     expect(restoredState.finalStage!.type).toBe("QuantizationAdapter");
   });
 
-  test("backward compatible: importState accepts legacy flat array", () => {
+  test("backward compatible: importState accepts legacy flat array", async () => {
     // 旧形式: PipelineState[] をそのまま渡す
     const legacyState = [
       {
@@ -139,7 +139,7 @@ describe("FinalStageAdapter pipeline", () => {
     ];
 
     const restored = WarpPipeline.importState(legacyState);
-    const result = restored.run([3, 4], { intent: "default" });
+    const result = await restored.run([3, 4], { intent: "default" });
     expect(result).toBeInstanceOf(Float32Array);
     expect(result.length).toBe(2);
   });

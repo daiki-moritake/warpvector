@@ -5,6 +5,7 @@ import {
   WarpPipeline,
   VectorDBAdapter,
   getWasmAllocatorOffset,
+  int8DotProduct,
 } from "@warpvector/core";
 import { QuantizationAdapter } from "../src/adapters/QuantizationAdapter";
 import { withWarpVector } from "@warpvector/prisma";
@@ -78,7 +79,7 @@ describe("Advanced Safety, Memory allocation, and Quantization Tests", () => {
     input.fill(1.0);
 
     // 実行が正常に終わり、メモリアドレスの衝突でクラッシュしないこと
-    const output = pipeline.run(input);
+    const output = await pipeline.run(input);
     expect(output.length).toBe(dim);
   });
 
@@ -110,7 +111,7 @@ describe("Advanced Safety, Memory allocation, and Quantization Tests", () => {
       (sum, v, i) => sum + v * rawVector2[i],
       0,
     );
-    const approxDot = QuantizationAdapter.int8DotProduct(q1, q2);
+    const approxDot = int8DotProduct(q1, q2);
 
     // 近似された内積が実数空間の内積に近いはず
     expect(approxDot).toBeCloseTo(expectedDot, 4);
