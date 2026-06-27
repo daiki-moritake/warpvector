@@ -10,7 +10,10 @@
 
 データベースとアプリケーションの間に立ち、インメモリの高速なアフィン変換によって、データの意味的距離をユーザーの「真の意図」に極限まで近づけます。
 
-> 🎮 [**インタラクティブデモを試す**](https://daiki-moritake.github.io/warpvector/ja.html) · 📖 [English README](./README.md)
+## 🎮 [インタラクティブデモ (Playground) を試す](https://daiki-moritake.github.io/warpvector/ja.html)
+**ブラウザ上でWASMによるリアルタイムのベクトル空間変換（Warping）や量子化の様子を、直感的なUIで体験できます。**
+
+> 📖 [English README](./README.md)
 
 ---
 

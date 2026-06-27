@@ -12,7 +12,10 @@
 
 It sits between your embedding model and vector database, applying fast in-memory affine transformations to bring semantic distances closer to the user's **true intent**.
 
-> 🎮 [**Try the Interactive Playground**](https://daiki-moritake.github.io/warpvector/) · 📖 [日本語版 README](./README.ja.md)
+## 🎮 [Try the Interactive Playground (Demo)](https://daiki-moritake.github.io/warpvector/)
+**Experience real-time vector space transformation and quantization in your browser via WASM.**
+
+> 📖 [日本語版 README](./README.ja.md)
 
 ---
 
