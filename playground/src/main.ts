@@ -255,7 +255,7 @@ export async function initPlayground(lang: Lang) {
   let currentIntent = 'none';
   let isBlendMode = false;
   let isCompareMode = false;
-  let blendWeights: Record<string, number> = {};
+  const blendWeights: Record<string, number> = {};
   let lastLatencyMs = 0;
 
   // Animation state (Dynamic 384D interpolation)
@@ -901,6 +901,80 @@ export async function initPlayground(lang: Lang) {
 
   // Resize
   window.addEventListener('resize', () => { resizeCanvas(); drawFrame(); });
+
+  // --- Simulators for Uniqueness Section ---
+  const simRaceBtn = document.getElementById('simRaceBtn');
+  if (simRaceBtn) {
+    simRaceBtn.addEventListener('click', () => {
+      if (simRaceBtn.textContent === 'Running...' || simRaceBtn.textContent === '実行中...') return;
+      simRaceBtn.textContent = lang === 'ja' ? '実行中...' : 'Running...';
+      
+      const warpBar = document.getElementById('simRaceWarpBar');
+      const pyBar = document.getElementById('simRacePyBar');
+      const warpTime = document.getElementById('simRaceWarpTime');
+      const pyTime = document.getElementById('simRacePyTime');
+      
+      if (!warpBar || !pyBar || !warpTime || !pyTime) return;
+      
+      warpBar.style.transition = 'none';
+      pyBar.style.transition = 'none';
+      warpBar.style.width = '0%';
+      pyBar.style.width = '0%';
+      warpTime.textContent = '--';
+      pyTime.textContent = '--';
+      
+      // Simulate WarpVector (WASM) - super fast
+      setTimeout(() => {
+        warpBar.style.transition = 'width 0.1s ease-out';
+        warpBar.style.width = '100%';
+        warpTime.textContent = '1.2ms';
+      }, 50);
+      
+      // Simulate Python API (Network) - slow
+      setTimeout(() => {
+        pyBar.style.transition = 'width 1.5s cubic-bezier(0.2, 0.8, 0.4, 1)';
+        pyBar.style.width = '100%';
+        setTimeout(() => {
+          pyTime.textContent = '320ms';
+          simRaceBtn.textContent = lang === 'ja' ? '▶ 実行' : '▶ Run';
+        }, 1500);
+      }, 50);
+    });
+  }
+
+  const simTermBtn = document.getElementById('simTermBtn');
+  if (simTermBtn) {
+    simTermBtn.addEventListener('click', async () => {
+      if (simTermBtn.textContent === 'Running...' || simTermBtn.textContent === '実行中...') return;
+      simTermBtn.textContent = lang === 'ja' ? '実行中...' : 'Running...';
+      
+      const npmOut = document.getElementById('simTermNpmOutput');
+      const pipOut = document.getElementById('simTermPipOutput');
+      if (!npmOut || !pipOut) return;
+      
+      npmOut.innerHTML = '';
+      pipOut.innerHTML = '';
+      
+      // NPM Install
+      await new Promise(r => setTimeout(r, 200));
+      npmOut.innerHTML = `<span style="color:var(--accent-cyan)">+ warpvector@latest</span><br/>added 1 package in 0.5s<br/><span style="color:var(--text-muted)">0 vulnerabilities • 50KB total</span>`;
+      
+      // PIP Install (simulated slow)
+      await new Promise(r => setTimeout(r, 500));
+      pipOut.innerHTML = `Collecting torch<br/><span style="color:var(--text-muted)">Downloading torch-2.1.0-cp310-none-manylinux.whl (2.2 GB)</span><br/>`;
+      
+      await new Promise(r => setTimeout(r, 800));
+      pipOut.innerHTML += `|████████▎       | 25%<br/>`;
+      
+      await new Promise(r => setTimeout(r, 800));
+      pipOut.innerHTML += `|███████████████▍| 50%<br/>`;
+      
+      await new Promise(r => setTimeout(r, 800));
+      pipOut.innerHTML += `... (ETA: 5 minutes)<br/><span style="color:var(--accent-amber)">Warning: Heavy infrastructure required.</span>`;
+      
+      simTermBtn.textContent = lang === 'ja' ? '▶ 実行' : '▶ Run';
+    });
+  }
 
   // Init
   renderIntentButtons();
