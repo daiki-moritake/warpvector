@@ -10,7 +10,7 @@ export interface WarpWorkerClientOptions {
 export class WarpWorkerClient {
   private pool: WarpWorkerPool;
 
-  constructor(options: WarpWorkerClientOptions) {
+  constructor(private options: WarpWorkerClientOptions) {
     this.pool = new WarpWorkerPool({
       workerScript: options.workerScript,
       numWorkers: options.numWorkers,
@@ -21,9 +21,7 @@ export class WarpWorkerClient {
    * Initializes the pipeline on all workers.
    */
   public async init(): Promise<void> {
-    // We send the pipeline state to all workers so they can construct their own local WarpPipeline
-    // Note: The pipeline state doesn't include functions or non-serializable objects.
-    // It assumes all required adapters have been registered globally in the worker script.
+    await this.initWorkers(this.options.pipelineState);
   }
 
   // We actually need to initialize by passing the state in init, wait, we can pass state to broadcast
