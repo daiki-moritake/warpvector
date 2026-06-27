@@ -153,9 +153,9 @@ graph TD
         B_Rerank[Heavy Reranking<br/>ColBERT, Scattering]
     end
     
-    B_Train -.->|Deploy Lightweight Weights| E_Core
-    B_Auto -.->|Auto-generate Intent Matrices| E_Core
-    B_Train -.->|Task Arithmetic Model Merging| E_Core
+    B_Train -. "Deploy Lightweight Weights" .-> E_Core
+    B_Auto -. "Auto-generate Intent Matrices" .-> E_Core
+    B_Train -. "Task Arithmetic Model Merging" .-> E_Core
 ```
 
 ---
