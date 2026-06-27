@@ -5,13 +5,13 @@
 
 [![npm version](https://badge.fury.io/js/warpvector.svg)](https://badge.fury.io/js/warpvector)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Edge Ready](https://img.shields.io/badge/Edge-Ready-success.svg)](#)
-[![Zero Dependencies](https://img.shields.io/badge/Dependencies-0-brightgreen.svg)](#)
-[![Tests](https://img.shields.io/badge/Tests-297%20passed-success.svg)](#)
+[![Edge Ready](https://img.shields.io/badge/Edge-Ready-success.svg)](https://workers.cloudflare.com/)
+[![Zero Dependencies](https://img.shields.io/badge/Dependencies-0-brightgreen.svg)](https://www.npmjs.com/package/warpvector)
+[![Tests](https://img.shields.io/badge/Tests-297%20passed-success.svg)](https://github.com/daiki-moritake/warpvector/actions)
 
-`warpvector` は、AIモデルの再学習や重い再推論を行うことなく、検索クエリやコンテキスト（意図）に応じてベクトル空間を動的に変形させる、TypeScriptネイティブの軽量ミドルウェア・ユーティリティです。
+`WarpVector` は、AIモデルの再学習や重い再推論を行うことなく、検索クエリやコンテキスト（意図）に応じてベクトル空間を動的に変形させる、TypeScriptネイティブの軽量ミドルウェア・ユーティリティです。
 
-### ✨ プロジェクトのハイライト
+## ✨ プロジェクトのハイライト
 - ⚡️ **超高速（エッジ対応）**: WASMにより、ブラウザやCloudflare Workers等のエッジ環境でサブミリ秒（数マイクロ秒）の推論を実現します。
 - 🧠 **かしこい（動的ワープ）**: ユーザーの「意図」に応じて、リアルタイムにベクトル空間を歪めて検索精度を劇的に向上させます。
 - 💸 **高コスパ（量子化）**: Int8 / Binary 圧縮により、ベクトルDBのストレージとメモリコストを最大96.9%（1/32）削減します。
@@ -33,11 +33,11 @@
 
 ---
 
-## 💡 なぜ `warpvector` なのか？
+## 💡 なぜ `WarpVector` なのか？
 
 従来のベクトル検索は静的であり、事前に生成された埋め込みベクトルの距離（類似度）に依存していました。コンテキストに応じた検索の微調整を行いたい場合、これまではメタデータのフィルタリングに頼るか、重い指示チューニング型モデル（Pythonベース）を再度動かすしかなく、リアルタイム性や柔軟性に欠けていました。
 
-`warpvector` は、**「LLMモデルを取り替えたり再学習したりすることなく、検索結果を劇的に賢く・軽く・パーソナライズできる魔法のフィルター」** として機能します。
+`WarpVector` は、**「LLMモデルを取り替えたり再学習したりすることなく、検索結果を劇的に賢く・軽く・パーソナライズできる魔法のフィルター」** として機能します。
 
 ### 🔄 Before / After: 検索アーキテクチャの進化
 
@@ -45,14 +45,14 @@
 graph TD
     subgraph "❌ Before (従来の静的な検索)"
         B_Query[ユーザーのクエリ<br/>例: 'Apple'] --> B_LLM[埋め込みモデル<br/>ada-002 等]
-        B_LLM -->|静的ベクトル| B_DB[(Vector DB)]
+        B_LLM -->|静的ベクトル| B_DB[(ベクトルDB)]
         B_DB -.->|課題| B_Result[果物か企業か判別できず<br/>ノイズが多い結果に...]
     end
 
     subgraph "✨ After (WarpVector による動的な検索)"
         A_Query[ユーザーのクエリ<br/>例: 'Apple'] --> A_LLM[埋め込みモデル<br/>ada-002 等]
         A_LLM -->|静的ベクトル| A_WV{⚡️ WarpVector Middleware<br/>'ITドメイン'の意図を適用}
-        A_WV -->|最適化済みベクトル| A_DB[(Vector DB)]
+        A_WV -->|最適化済みベクトル| A_DB[(ベクトルDB)]
         A_DB -.->|解決| A_Result[空間が歪み、企業としての<br/>Appleが即座にトップへ！]
     end
 ```
@@ -61,7 +61,7 @@ graph TD
 
 ## 🎯 5つの強力なユースケース
 
-`warpvector` を既存の RAG やベクトル検索システムに組み込むことで、以下の課題を解決できます。
+`WarpVector` を既存の RAG やベクトル検索システムに組み込むことで、以下の課題を解決できます。
 
 - 🎯 **1. ユーザーの「意図」に合わせたパーソナライズ検索**
   > 標準的な埋め込みモデルは「Apple」が果物か企業かを判別できません。WarpVectorを使えば、「ITドメイン」「食品ドメイン」といった意図（インテント）を切り替えるだけで、一瞬で空間が歪み、クエリが目的のドキュメントに近づきます。
@@ -107,9 +107,9 @@ graph TD
 | IntentAdapter | 1536D | 2406.2 µs | Identity precision | 1.000000 |
 | ProjectionAdapter | 1536 → 512 | 807.0 µs | — | — |
 | ProjectionAdapter | 768 → 256 | 204.0 µs | — | — |
-| QuantizationAdapter | 128D (int8) | 0.7 µs | 量子化忠実度 | 0.999992 |
-| QuantizationAdapter | 768D (int8) | 4.2 µs | 量子化忠実度 | 0.999992 |
-| QuantizationAdapter | 1536D (int8) | 4.2 µs | 量子化忠実度 | 0.999992 |
+| QuantizationAdapter | 128D (Int8) | 0.7 µs | 量子化忠実度 | 0.999992 |
+| QuantizationAdapter | 768D (Int8) | 4.2 µs | 量子化忠実度 | 0.999992 |
+| QuantizationAdapter | 1536D (Int8) | 4.2 µs | 量子化忠実度 | 0.999992 |
 | MlpAdapter (WASM) | 128 → 64 | 2.2 µs | — | — |
 | MlpAdapter (WASM) | 768 → 256 | 3.8 µs | — | — |
 | MlpAdapter (WASM) | 1536 → 512 → 128 | 1.1 µs | — | — |
@@ -123,7 +123,7 @@ graph TD
 
 ## 🧩 機能アーキテクチャ (Edge vs Backend)
 
-`warpvector` は、超低遅延を要求される「エッジ推論」と、計算リソースを必要とする「学習・高度な処理」を明確に分離した設計を採用しています。
+`WarpVector` は、超低遅延を要求される「エッジ推論」と、計算リソースを必要とする「学習・高度な処理」を明確に分離した設計を採用しています。
 
 ```mermaid
 graph TD
@@ -135,14 +135,14 @@ graph TD
     end
     
     subgraph "🧠 Backend & Training Layer (バックエンド学習層: Node.js/Worker)"
-        B_Train[学習エンジン<br/>InfoNCE, TripletTrainer]
+        B_Train[学習エンジン<br/>InfoNCETrainer, TripletTrainer]
         B_Auto[Auto-ML<br/>IntentMatrixFactory]
         B_Rerank[重厚リランキング<br/>ColBERT, Scattering]
     end
     
-    B_Train -.->|軽量な変換行列 （Weights） をデプロイ| E_Core
+    B_Train -.->|軽量な変換行列 (Weights) をデプロイ| E_Core
     B_Auto -.->|最適な Intent 行列を自動生成してデプロイ| E_Core
-    B_Train -.->|学習済みモデルの合成 （Task Arithmetic）| E_Core
+    B_Train -.->|学習済みモデルの合成 (Task Arithmetic)| E_Core
 ```
 
 ---
@@ -151,6 +151,10 @@ graph TD
 
 ```bash
 npm install warpvector
+# または
+pnpm add warpvector
+# または
+yarn add warpvector
 # または
 bun add warpvector
 ```
@@ -320,7 +324,7 @@ const results = await env.VECTORIZE_INDEX.query(vector, options);
 
 すぐにプロジェクトに組み込むための実践的なサンプルスクリプト群です（`examples/` 収録）。
 
-1. **[セキュアな RAG パイプラインの構築](./examples/01-secure-rag-pipeline.ts)** (`AnomalyDetectionAdapter` + `SafeQuantizationAdapter`)
+1. **[セキュアな RAG パイプラインの構築](./examples/01-secure-rag-pipeline.ts)** (異常検知と安全な圧縮: `AnomalyDetectionAdapter` + `SafeQuantizationAdapter`)
 2. **[MoE と AutoML 最適化](./examples/02-moe-auto-tuning.ts)**
 3. **[Reranker のための Cross-Encoder 学習](./examples/03-cross-encoder-training.ts)**
 4. **[ECサイトでのIntentベース検索](./docs/cookbook/ecommerce-search.ja.md)**
@@ -376,7 +380,7 @@ console.log(tracer.getMetrics());
 
 ## 📐 数学的背景：動的アフィン変換と非線形性
 
-入力となる標準的なベースベクトル $\mathbf{x} \in \mathbb{R}^d$ に対し、`warpvector` は以下の**アフィン写像（Affine Map）**を適用し、調律された新しいベクトル $\mathbf{x}' \in \mathbb{R}^d$ を生成します。
+入力となる標準的なベースベクトル $\mathbf{x} \in \mathbb{R}^d$ に対し、`WarpVector` は以下の**アフィン写像（Affine Map）**を適用し、調律された新しいベクトル $\mathbf{x}' \in \mathbb{R}^d$ を生成します。
 
 $$\mathbf{x}' = \sigma(\mathbf{W}_I \mathbf{x} + \mathbf{b}_I)$$
 
