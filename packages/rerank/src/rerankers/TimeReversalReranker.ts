@@ -134,7 +134,7 @@ export class TimeReversalReranker extends BaseGraphReranker {
       }
     }
 
-    let currentS = new Float32Array(S0);
+    const currentS = new Float32Array(S0);
     const nextS = new Float32Array(N);
     const tau = this.tau;
 

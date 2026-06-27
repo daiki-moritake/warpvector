@@ -179,7 +179,7 @@ export async function evaluatePipeline(config: EvalConfig): Promise<EvalReport> 
 
     // --- Warped 評価 ---
     let warpedQuery = vanillaQuery;
-    let tWarp0 = performance.now();
+    const tWarp0 = performance.now();
     if (pipeline) {
       if (typeof pipeline === "function") {
         warpedQuery = pipeline(vanillaQuery);

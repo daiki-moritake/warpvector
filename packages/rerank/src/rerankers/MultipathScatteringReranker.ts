@@ -174,7 +174,7 @@ export class MultipathScatteringReranker extends BaseGraphReranker {
       }
     }
 
-    let currentS = new Float32Array(S0);
+    const currentS = new Float32Array(S0);
     const nextS = new Float32Array(N);
     const alpha = this.alpha;
     const oneMinusAlpha = 1.0 - alpha;

@@ -1,17 +1,17 @@
 {
-  "name": "@warpvector/ml",
+  "name": "@warpvector/opentelemetry",
   "version": "0.6.0",
-  "description": "Lightweight non-linear and online learning adapters for edge inference",
-  "main": "src/index.ts",
-  "module": "src/index.ts",
-  "types": "src/index.ts",
+  "description": "OpenTelemetry exporter and tracer implementation for WarpVector",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
   "exports": {
     ".": {
       "bun": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
       "require": "./dist/index.js",
-      "default": "./src/index.ts"
+      "default": "./dist/index.js"
     }
   },
   "files": [
@@ -23,26 +23,20 @@
   },
   "keywords": [
     "vector",
-    "mlp",
-    "whitening",
-    "pca",
-    "edge"
+    "opentelemetry",
+    "tracing",
+    "metrics",
+    "observability"
   ],
   "author": "Daiki Moritake",
   "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/daiki-moritake/warpvector.git",
-    "directory": "packages/ml"
-  },
-  "homepage": "https://github.com/daiki-moritake/warpvector#readme",
-  "bugs": {
-    "url": "https://github.com/daiki-moritake/warpvector/issues"
-  },
   "dependencies": {
+    "@opentelemetry/api": "^1.9.1",
+    "@opentelemetry/semantic-conventions": "^1.41.1",
     "@warpvector/core": "workspace:*"
   },
   "devDependencies": {
+    "@opentelemetry/sdk-trace-base": "^2.8.0",
     "@types/bun": "^1.3.14",
     "tsup": "^8.0.0",
     "typescript": "^5.0.0"

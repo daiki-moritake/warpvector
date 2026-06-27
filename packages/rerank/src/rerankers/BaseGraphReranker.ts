@@ -42,7 +42,7 @@ export abstract class BaseGraphReranker {
     }
 
     const CNorm = candidates.map(c => normalize(new Float32Array(c)));
-    let S0 = new Float32Array(N);
+    const S0 = new Float32Array(N);
 
     if (initialScores && initialScores.length === N) {
       S0.set(initialScores);
@@ -106,7 +106,7 @@ export abstract class BaseGraphReranker {
       throw new Error("BaseGraphReranker: Must provide either 'query' or a valid 'initialScores' array.");
     }
 
-    let S0 = new Float32Array(N);
+    const S0 = new Float32Array(N);
     if (initialScores && initialScores.length === N) {
       S0.set(initialScores);
     } else if (query) {

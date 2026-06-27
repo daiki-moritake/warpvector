@@ -67,6 +67,15 @@ export interface WarpAdapter {
   tuneBatch?(vectors: InputVector[], context?: string): TransformOutput[];
 
   /**
+   * 複数のベクトルを一括で非同期に変換します（オプション実装）
+   * WebGPU Compute Shader などの非同期ハードウェアアクセラレーションを提供します。
+   *
+   * @param vectors 変換前のベクトルの配列
+   * @param context オプションのコンテキスト情報
+   */
+  tuneBatchAsync?(vectors: InputVector[], context?: string): Promise<TransformOutput[]>;
+
+  /**
    * 非同期での初期化処理（オプション実装）
    * WASMのロードなどが必要なアダプタで実装します。
    *

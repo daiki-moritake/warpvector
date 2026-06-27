@@ -199,7 +199,7 @@ export class SoftWhiteningAdapter implements WarpAdapter {
       // WASMが使えない場合のフォールバック
       for (let k = 0; k < this.numComponents; k++) {
         const w = this.components[k];
-        let y = innerProduct(w, x_residual);
+        const y = innerProduct(w, x_residual);
 
         addScaledVector(w, x_residual, this.learningRate * y);
         addScaledVector(w, w, -this.learningRate * y * y);
@@ -221,7 +221,7 @@ export class SoftWhiteningAdapter implements WarpAdapter {
   public tune(vector: number[] | Float32Array): Float32Array {
     assertDimension(vector, this.dim, "SoftWhiteningAdapter.tune");
 
-    let result = new Float32Array(this.dim);
+    const result = new Float32Array(this.dim);
 
     // 1. 平均の減算 (Zero-centering)
     for (let i = 0; i < this.dim; i++) {

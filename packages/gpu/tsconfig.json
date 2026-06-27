@@ -1,0 +1,7 @@
+{
+  "extends": "../../tsconfig.package.json",
+  "include": ["src/**/*.ts", "tests/**/*.ts"],
+  "compilerOptions": {
+    "types": ["@webgpu/types"]
+  }
+}
