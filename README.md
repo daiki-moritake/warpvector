@@ -24,7 +24,11 @@ It sits between your embedding model and vector database, applying fast in-memor
   <br />
 </div>
 
-> 📖 [日本語版 README](./README.ja.md)
+<div align="center">
+  <a href="./README.md"><img src="https://img.shields.io/badge/English-README-1F2937?style=for-the-badge&logo=markdown&logoColor=white" alt="English" /></a>
+  &nbsp;&nbsp;
+  <a href="./README.ja.md"><img src="https://img.shields.io/badge/日本語-README-1F2937?style=for-the-badge&logo=markdown&logoColor=white" alt="日本語" /></a>
+</div>
 
 ---
 
