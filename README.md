@@ -5,15 +5,15 @@
 
 [![npm version](https://badge.fury.io/js/warpvector.svg)](https://badge.fury.io/js/warpvector)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Edge Ready](https://img.shields.io/badge/Edge-Ready-success.svg)](#)
-[![Zero Dependencies](https://img.shields.io/badge/Dependencies-0-brightgreen.svg)](#)
-[![Tests](https://img.shields.io/badge/Tests-297%20passed-success.svg)](#)
+[![Edge Ready](https://img.shields.io/badge/Edge-Ready-success.svg)](https://workers.cloudflare.com/)
+[![Zero Dependencies](https://img.shields.io/badge/Dependencies-0-brightgreen.svg)](https://www.npmjs.com/package/warpvector)
+[![Tests](https://img.shields.io/badge/Tests-297%20passed-success.svg)](https://github.com/daiki-moritake/warpvector/actions)
 
 **Warp your vector space at runtime — no retraining, no Python, just TypeScript.**
 
-`warpvector` is a lightweight, zero-dependency TypeScript middleware that dynamically transforms vector spaces based on search context and user intent, without retraining AI models or running expensive re-inference.
+`WarpVector` is a lightweight, zero-dependency TypeScript middleware that dynamically transforms vector spaces based on search context and user intent, without retraining AI models or running expensive re-inference.
 
-### ✨ Project Highlights
+## ✨ Project Highlights
 - ⚡️ **Blazing Fast (Edge Ready)**: Sub-millisecond inference directly on Cloudflare Workers or in-browser via WASM.
 - 🧠 **Dynamic & Smart**: Instantly warps the vector space in real-time based on user intent, boosting search accuracy.
 - 💸 **Cost-Effective**: Slashes Vector DB storage and memory costs by up to 96.9% using Int8/Binary quantization.
@@ -63,7 +63,7 @@ graph TD
 
 ## 🎯 5 Key Use Cases
 
-Integrating `warpvector` into your RAG or vector search systems solves the following challenges:
+Integrating `WarpVector` into your RAG or vector search systems solves the following challenges:
 
 - 🎯 **1. Intent-Aware Personalized Search**
   > Standard embeddings can't distinguish "Apple" (fruit) from "Apple" (company). WarpVector lets you switch **intents** to instantly warp the vector space toward the right domain.
@@ -109,9 +109,9 @@ Integrating `warpvector` into your RAG or vector search systems solves the follo
 | IntentAdapter | 1536D | 2406.2 µs | Identity precision | 1.000000 |
 | ProjectionAdapter | 1536 → 512 | 807.0 µs | — | — |
 | ProjectionAdapter | 768 → 256 | 204.0 µs | — | — |
-| QuantizationAdapter | 128D (int8) | 0.7 µs | Quantization fidelity | 0.999992 |
-| QuantizationAdapter | 768D (int8) | 4.2 µs | Quantization fidelity | 0.999992 |
-| QuantizationAdapter | 1536D (int8) | 4.2 µs | Quantization fidelity | 0.999992 |
+| QuantizationAdapter | 128D (Int8) | 0.7 µs | Quantization fidelity | 0.999992 |
+| QuantizationAdapter | 768D (Int8) | 4.2 µs | Quantization fidelity | 0.999992 |
+| QuantizationAdapter | 1536D (Int8) | 4.2 µs | Quantization fidelity | 0.999992 |
 | MlpAdapter (WASM) | 128 → 64 | 2.2 µs | — | — |
 | MlpAdapter (WASM) | 768 → 256 | 3.8 µs | — | — |
 | MlpAdapter (WASM) | 1536 → 512 → 128 | 1.1 µs | — | — |
@@ -125,7 +125,7 @@ Integrating `warpvector` into your RAG or vector search systems solves the follo
 
 ## 🧩 Feature Architecture (Edge vs Backend)
 
-`warpvector` adopts a clear architectural separation between "Edge Inference" (requiring ultra-low latency) and "Backend Training" (requiring heavy compute resources).
+`WarpVector` adopts a clear architectural separation between "Edge Inference" (requiring ultra-low latency) and "Backend Training" (requiring heavy compute resources).
 
 ```mermaid
 graph TD
@@ -137,7 +137,7 @@ graph TD
     end
     
     subgraph "🧠 Backend & Training Layer (Node.js/Workers)"
-        B_Train[Trainers<br/>InfoNCE, TripletTrainer]
+        B_Train[Trainers<br/>InfoNCETrainer, TripletTrainer]
         B_Auto[Auto-ML<br/>IntentMatrixFactory]
         B_Rerank[Heavy Reranking<br/>ColBERT, Scattering]
     end
@@ -153,6 +153,10 @@ graph TD
 
 ```bash
 npm install warpvector
+# or
+pnpm add warpvector
+# or
+yarn add warpvector
 # or
 bun add warpvector
 ```
@@ -321,7 +325,7 @@ const results = await env.VECTORIZE_INDEX.query(vector, options);
 
 See the `examples/` and `docs/cookbook/` directories for drop-in solutions:
 
-1. **[Secure RAG Pipeline](./examples/01-secure-rag-pipeline.ts)** (`AnomalyDetection` + `SafeQuantization`)
+1. **[Secure RAG Pipeline](./examples/01-secure-rag-pipeline.ts)** (Anomaly Detection & Safe Compression: `AnomalyDetectionAdapter` + `SafeQuantizationAdapter`)
 2. **[MoE and Auto-Tuning](./examples/02-moe-auto-tuning.ts)**
 3. **[Cross-Encoder Training for Rerankers](./examples/03-cross-encoder-training.ts)**
 4. **[E-commerce Search Cookbook](./docs/cookbook/ecommerce-search.md)**

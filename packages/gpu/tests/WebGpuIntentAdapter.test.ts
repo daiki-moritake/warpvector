@@ -18,17 +18,25 @@ describe("WebGpuIntentAdapter", () => {
       const results = await adapter.tuneBatchAsync!(vectors, "default");
       expect(results.length).toBe(2);
     } else {
-      // Should throw or fail gracefully when trying to run without WebGPU
+      // Should fallback gracefully to WASM/CPU without WebGPU
       const vectors: InputVector[] = [[1, 2], [3, 4]];
-      let error = null;
-      try {
-        await adapter.tuneBatchAsync!(vectors, "default");
-      } catch (e: any) {
-        error = e;
-      }
-      expect(error).not.toBeNull();
-      expect(error.message).toContain("WebGPU is not initialized or not supported");
+      const results = await adapter.tuneBatchAsync!(vectors, "default");
+      expect(results.length).toBe(2);
+      expect(results[0][0]).toBeCloseTo(1, 5);
+      expect(results[0][1]).toBeCloseTo(2, 5);
     }
+  });
+
+  it("should always use fallback for synchronous tune()", () => {
+    const adapter = new WebGpuIntentAdapter(
+      { default: { matrix: [[1, 0], [0, 1]], bias: [0, 0] } },
+      2,
+      2
+    );
+    const vector: InputVector = [1, 2];
+    const result = adapter.tune(vector, "default");
+    expect(result[0]).toBeCloseTo(1, 5);
+    expect(result[1]).toBeCloseTo(2, 5);
   });
 
   it("exportState and importState should preserve intent data", () => {

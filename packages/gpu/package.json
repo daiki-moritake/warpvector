@@ -1,6 +1,6 @@
 {
   "name": "@warpvector/gpu",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "description": "WebGPU Compute Shaders for WarpVector",
   "main": "dist/index.js",
   "module": "dist/index.mjs",

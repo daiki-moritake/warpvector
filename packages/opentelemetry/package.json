@@ -1,6 +1,6 @@
 {
   "name": "@warpvector/opentelemetry",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "description": "OpenTelemetry exporter and tracer implementation for WarpVector",
   "main": "dist/index.js",
   "module": "dist/index.mjs",

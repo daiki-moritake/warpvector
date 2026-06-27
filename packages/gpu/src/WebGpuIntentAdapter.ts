@@ -1,5 +1,5 @@
 /// <reference types="@webgpu/types" />
-import { WarpAdapter, InputVector, TransformOutput, AdapterState } from "@warpvector/core";
+import { WarpAdapter, InputVector, TransformOutput, AdapterState, applyAffine, flattenMatrix } from "@warpvector/core";
 
 export interface IntentWeights {
   matrix: number[][] | number[];
@@ -9,12 +9,22 @@ export interface IntentWeights {
 export class WebGpuIntentAdapter implements WarpAdapter {
   private device: GPUDevice | null = null;
   private pipeline: GPUComputePipeline | null = null;
+  private fallbackMatrices: Record<string, Float32Array> = {};
+  private fallbackBiases: Record<string, Float32Array> = {};
 
   constructor(
     private intents: Record<string, IntentWeights>,
     private inputDim: number,
     private outputDim: number
-  ) {}
+  ) {
+    // どんな環境（非対称行列など）でも確実に推論を継続できるよう独自のJSフォールバックを初期化
+    for (const [key, val] of Object.entries(this.intents)) {
+      this.fallbackMatrices[key] = Array.isArray(val.matrix[0]) 
+        ? flattenMatrix(val.matrix as number[][], this.outputDim, this.inputDim, `Intent '${key}'`)
+        : new Float32Array(val.matrix as number[]);
+      this.fallbackBiases[key] = new Float32Array(val.bias);
+    }
+  }
 
   public async init(): Promise<void> {
     if (typeof navigator === 'undefined' || !navigator.gpu) {
@@ -80,15 +90,26 @@ export class WebGpuIntentAdapter implements WarpAdapter {
     });
   }
 
+  private fallbackTune(vector: InputVector, context: string): TransformOutput {
+    const matrix = this.fallbackMatrices[context];
+    const bias = this.fallbackBiases[context];
+    if (!matrix || !bias) {
+      throw new Error(`Intent '${context}' not found.`);
+    }
+    const result = new Float32Array(this.outputDim);
+    applyAffine(matrix, bias, vector, result, this.inputDim, this.outputDim);
+    return result;
+  }
+
   tune(vector: InputVector, context?: string): TransformOutput {
-    // Synchronous execution is not possible with WebGPU, we must fallback to a JS loop or throw.
-    // For single vector, we could fallback, but since WebGPU is async, WarpPipeline will use tuneBatchAsync.
-    throw new Error("WebGpuIntentAdapter requires tuneBatchAsync. Call runBatch() on WarpPipeline.");
+    // WebGPUは同期実行が不可能なため、常にフォールバック処理で継続します
+    return this.fallbackTune(vector, context || "default");
   }
 
   public async tuneBatchAsync(vectors: InputVector[], context?: string): Promise<TransformOutput[]> {
     if (!this.device || !this.pipeline) {
-      throw new Error("WebGPU is not initialized or not supported. Make sure to call init() and that your environment supports WebGPU.");
+      // デバイスが存在しない（初期化失敗、または未サポート）場合は自動的にJSへフォールバック
+      return vectors.map(v => this.fallbackTune(v, context || "default"));
     }
 
     const intent = context || "default";
