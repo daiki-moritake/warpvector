@@ -1,5 +1,8 @@
 # warpvector 🌌
 
+> [!NOTE]
+> 🌍 **日本語のドキュメント:** [**🇯🇵 日本語版の README はこちらからお読みいただけます**](./README.ja.md)
+
 [![npm version](https://badge.fury.io/js/warpvector.svg)](https://badge.fury.io/js/warpvector)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Edge Ready](https://img.shields.io/badge/Edge-Ready-success.svg)](#)
@@ -12,7 +15,19 @@
 
 It sits between your embedding model and vector database, applying fast in-memory affine transformations to bring semantic distances closer to the user's **true intent**.
 
-> 🎮 [**Try the Interactive Playground**](https://daiki-moritake.github.io/warpvector/) · 📖 [日本語版 README](./README.ja.md)
+<div align="center">
+  <br />
+  <a href="https://daiki-moritake.github.io/warpvector/">
+    <img src="./assets/demo-button.svg" alt="Try the Interactive Playground" width="360" />
+  </a>
+  <br />
+  <br />
+  <b>Experience real-time vector space transformation and quantization in your browser via WASM.</b>
+  <br />
+  <br />
+</div>
+
+
 
 ---
 

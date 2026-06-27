@@ -1,5 +1,8 @@
 # warpvector 🌌
 
+> [!NOTE]
+> 🌍 **English Documentation:** Please see [**🇺🇸/🇬🇧 Read this in English**](./README.md) for the English version.
+
 [![npm version](https://badge.fury.io/js/warpvector.svg)](https://badge.fury.io/js/warpvector)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Edge Ready](https://img.shields.io/badge/Edge-Ready-success.svg)](#)
@@ -8,9 +11,33 @@
 
 `warpvector` は、AIモデルの再学習や重い再推論を行うことなく、検索クエリやコンテキスト（意図）に応じてベクトル空間を動的に変形させる、TypeScriptネイティブの軽量ミドルウェア・ユーティリティです。
 
-データベースとアプリケーションの間に立ち、インメモリの高速なアフィン変換によって、データの意味的距離をユーザーの「真の意図」に極限まで近づけます。
+<div align="center">
+  <br />
+  <a href="https://daiki-moritake.github.io/warpvector/ja.html">
+    <img src="./assets/demo-button-ja.svg" alt="インタラクティブデモを試す" width="360" />
+  </a>
+  <br />
+  <br />
+  <b>ブラウザ上でWASMによるリアルタイムのベクトル空間変換や量子化を直感的なUIで体験できます。</b>
+  <br />
+  <br />
+</div>
 
-> 🎮 [**インタラクティブデモを試す**](https://daiki-moritake.github.io/warpvector/ja.html) · 📖 [English README](./README.md)
+
+
+<br />
+
+### 📚 Zenn / 技術解説記事
+本ライブラリの技術的な背景や実装の工夫、具体的なユースケースについては以下の解説記事（Zenn）をご覧ください。
+
+- 🌌 [**Pineconeのコストを96%削減し、RAGの精度を劇的に向上させるTypeScriptミドルウェア『WarpVector』を作った**](https://zenn.dev/daiki_moritake/articles/reduce-pinecone-costs)
+- 🧠 [**Pythonなしで検索のパーソナライズを実装する：TypeScriptだけで対照学習（Contrastive Learning）を動かす**](https://zenn.dev/daiki_moritake/articles/ts-contrastive-learning)
+- 🌊 [**Python不要！TypeScript + WASMの物理シミュレーションでRAGをリランクする技術**](https://zenn.dev/daiki_moritake/articles/physics-graph-reranker)
+- 🎯 [**RAGの検索精度が低い？ベクトル空間の「異方性」を3行で解決する方法**](https://zenn.dev/daiki_moritake/articles/fix-rag-anisotropy)
+- ⚡ [**Cloudflare Workersで「ベクトル推論」をサブミリ秒で動かす方法【TypeScript + WASM】**](https://zenn.dev/daiki_moritake/articles/edge-vector-inference)
+- 🔗 [**LangChainの検索精度に不満？ミドルウェアを1つ挟むだけで劇的に改善する方法**](https://zenn.dev/daiki_moritake/articles/langchain-search-improvement)
+- 🤖 [**TypeScriptだけで構築するベクトルのオートチューニング（AutoML）とRAG検索精度評価の裏側**](https://zenn.dev/daiki_moritake/articles/automl-vector-tuning)
+- 🛡️ [**AI社会実装の壁を破る：エッジAIのプライバシー・コスト課題と、ベクトル変換による解決策**](https://zenn.dev/daiki_moritake/articles/ai-implementation-challenges-and-solution)
 
 ---
 
