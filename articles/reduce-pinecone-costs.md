@@ -80,11 +80,11 @@ import { QuantizationAdapter } from "warpvector/extras";
 const quantizer = new QuantizationAdapter({ type: "binary", dim: 1536 });
 
 // OpenAIから取得した Float32Array を圧縮
-const compressedVector = quantizer.tune(baseVector);
+const compressedVector = quantizer.encode(baseVector);
 // -> Uint8Array になり、サイズは 6KB → 192Bytes に！
 ```
 
-たったこれだけで、**6GB必要だったDB容量がわずか192MB**になります。既存のコードに `.tune()` を1行挟むだけで導入が完了します。
+たったこれだけで、**6GB必要だったDB容量がわずか192MB**になります。既存のコードに `.encode()` を1行挟むだけで導入が完了します。
 
 ---
 

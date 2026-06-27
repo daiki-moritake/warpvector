@@ -53,7 +53,7 @@ graph TD
 まず、ユーザーの暗黙的なフィードバック（クリック、滞在時間）を収集します。
 
 ```typescript
-import { FeedbackCollector } from "warpvector/ml";
+import { FeedbackCollector } from "warpvector/train";
 
 const collector = new FeedbackCollector({
   dwellThresholdMs: 3000, // 3秒以上滞在で「関心あり」と判定
@@ -87,18 +87,17 @@ const examples = collector.toTripletExamples();
 収集した学習データを使って、ベクトル変換の重み（行列）をリアルタイムに更新します。
 
 ```typescript
-import { InfoNCETrainer } from "warpvector";
+import { InfoNCETrainer } from "warpvector/train";
 
 const trainer = new InfoNCETrainer(1536);
+
+// 1件目の学習データを取得
+const example = examples[0];
 
 // 1つの正解と複数の不正解から重みを更新（Adam Optimizer内蔵）
 const updatedWeights = await trainer.updateOnline(
   currentWeights,
-  {
-    anchor: example.anchor,
-    positive: example.positive,
-    negatives: example.negatives,
-  },
+  example,
   {
     learningRate: 0.001,
     temperature: 0.1, // InfoNCE のスケーリング温度
@@ -117,7 +116,7 @@ const updatedWeights = await trainer.updateOnline(
 実運用では、学習率を適切に減衰させることが重要です。`AdaptiveScheduler` を使えば、バッチサイズと減衰率を自動管理できます。
 
 ```typescript
-import { AdaptiveScheduler } from "warpvector/ml";
+import { AdaptiveScheduler } from "warpvector/train";
 
 const scheduler = new AdaptiveScheduler(trainer, {
   batchSize: 5, // 5件のフィードバックが溜まったらバッチ学習
@@ -136,7 +135,7 @@ const newWeights = await scheduler.addFeedback(currentWeights, examples);
 複数のユーザー（またはエッジノード）で個別に学習された重みを、サーバー側で集約する**連合学習（Federated Learning）** もサポートされています。
 
 ```typescript
-import { FederatedAggregator } from "warpvector/ml";
+import { FederatedAggregator } from "warpvector/train";
 
 const aggregator = new FederatedAggregator(baseWeights, 1536);
 
