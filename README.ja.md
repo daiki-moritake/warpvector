@@ -1,10 +1,7 @@
 # warpvector 🌌
 
-<div align="right">
-  <a href="./README.md">
-    <img src="https://img.shields.io/badge/🌐_Read_this_in_English-2563EB?style=for-the-badge" alt="Read in English" />
-  </a>
-</div>
+> [!NOTE]
+> 🌍 **English Documentation:** Please see [**🇺🇸/🇬🇧 Read this in English**](./README.md) for the English version.
 [![npm version](https://badge.fury.io/js/warpvector.svg)](https://badge.fury.io/js/warpvector)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Edge Ready](https://img.shields.io/badge/Edge-Ready-success.svg)](#)
