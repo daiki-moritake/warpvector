@@ -1,178 +1,199 @@
 // src/usecases.ts
 const isJa = document.documentElement.lang === 'ja';
 
-// ---- Use Case 1: E-commerce Intent Search ----
-const uc1Result = document.getElementById('uc1-result')!;
-document.getElementById('uc1-none')?.addEventListener('click', () => {
-  uc1Result.textContent = isJa ? 
-`1. Apple iPhone 15 Pro (類似度: 0.82)
-2. 青森県産ふじりんご 1kg (類似度: 0.81)
-3. Apple MacBook Air M3 (類似度: 0.79)` :
-`1. Apple iPhone 15 Pro (Sim: 0.82)
-2. Fresh Fuji Apples 1kg (Sim: 0.81)
-3. Apple MacBook Air M3 (Sim: 0.79)`;
-});
-document.getElementById('uc1-tech')?.addEventListener('click', () => {
-  uc1Result.textContent = isJa ?
-`[ガジェット Intent適用済 (遅延: 0.8ms)]
-1. Apple iPhone 15 Pro (類似度: 0.94)
-2. Apple MacBook Air M3 (類似度: 0.91)
-3. Apple AirPods Pro (類似度: 0.88)` :
-`[Tech Intent Applied (Latency: 0.8ms)]
-1. Apple iPhone 15 Pro (Sim: 0.94)
-2. Apple MacBook Air M3 (Sim: 0.91)
-3. Apple AirPods Pro (Sim: 0.88)`;
-});
-document.getElementById('uc1-food')?.addEventListener('click', () => {
-  uc1Result.textContent = isJa ?
-`[食品 Intent適用済 (遅延: 0.7ms)]
-1. 青森県産ふじりんご 1kg (類似度: 0.95)
-2. 信州産 蜜入りりんご 5kg (類似度: 0.92)
-3. 100% ストレートアップルジュース (類似度: 0.86)` :
-`[Food Intent Applied (Latency: 0.7ms)]
-1. Fresh Fuji Apples 1kg (Sim: 0.95)
-2. Honeycrisp Apples 5kg (Sim: 0.92)
-3. 100% Pure Apple Juice (Sim: 0.86)`;
-});
-
-// ---- Use Case 2: Quantization Edge RAG ----
-const uc2Result = document.getElementById('uc2-result')!;
-document.getElementById('uc2-float')?.addEventListener('click', () => {
-  uc2Result.textContent = isJa ?
-`1536次元ベクトルの保存サイズ: 6,144 Bytes
-ベクトルDBの推定コスト: 月額 10,000円
-Recall@10 精度: 100% (基準)` :
-`Storage per 1536-dim vector: 6,144 Bytes
-Estimated DB Cost: $100 / month
-Recall@10 Accuracy: 100% (Baseline)`;
-});
-document.getElementById('uc2-int8')?.addEventListener('click', () => {
-  uc2Result.textContent = isJa ?
-`[Int8 量子化適用済]
-1536次元ベクトルの保存サイズ: 1,536 Bytes (75%削減!)
-ベクトルDBの推定コスト: 月額 2,500円
-Recall@10 精度: 98.2% (ほぼ劣化なし)` :
-`[Int8 Quantization Applied]
-Storage per 1536-dim vector: 1,536 Bytes (75% Reduction!)
-Estimated DB Cost: $25 / month
-Recall@10 Accuracy: 98.2% (Near Lossless)`;
-});
-document.getElementById('uc2-binary')?.addEventListener('click', () => {
-  uc2Result.textContent = isJa ?
-`[Binary 量子化適用済]
-1536次元ベクトルの保存サイズ: 192 Bytes (96.9%削減!)
-ベクトルDBの推定コスト: 月額 300円以下 (エッジのメモリに乗るサイズ)
-Recall@10 精度: 86.5% (高速な一次検索に最適)` :
-`[Binary Quantization Applied]
-Storage per 1536-dim vector: 192 Bytes (96.9% Reduction!)
-Estimated DB Cost: < $3 / month (Fits in Edge RAM)
-Recall@10 Accuracy: 86.5% (Perfect for 1st-stage retrieval)`;
-});
-
-// ---- Use Case 3: Domain Whitening ----
-const uc3Result = document.getElementById('uc3-result')!;
-document.getElementById('uc3-raw')?.addEventListener('click', () => {
-  uc3Result.textContent = isJa ?
-`クエリ: "パスワードのリセット方法は？"
-1位: "アカウントのログイン手順" (類似度: 0.992)
-2位: "パスワード忘れに関するFAQ" (類似度: 0.991) <- スコアが近すぎる！
-解像度が低く、正確なドキュメントが上位に来ていません。` :
-`Query: "How to reset password?"
-Top Match: "Account Login Guide" (Sim: 0.992)
-2nd Match: "Forgot Password FAQ" (Sim: 0.991) <- Too close!
-Resolution is poor.`;
-});
-document.getElementById('uc3-white')?.addEventListener('click', () => {
-  uc3Result.textContent = isJa ?
-`[WhiteningAdapter 適用済]
-クエリ: "パスワードのリセット方法は？"
-1位: "パスワード忘れに関するFAQ" (類似度: 0.850) <- 正解が1位に浮上！
-2位: "アカウントのログイン手順" (類似度: 0.612) <- スコアの差が明確に
-解像度が劇的に改善されました。` :
-`[WhiteningAdapter Applied]
-Query: "How to reset password?"
-Top Match: "Forgot Password FAQ" (Sim: 0.850) <- Correct match jumped to 1st!
-2nd Match: "Account Login Guide" (Sim: 0.612) <- Clear separation!
-Resolution significantly improved.`;
-});
-
-// ---- Use Case 4: Local Learning ----
-const uc4Result = document.getElementById('uc4-result')!;
-let learnCount = 0;
-document.getElementById('uc4-click')?.addEventListener('click', () => {
-  learnCount++;
-  uc4Result.textContent = isJa ?
-`[InfoNCETrainer] バックグラウンドでローカル重みを更新中...
-ローカルモデルの更新回数: ${learnCount} 回` :
-`[InfoNCETrainer] Updating local weights in background...
-Weights updated: ${learnCount} times.`;
-});
-document.getElementById('uc4-search')?.addEventListener('click', () => {
-  if (learnCount === 0) {
-    uc4Result.textContent = isJa ?
-`検索クエリ: "映画"
-1. 「ローマの休日」 (ロマンス)
-2. 「シンドラーのリスト」 (ドラマ)
-3. 「ダイ・ハード」 (アクション)
-※ 一般的な検索結果です。` :
-`Query: "Movie"
-1. "Roman Holiday" (Romance)
-2. "Schindler's List" (Drama)
-3. "Die Hard" (Action)
-* Showing generic results.`;
-  } else {
-    uc4Result.textContent = isJa ?
-`検索クエリ: "映画" [パーソナライズ重み適用]
-1. 「ダイ・ハード」 (アクション) <- ${learnCount}回の学習で1位に！
-2. 「ターミネーター2」 (アクション)
-3. 「マッドマックス」 (アクション)
-※ サーバーにデータを送らずに好みを学習しました。` :
-`Query: "Movie" [Personalized Weights Applied]
-1. "Die Hard" (Action) <- Jumped to 1st after ${learnCount} updates!
-2. "Terminator 2" (Action)
-3. "Mad Max" (Action)
-* Learned your preferences completely offline!`;
-  }
-});
-
-// ---- Use Case 5: VSA Semantic Curation ----
-const uc5Result = document.getElementById('uc5-result')!;
-let concepts: string[] = [];
-
-function updateVsa() {
-  if (concepts.length === 0) {
-    uc5Result.textContent = isJa ? `現在のクエリの概念: [空]` : `Current Query Bundle: [Empty]`;
-    return;
-  }
-  let queryStr = concepts.join(' + ').replace('+ -', '- ');
-  uc5Result.textContent = isJa ? 
-`現在のクエリの概念: [ ${queryStr} ]
-
-[VSA ベクトル合成中 (遅延: 1.2ms)...]
-検索結果:
-1. 「ブレードランナー 2049」 (完璧にマッチ)
-2. 「GHOST IN THE SHELL / 攻殻機動隊」` :
-`Current Query Bundle: [ ${queryStr} ]
-
-[VSA Vector Bundling (Latency: 1.2ms)...]
-Results:
-1. "Blade Runner 2049" (Perfect match)
-2. "Ghost in the Shell"`;
+function renderResult(title: string, meta: string) {
+  return `
+    <div class="result-item">
+      <div class="result-title">${title}</div>
+      <div class="result-meta">
+        <span>${meta}</span>
+      </div>
+    </div>
+  `;
 }
 
-document.getElementById('uc5-sf')?.addEventListener('click', () => {
-  if(!concepts.includes('SF')) concepts.push('SF');
-  updateVsa();
+// ---- Use Case 1: Role-Based B2B Search ----
+const uc1Results = document.getElementById('uc1-results');
+if (uc1Results) {
+  // Default state
+  uc1Results.innerHTML = isJa ? 
+    renderResult('デプロイメントのベストプラクティス', 'スコア: 0.88 • 一般向け') +
+    renderResult('Kubernetes デプロイガイド', 'スコア: 0.85 • エンジニア向け') :
+    renderResult('Deployment Best Practices', 'Score: 0.88 • General') +
+    renderResult('Kubernetes Deployment Guide', 'Score: 0.85 • Engineering');
+
+  document.getElementById('uc1-dev')?.addEventListener('click', () => {
+    uc1Results.innerHTML = isJa ?
+      renderResult('Kubernetes デプロイガイド', 'スコア: 0.98 • エンジニア向け (Intent: DevOps)') +
+      renderResult('CI/CD パイプライン設定手順', 'スコア: 0.95 • エンジニア向け') :
+      renderResult('Kubernetes Deployment Guide', 'Score: 0.98 • Eng (Intent: DevOps)') +
+      renderResult('CI/CD Pipeline Setup', 'Score: 0.95 • Eng');
+  });
+
+  document.getElementById('uc1-sales')?.addEventListener('click', () => {
+    uc1Results.innerHTML = isJa ?
+      renderResult('A社様 導入事例 (デプロイ期間短縮)', 'スコア: 0.96 • 営業向け (Intent: Sales)') +
+      renderResult('エンタープライズ向け製品カタログ', 'スコア: 0.92 • 営業向け') :
+      renderResult('Case Study: Company A Deployment', 'Score: 0.96 • Sales (Intent: Sales)') +
+      renderResult('Enterprise Product Catalog', 'Score: 0.92 • Sales');
+  });
+}
+
+// ---- Use Case 2: Offline Edge RAG ----
+const uc2Ram = document.getElementById('uc2-ram');
+const uc2Latency = document.getElementById('uc2-latency');
+const uc2Privacy = document.getElementById('uc2-privacy');
+const uc2StatusIcon = document.getElementById('uc2-status-icon');
+const uc2StatusText = document.getElementById('uc2-status-text');
+
+document.getElementById('uc2-cloud')?.addEventListener('click', () => {
+  if (!uc2Ram) return;
+  uc2Ram.textContent = '614 MB';
+  uc2Latency.textContent = isJa ? '120 ms (通信あり)' : '120 ms (Network)';
+  uc2Latency.style.color = '#f87171';
+  uc2Privacy.textContent = isJa ? '高 (データ送信)' : 'High';
+  uc2Privacy.style.color = '#f87171';
+  uc2StatusIcon!.textContent = '☁️';
+  uc2StatusText!.textContent = isJa ? 'クラウド接続中' : 'Cloud API Connected';
 });
-document.getElementById('uc5-cyber')?.addEventListener('click', () => {
-  if(!concepts.includes('Cyberpunk')) concepts.push('Cyberpunk');
-  updateVsa();
+
+document.getElementById('uc2-local')?.addEventListener('click', () => {
+  if (!uc2Ram) return;
+  uc2Ram.textContent = '19.2 MB (96.9% 削減!)';
+  uc2Ram.style.color = '#34d399';
+  uc2Latency.textContent = isJa ? '0.8 ms (ローカル推論)' : '0.8 ms (Local Inference)';
+  uc2Latency.style.color = '#34d399';
+  uc2Privacy.textContent = isJa ? 'ゼロ (オフライン)' : 'Zero (Offline)';
+  uc2Privacy.style.color = '#34d399';
+  uc2StatusIcon!.textContent = '📱';
+  uc2StatusText!.textContent = isJa ? 'オンデバイス (WASM)' : 'On-Device (WASM)';
 });
-document.getElementById('uc5-dark')?.addEventListener('click', () => {
-  if(!concepts.includes('-Dark')) concepts.push('-Dark');
-  updateVsa();
+
+// ---- Use Case 3: Legal Anisotropy ----
+const uc3Toggle = document.getElementById('uc3-toggle') as HTMLInputElement;
+const uc3Results = document.getElementById('uc3-results');
+
+function updateUc3() {
+  if (!uc3Results) return;
+  if (uc3Toggle.checked) {
+    uc3Results.innerHTML = isJa ?
+      renderResult('第7条: 損害賠償の制限', '類似度: 0.820 (正解)') +
+      renderResult('第8条: 秘密保持義務', '類似度: 0.415') +
+      renderResult('第9条: 契約の解除', '類似度: 0.380') :
+      renderResult('Article 7: Limitation of Liability', 'Sim: 0.820 (Correct Match)') +
+      renderResult('Article 8: Confidentiality', 'Sim: 0.415') +
+      renderResult('Article 9: Termination', 'Sim: 0.380');
+  } else {
+    uc3Results.innerHTML = isJa ?
+      renderResult('第8条: 秘密保持義務', '類似度: 0.992') +
+      renderResult('第9条: 契約の解除', '類似度: 0.991') +
+      renderResult('第7条: 損害賠償の制限', '類似度: 0.989 (埋もれている)') :
+      renderResult('Article 8: Confidentiality', 'Sim: 0.992') +
+      renderResult('Article 9: Termination', 'Sim: 0.991') +
+      renderResult('Article 7: Limitation of Liability', 'Sim: 0.989 (Buried)');
+  }
+}
+if (uc3Toggle) {
+  uc3Toggle.addEventListener('change', updateUc3);
+  updateUc3();
+}
+
+// ---- Use Case 4: Local Learning ----
+let likeCount = 0;
+const uc4Status = document.getElementById('uc4-status');
+const uc4Next = document.getElementById('uc4-next');
+
+document.getElementById('uc4-like')?.addEventListener('click', () => {
+  likeCount++;
+  if (!uc4Status || !uc4Next) return;
+  
+  if (isJa) {
+    uc4Status.textContent = `ローカルモデル: ${likeCount}回更新済`;
+    uc4Status.className = 'badge badge-green';
+    
+    if (likeCount === 1) {
+      uc4Next.textContent = '最新のAIトレンド (テクノロジー) <- 好みを反映！';
+      uc4Next.style.color = '#34d399';
+    } else if (likeCount === 2) {
+      uc4Next.textContent = '量子暗号の仕組み (テクノロジー) <- さらに特化！';
+    } else {
+      uc4Next.textContent = 'WarpVectorによるエッジAI (テクノロジー) <- 完璧に適応！';
+    }
+  } else {
+    uc4Status.textContent = `Local Model: Updated ${likeCount}x`;
+    uc4Status.className = 'badge badge-green';
+    
+    if (likeCount === 1) {
+      uc4Next.textContent = 'Latest AI Trends (Tech) <- Preferences Applied!';
+      uc4Next.style.color = '#34d399';
+    } else if (likeCount === 2) {
+      uc4Next.textContent = 'How Quantum Crypto Works (Tech) <- Highly Specialized!';
+    } else {
+      uc4Next.textContent = 'Edge AI with WarpVector (Tech) <- Perfectly Adapted!';
+    }
+  }
+});
+
+// ---- Use Case 5: Semantic Algebra ----
+const uc5Results = document.getElementById('uc5-results');
+let vConcepts: string[] = [];
+
+function updateUc5() {
+  if (!uc5Results) return;
+  
+  if (vConcepts.length === 0) {
+    uc5Results.innerHTML = isJa ?
+      renderResult('標準的な赤いナイロンジャケット', 'スコア: 0.91') +
+      renderResult('赤いスポーツ用ウィンドブレーカー', 'スコア: 0.88') :
+      renderResult('Standard Red Nylon Jacket', 'Score: 0.91') +
+      renderResult('Red Sports Windbreaker', 'Score: 0.88');
+    return;
+  }
+  
+  const hasVintage = vConcepts.includes('vintage');
+  const hasModern = vConcepts.includes('-modern');
+  
+  if (hasVintage && hasModern) {
+    uc5Results.innerHTML = isJa ?
+      renderResult('80年代風 赤いコーデュロイジャケット', 'スコア: 0.94 (完璧にマッチ)') +
+      renderResult('レトロな赤いウールコート', 'スコア: 0.89') :
+      renderResult('80s Style Red Corduroy Jacket', 'Score: 0.94 (Perfect Match)') +
+      renderResult('Retro Red Wool Coat', 'Score: 0.89');
+  } else if (hasVintage) {
+    uc5Results.innerHTML = isJa ?
+      renderResult('赤いレザージャケット (ヴィンテージ加工)', 'スコア: 0.92') :
+      renderResult('Red Leather Jacket (Distressed Vintage)', 'Score: 0.92');
+  } else if (hasModern) {
+    uc5Results.innerHTML = isJa ?
+      renderResult('クラシックな赤いトレンチコート', 'スコア: 0.90') :
+      renderResult('Classic Red Trench Coat', 'Score: 0.90');
+  }
+}
+
+document.getElementById('uc5-add')?.addEventListener('click', (e) => {
+  if (!vConcepts.includes('vintage')) {
+    vConcepts.push('vintage');
+    (e.target as HTMLElement).style.background = '#ec4899';
+    (e.target as HTMLElement).style.color = 'white';
+    updateUc5();
+  }
+});
+document.getElementById('uc5-sub')?.addEventListener('click', (e) => {
+  if (!vConcepts.includes('-modern')) {
+    vConcepts.push('-modern');
+    (e.target as HTMLElement).style.background = '#ec4899';
+    (e.target as HTMLElement).style.color = 'white';
+    updateUc5();
+  }
 });
 document.getElementById('uc5-clear')?.addEventListener('click', () => {
-  concepts = [];
-  updateVsa();
+  vConcepts = [];
+  const btn1 = document.getElementById('uc5-add');
+  const btn2 = document.getElementById('uc5-sub');
+  if(btn1) { btn1.style.background = 'transparent'; btn1.style.color = 'inherit'; }
+  if(btn2) { btn2.style.background = 'transparent'; btn2.style.color = 'inherit'; }
+  updateUc5();
 });
+
+// Initialize on load
+updateUc5();

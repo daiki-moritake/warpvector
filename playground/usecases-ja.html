@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>WarpVector — ユースケースと応用例</title>
-  <meta name="description" content="WarpVectorを使って構築できる5つの具体的なアプリケーション機能とユースケースを紹介します。">
+  <meta name="description" content="WarpVectorを使って構築できる、ビジネス課題を解決する具体的なアプリケーション機能とユースケースを紹介します。">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -14,8 +14,16 @@
       background: var(--bg-card);
       border: 1px solid var(--border);
       border-radius: 12px;
-      padding: 24px;
-      margin-bottom: 24px;
+      padding: 32px;
+      margin-bottom: 32px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 32px;
+    }
+    @media (max-width: 768px) {
+      .usecase-card { grid-template-columns: 1fr; }
+    }
+    .usecase-info {
       display: flex;
       flex-direction: column;
       gap: 16px;
@@ -26,7 +34,7 @@
       gap: 12px;
     }
     .usecase-title {
-      font-size: 20px;
+      font-size: 22px;
       font-weight: 700;
       color: var(--text-primary);
     }
@@ -34,26 +42,112 @@
       color: var(--text-secondary);
       line-height: 1.6;
     }
-    .interactive-demo {
-      background: var(--bg-app);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 16px;
+    .problem-box {
+      background: rgba(239, 68, 68, 0.05);
+      border-left: 3px solid #ef4444;
+      padding: 12px 16px;
+      font-size: 14px;
+      color: var(--text-primary);
     }
-    .demo-controls {
-      display: flex;
-      gap: 12px;
-      margin-bottom: 16px;
+    .solution-box {
+      background: rgba(16, 185, 129, 0.05);
+      border-left: 3px solid #10b981;
+      padding: 12px 16px;
+      font-size: 14px;
+      color: var(--text-primary);
     }
-    .demo-result {
-      font-family: 'JetBrains Mono', monospace;
+    
+    /* UI Mockups Styling */
+    .mockup-container {
       background: #0f172a;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+    .mockup-header {
+      background: #1e293b;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 13px;
+      font-weight: 600;
+      color: #94a3b8;
+    }
+    .mockup-body {
+      padding: 16px;
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    
+    /* Search Results Mockup */
+    .search-bar {
+      background: #1e293b;
+      border: 1px solid #334155;
+      padding: 10px 16px;
+      border-radius: 6px;
+      color: white;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .result-item {
+      background: #1e293b;
       padding: 12px;
       border-radius: 6px;
-      font-size: 14px;
-      color: #e2e8f0;
-      white-space: pre-wrap;
+      border-left: 3px solid #3b82f6;
+      transition: all 0.2s;
     }
+    .result-title { font-weight: 600; font-size: 14px; color: #e2e8f0; margin-bottom: 4px; }
+    .result-meta { font-size: 12px; color: #94a3b8; display: flex; justify-content: space-between; }
+    
+    /* Mobile App Mockup */
+    .mobile-card {
+      background: #1e293b;
+      border-radius: 8px;
+      padding: 16px;
+      position: relative;
+    }
+    .mobile-img {
+      height: 120px;
+      background: #334155;
+      border-radius: 6px;
+      margin-bottom: 12px;
+    }
+    .mobile-title { font-weight: 600; font-size: 15px; color: #e2e8f0; margin-bottom: 4px; }
+    .btn-like {
+      background: #ec4899;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      position: absolute;
+      top: 24px;
+      right: 24px;
+    }
+    
+    .badge {
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .badge-blue { background: rgba(59,130,246,0.2); color: #60a5fa; }
+    .badge-green { background: rgba(16,185,129,0.2); color: #34d399; }
+    .badge-red { background: rgba(239,68,68,0.2); color: #f87171; }
+    .badge-amber { background: rgba(245,158,11,0.2); color: #fbbf24; }
+    .badge-purple { background: rgba(139,92,246,0.2); color: #a78bfa; }
   </style>
 </head>
 <body>
@@ -83,126 +177,199 @@
   <section class="hero" style="padding-top: 120px; padding-bottom: 60px;">
     <div class="hero-content">
       <h1 class="hero-title">
-        5つの画期的な <span class="gradient-text">ユースケース</span>
+        WarpVectorの <span class="gradient-text">実用シナリオ</span>
       </h1>
       <p class="hero-subtitle">
-        エッジ環境での超高速な推論やベクトル空間のリアルタイム変換により、WarpVectorがAIアプリにもたらす5つのブレイクスルーを体験してください。
+        インフラコストの削減から、ユーザー体験を劇的に高めるオフラインAI検索まで。WarpVectorが解決する5つの具体的なビジネス課題とユースケースを紹介します。
       </p>
     </div>
   </section>
 
-  <section style="max-width: 1000px; margin: 0 auto; padding: 0 24px 100px 24px; position: relative; z-index: 10;">
+  <section style="max-width: 1100px; margin: 0 auto; padding: 0 24px 100px 24px; position: relative; z-index: 10;">
     
-    <!-- Use Case 1 -->
+    <!-- Use Case 1: B2B Search Warping -->
     <div class="usecase-card">
-      <div class="usecase-header">
-        <div class="feature-icon" style="background:rgba(59,130,246,0.15);color:var(--accent-blue);width:40px;height:40px;">🎯</div>
-        <div class="usecase-title">1. 超低遅延・パーソナライズされたEコマース検索</div>
-      </div>
-      <p class="usecase-desc">
-        ユーザーの閲覧コンテキストに応じて、ベクトル空間をリアルタイムに歪ませ（Warp）ます。「Apple」と検索した際に、ユーザーのIntent（意図）が「ガジェット」か「食品」かによって、LLMを再計算することなく瞬時に検索結果の順位を切り替えます。
-      </p>
-      <div class="interactive-demo">
-        <div style="margin-bottom: 8px; font-weight: 600;">インタラクティブデモ: 検索クエリ="Apple"</div>
-        <div class="demo-controls">
-          <button class="btn btn-outline" id="uc1-none">Intentなし</button>
-          <button class="btn btn-outline" id="uc1-tech" style="border-color: var(--accent-blue); color: var(--accent-blue);">ガジェット</button>
-          <button class="btn btn-outline" id="uc1-food" style="border-color: var(--accent-green); color: var(--accent-green);">食品・スーパー</button>
+      <div class="usecase-info">
+        <div class="usecase-header">
+          <div class="feature-icon" style="background:rgba(59,130,246,0.15);color:var(--accent-blue);width:40px;height:40px;">🏢</div>
+          <div class="usecase-title">1. ロール（役職）で結果が変わる社内ポータル検索</div>
         </div>
-        <div class="demo-result" id="uc1-result">
-1. Apple iPhone 15 Pro (類似度: 0.82)
-2. 青森県産ふじりんご 1kg (類似度: 0.81)
-3. Apple MacBook Air M3 (類似度: 0.79)
+        <p class="usecase-desc">
+          B2BのSaaSや社内ポータルでは、同じ「デプロイ」という検索でも、営業と開発者で欲しい結果が全く異なります。
+        </p>
+        <div class="problem-box">
+          <strong>課題:</strong> 標準のベクトルDBでは全職種のドキュメントが混ざってしまい、役職ごとにデータベースを分割するのはコストと運用負荷が高すぎます。
+        </div>
+        <div class="solution-box">
+          <strong>WarpVectorの解決策:</strong> データベースは1つのまま、ユーザーの役職（Intent）に合わせて超軽量な <code>IntentAdapter</code> を通すだけで、ベクトル空間を瞬時に歪ませて最適なドキュメントを上位に引き上げます。
+        </div>
+      </div>
+      <div class="mockup-container">
+        <div class="mockup-header">
+          <span>Enterprise Portal</span>
+          <div style="display:flex; gap:8px;">
+            <button class="btn btn-outline" id="uc1-dev" style="padding:4px 8px; font-size:11px; border-color:var(--accent-blue); color:var(--accent-blue);">ロール: DevOps</button>
+            <button class="btn btn-outline" id="uc1-sales" style="padding:4px 8px; font-size:11px;">ロール: 営業</button>
+          </div>
+        </div>
+        <div class="mockup-body">
+          <div class="search-bar">🔍 検索クエリ: "デプロイ"</div>
+          <div id="uc1-results" style="display:flex; flex-direction:column; gap:8px;">
+            <!-- Rendered via JS -->
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- Use Case 2 -->
+    <!-- Use Case 2: Offline Edge RAG -->
     <div class="usecase-card">
-      <div class="usecase-header">
-        <div class="feature-icon" style="background:rgba(245,158,11,0.15);color:var(--accent-amber);width:40px;height:40px;">💾</div>
-        <div class="usecase-title">2. コストを90%以上削減するオンデバイス / エッジRAG</div>
-      </div>
-      <p class="usecase-desc">
-        Cloudflare Workersなどのメモリ制限の厳しいエッジ環境でもAI検索を可能にします。<code>QuantizationAdapter</code> でベクトルをInt8やBinaryに変換し、精度を保ったままサイズを最大96.9%削減することで、高価なベクトルデータベースを不要にします。
-      </p>
-      <div class="interactive-demo">
-        <div class="demo-controls">
-          <button class="btn btn-outline" id="uc2-float">Float32 (基準)</button>
-          <button class="btn btn-outline" id="uc2-int8">Int8 量子化</button>
-          <button class="btn btn-outline" id="uc2-binary">Binary 量子化</button>
+      <div class="usecase-info">
+        <div class="usecase-header">
+          <div class="feature-icon" style="background:rgba(245,158,11,0.15);color:var(--accent-amber);width:40px;height:40px;">📱</div>
+          <div class="usecase-title">2. 完全にオフラインで動く、超プライバシー重視RAG</div>
         </div>
-        <div class="demo-result" id="uc2-result">
-1536次元ベクトルの保存サイズ: 6,144 Bytes
-ベクトルDBの推定コスト: 月額 10,000円
-Recall@10 精度: 100% (基準)
+        <p class="usecase-desc">
+          医療系アプリや個人のメモ帳アプリなど、機密データをクラウドのベクトルデータベースに送信したくないケースに最適です。
+        </p>
+        <div class="problem-box">
+          <strong>課題:</strong> Float32の生ベクトルはサイズが大きすぎ（1536次元で6KB）、10万件のデータをスマホのメモリやブラウザにダウンロードしてローカル検索させることは不可能です。
+        </div>
+        <div class="solution-box">
+          <strong>WarpVectorの解決策:</strong> <code>QuantizationAdapter</code> でベクトルをBinary形式に圧縮し、サイズを 96.9% 削減。10万件のベクトルがわずか20MBに収まり、スマホ内でWASMを使った超高速なローカルAI検索が完結します。
+        </div>
+      </div>
+      <div class="mockup-container">
+        <div class="mockup-header">
+          <span>Medical Notes App</span>
+          <div style="display:flex; gap:8px;">
+            <button class="btn btn-outline" id="uc2-cloud" style="padding:4px 8px; font-size:11px; border-color:var(--accent-amber); color:var(--accent-amber);">クラウドAPI (Float32)</button>
+            <button class="btn btn-outline" id="uc2-local" style="padding:4px 8px; font-size:11px;">オンデバイス (Binary)</button>
+          </div>
+        </div>
+        <div class="mockup-body" style="justify-content:center; align-items:center; text-align:center;">
+          <div id="uc2-status-icon" style="font-size: 48px; margin-bottom: 10px;">☁️</div>
+          <div id="uc2-status-text" style="font-weight: 600; font-size: 16px; color: white;">クラウド接続中</div>
+          <div style="background: #1e293b; padding: 16px; border-radius: 8px; margin-top: 16px; width: 100%; text-align: left;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+              <span style="color:#94a3b8; font-size:13px;">RAM 消費量 (10万件):</span>
+              <span id="uc2-ram" style="color:white; font-weight:600;">614 MB</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+              <span style="color:#94a3b8; font-size:13px;">検索レイテンシ:</span>
+              <span id="uc2-latency" style="color:#f87171; font-weight:600;">120 ms (通信あり)</span>
+            </div>
+            <div style="display:flex; justify-content:space-between;">
+              <span style="color:#94a3b8; font-size:13px;">プライバシーリスク:</span>
+              <span id="uc2-privacy" style="color:#f87171; font-weight:600;">高 (データ送信)</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- Use Case 3 -->
+    <!-- Use Case 3: Legal/Medical Anisotropy Correction -->
     <div class="usecase-card">
-      <div class="usecase-header">
-        <div class="feature-icon" style="background:rgba(16,185,129,0.15);color:var(--accent-green);width:40px;height:40px;">🤖</div>
-        <div class="usecase-title">3. ドメイン特化型の高精度カスタマーサポートボット</div>
-      </div>
-      <p class="usecase-desc">
-        社内ドキュメントなどのベクトルは似通ってしまう傾向（異方性）があります。<code>WhiteningAdapter</code>（白色化）を適用することで、ベクトル空間を自動的に引き伸ばし、細かいニュアンスの違いを捉えて検索の解像度を劇的に高めます。
-      </p>
-      <div class="interactive-demo">
-        <div class="demo-controls">
-          <button class="btn btn-outline" id="uc3-raw">生のベクトル (補正なし)</button>
-          <button class="btn btn-outline" id="uc3-white" style="border-color: var(--accent-green); color: var(--accent-green);">白色化を適用</button>
+      <div class="usecase-info">
+        <div class="usecase-header">
+          <div class="feature-icon" style="background:rgba(16,185,129,0.15);color:var(--accent-green);width:40px;height:40px;">⚖️</div>
+          <div class="usecase-title">3. 契約書やカルテを見分ける「顕微鏡検索」</div>
         </div>
-        <div class="demo-result" id="uc3-result">
-クエリ: "パスワードのリセット方法は？"
-1位: "アカウントのログイン手順" (類似度: 0.992)
-2位: "パスワード忘れに関するFAQ" (類似度: 0.991) &lt;- スコアが近すぎる！
-解像度が低く、正確なドキュメントが上位に来ていません。
+        <p class="usecase-desc">
+          専門用語や定型文だらけの法務・医療ドキュメントでは、汎用的な埋め込みモデルを使うと検索の解像度が極端に落ちます。
+        </p>
+        <div class="problem-box">
+          <strong>課題:</strong> 異方性（ベクトルの偏り）により、どの契約条項を検索しても類似度が0.95以上になってしまい、本当に欲しい条項がトップに表示されません。
+        </div>
+        <div class="solution-box">
+          <strong>WarpVectorの解決策:</strong> <code>WhiteningAdapter</code>（白色化）により、密集したベクトル空間を「顕微鏡のように」引き伸ばし、細かいニュアンスの違いを明確にして検索精度を底上げします。
+        </div>
+      </div>
+      <div class="mockup-container">
+        <div class="mockup-header">
+          <span>契約書アナライザー (検索: "損害賠償")</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="uc3-toggle">
+            <span class="slider round"></span>
+          </label>
+        </div>
+        <div class="mockup-body">
+          <div id="uc3-results" style="display:flex; flex-direction:column; gap:8px;">
+            <!-- Rendered via JS -->
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- Use Case 4 -->
+    <!-- Use Case 4: Privacy-Safe Personalized Feed -->
     <div class="usecase-card">
-      <div class="usecase-header">
-        <div class="feature-icon" style="background:rgba(139,92,246,0.15);color:var(--accent-purple);width:40px;height:40px;">🔒</div>
-        <div class="usecase-title">4. プライバシーを保護する「賢くなる」パーソナルアシスタント</div>
-      </div>
-      <p class="usecase-desc">
-        サーバーに履歴を送ることなく、ブラウザ内で <code>InfoNCETrainer</code> などの学習エンジンを動かせます。ユーザーのクリック履歴などから、数十ミリ秒でローカルモデルが更新され、次の検索からその人好みの結果にパーソナライズされます。
-      </p>
-      <div class="interactive-demo">
-        <div style="margin-bottom: 8px; font-weight: 600;">シミュレーション: あなたはアクション映画が好きです</div>
-        <div class="demo-controls">
-          <button class="btn btn-outline" id="uc4-click">👍 「ダイ・ハード」をクリック (学習)</button>
-          <button class="btn btn-outline" id="uc4-search">「映画」で検索</button>
+      <div class="usecase-info">
+        <div class="usecase-header">
+          <div class="feature-icon" style="background:rgba(139,92,246,0.15);color:var(--accent-purple);width:40px;height:40px;">📱</div>
+          <div class="usecase-title">4. サーバー通信ゼロで「好みを学習する」ニュースフィード</div>
         </div>
-        <div class="demo-result" id="uc4-result">
-ローカルモデルの更新回数: 0 回
-映画をクリックして、あなたの好みを学習させてみましょう！
+        <p class="usecase-desc">
+          TikTokやニュースアプリのように、ユーザーの行動履歴からフィードを最適化する仕組みを、完全にフロントエンドだけで構築できます。
+        </p>
+        <div class="problem-box">
+          <strong>課題:</strong> ユーザーの「クリック」や「いいね」を毎回バックエンドに送ってモデルを再学習させるのはコストが高く、プライバシーの懸念もあります。
+        </div>
+        <div class="solution-box">
+          <strong>WarpVectorの解決策:</strong> ブラウザの裏側で <code>InfoNCETrainer</code> を動かし、ユーザーが記事を「いいね」するたびに、わずか1MBのローカル行列がミリ秒単位で学習・更新され、フィードを即座にパーソナライズします。
+        </div>
+      </div>
+      <div class="mockup-container">
+        <div class="mockup-header">
+          <span>Tech News App</span>
+          <span class="badge badge-purple" id="uc4-status">ローカルモデル: 未学習</span>
+        </div>
+        <div class="mockup-body" style="background:#1e293b;">
+          <div class="mobile-card">
+            <div class="mobile-img" style="background: linear-gradient(45deg, #1e3a8a, #3b82f6);"></div>
+            <div class="mobile-title">量子コンピューティングの未来像</div>
+            <div class="result-meta">テクノロジー • 読了 5分</div>
+            <button class="btn-like" id="uc4-like">👍 いいね！</button>
+          </div>
+          <div style="font-size: 12px; color: #94a3b8; text-align: center; margin-top: 8px;">
+            次の記事:
+            <div id="uc4-next" style="color: white; font-weight: 600; margin-top: 4px;">おすすめカフェ10選 (ライフスタイル)</div>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- Use Case 5 -->
+    <!-- Use Case 5: Semantic Algebra for E-Commerce -->
     <div class="usecase-card">
-      <div class="usecase-header">
-        <div class="feature-icon" style="background:rgba(236,72,153,0.15);color:var(--accent-pink);width:40px;height:40px;">🧩</div>
-        <div class="usecase-title">5. 複雑な概念を足し引きする「セマンティック・キュレーション」ツール</div>
-      </div>
-      <p class="usecase-desc">
-        <code>VsaAdapter</code>（Vector Symbolic Architecture）を用いて、複数のベクトルをフロントエンドで動的に足し引き（Bundle / Bind）します。単純なキーワード検索を超えた、複雑な概念のベクトル演算による探索型UIを提供します。
-      </p>
-      <div class="interactive-demo">
-        <div class="demo-controls">
-          <button class="btn btn-outline" id="uc5-sf">「SF映画」を追加</button>
-          <button class="btn btn-outline" id="uc5-cyber">「サイバーパンク」を追加</button>
-          <button class="btn btn-outline" id="uc5-dark">「暗い結末」をマイナス</button>
-          <button class="btn btn-outline" id="uc5-clear">クリア</button>
+      <div class="usecase-info">
+        <div class="usecase-header">
+          <div class="feature-icon" style="background:rgba(236,72,153,0.15);color:var(--accent-pink);width:40px;height:40px;">🛍️</div>
+          <div class="usecase-title">5. セマンティック代数による「ECの直感ハイブリッド検索」</div>
         </div>
-        <div class="demo-result" id="uc5-result">
-現在のクエリの概念: [空]
+        <p class="usecase-desc">
+          キーワードの完全一致検索ではなく、ユーザーが複数の「概念」を足し引きして複雑なニュアンスの検索を行える探索型UIを実現します。
+        </p>
+        <div class="problem-box">
+          <strong>課題:</strong> 「赤いジャケット」の写真から似た服を探したいが、「もう少しヴィンテージ感が欲しい」「モダンな感じは嫌だ」といった論理的な条件を画像検索に組み合わせるのが難しい。
+        </div>
+        <div class="solution-box">
+          <strong>WarpVectorの解決策:</strong> <code>VsaAdapter</code> を使い、<code>Vector(画像) + Vector(ヴィンテージ) - Vector(モダン)</code> といった「ベクトルの足し引き」をエッジ上で瞬時に計算してからデータベースを検索します。
+        </div>
+      </div>
+      <div class="mockup-container">
+        <div class="mockup-header">
+          <span>Fashion Finder</span>
+        </div>
+        <div class="mockup-body">
+          <div class="search-bar" style="background: #0f172a;">
+            ベース: 🧥 赤いジャケット
+          </div>
+          <div style="display:flex; gap:8px; margin-top: 4px; flex-wrap: wrap;">
+            <button class="btn btn-outline" id="uc5-add" style="padding:4px 8px; font-size:11px;">+ ヴィンテージ感を追加</button>
+            <button class="btn btn-outline" id="uc5-sub" style="padding:4px 8px; font-size:11px;">- モダンな要素を除外</button>
+            <button class="btn btn-outline" id="uc5-clear" style="padding:4px 8px; font-size:11px; border-color:#64748b; color:#94a3b8;">リセット</button>
+          </div>
+          <div id="uc5-results" style="display:flex; flex-direction:column; gap:8px; margin-top: 8px;">
+            <!-- Rendered via JS -->
+          </div>
         </div>
       </div>
     </div>
