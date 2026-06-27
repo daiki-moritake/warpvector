@@ -1,6 +1,6 @@
 {
   "name": "create-warpvector-app",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "CLI to scaffold a WarpVector application",
   "bin": {
     "create-warpvector-app": "./bin/cli.js"
@@ -8,6 +8,17 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch"
+  },
+  "author": "Daiki Moritake",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/daiki-moritake/warpvector.git",
+    "directory": "packages/core"
+  },
+  "homepage": "https://github.com/daiki-moritake/warpvector#readme",
+  "bugs": {
+    "url": "https://github.com/daiki-moritake/warpvector/issues"
   },
   "dependencies": {
     "commander": "^11.0.0",

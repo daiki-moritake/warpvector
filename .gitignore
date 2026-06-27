@@ -9,6 +9,11 @@ bun.log*
 # Dependency directories
 node_modules/
 
+# Lock files (bun.lock に統一)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
 # Build and Output directories
 dist/
 build/

@@ -5,6 +5,30 @@ All notable changes to WarpVector will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1] - 2026-06-27
+
+### Changed
+
+#### Infrastructure & DX
+- **Lock file unification**: Standardized on `bun.lock`, removed `package-lock.json` from repository
+- **CI improvements**: Added `develop` branch triggers, unified type-check command to `bun run typecheck`
+- **npm metadata**: Added `repository`, `homepage`, `bugs` fields to all 10 sub-packages for improved discoverability
+- **Playground workspace integration**: Added `playground` to npm workspaces, updated deploy workflow to use `bun`
+- **Engine constraints**: Added `"engines": { "node": ">=20.0.0" }` to root `package.json`
+
+#### Documentation
+- **Migration Guide**: Updated to cover v0.2→v0.3 and v0.3→v0.4 breaking changes (EN/JA)
+- **Release notes reorganization**: Moved 11 release note files to `release-notes/` directory
+
+#### Bug Fixes
+- Removed phantom `@warpvector/ml` dependency from `@warpvector/rerank` (was declared but unused)
+- Fixed `@warpvector/extras` description (removed reference to ColBERT, which moved to `@warpvector/rerank` in v0.4.0)
+- Added missing `license` and `author` fields to `create-warpvector-app`
+
+### Testing
+- **297 tests** across 44 files — All Passed ✅
+- **1,579 expect()** calls
+
 ## [0.4.0] - 2026-06-26
 
 ### Added

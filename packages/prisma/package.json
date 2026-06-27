@@ -1,6 +1,6 @@
 {
   "name": "@warpvector/prisma",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Prisma Client Extension for pgvector integration with WarpVector",
   "main": "src/index.ts",
   "module": "src/index.ts",
@@ -28,6 +28,15 @@
   ],
   "author": "Daiki Moritake",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/daiki-moritake/warpvector.git",
+    "directory": "packages/core"
+  },
+  "homepage": "https://github.com/daiki-moritake/warpvector#readme",
+  "bugs": {
+    "url": "https://github.com/daiki-moritake/warpvector/issues"
+  },
   "dependencies": {
     "@warpvector/core": "workspace:*"
   },

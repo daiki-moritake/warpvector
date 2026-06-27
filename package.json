@@ -1,6 +1,6 @@
 {
   "name": "warpvector",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Zero-dependency TypeScript middleware for dynamic vector space transformation. Warp embeddings at runtime with WASM-accelerated affine transforms, quantization, online learning, and ColBERT — no retraining needed.",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
@@ -46,7 +46,8 @@
     "dist"
   ],
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "playground"
   ],
   "scripts": {
     "sync:versions": "bun run scripts/sync-versions.ts",
@@ -87,6 +88,9 @@
   ],
   "author": "Daiki Moritake",
   "license": "MIT",
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/daiki-moritake/warpvector.git"

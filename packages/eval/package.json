@@ -1,6 +1,6 @@
 {
   "name": "@warpvector/eval",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Evaluation kit for WarpVector - Measure RAG accuracy (NDCG, Recall, MRR) and latency",
   "main": "src/index.ts",
   "module": "src/index.ts",
@@ -35,6 +35,15 @@
   ],
   "author": "Daiki Moritake",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/daiki-moritake/warpvector.git",
+    "directory": "packages/core"
+  },
+  "homepage": "https://github.com/daiki-moritake/warpvector#readme",
+  "bugs": {
+    "url": "https://github.com/daiki-moritake/warpvector/issues"
+  },
   "dependencies": {
     "@warpvector/core": "workspace:*",
     "@warpvector/extras": "workspace:*"

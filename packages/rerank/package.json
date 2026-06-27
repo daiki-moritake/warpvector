@@ -1,6 +1,6 @@
 {
   "name": "@warpvector/rerank",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Advanced graph-based and wave-inspired heavy rerankers for WarpVector (Backend only)",
   "main": "src/index.ts",
   "module": "src/index.ts",
@@ -29,9 +29,17 @@
   ],
   "author": "Daiki Moritake",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/daiki-moritake/warpvector.git",
+    "directory": "packages/core"
+  },
+  "homepage": "https://github.com/daiki-moritake/warpvector#readme",
+  "bugs": {
+    "url": "https://github.com/daiki-moritake/warpvector/issues"
+  },
   "dependencies": {
-    "@warpvector/core": "workspace:*",
-    "@warpvector/ml": "workspace:*"
+    "@warpvector/core": "workspace:*"
   },
   "devDependencies": {
     "@types/bun": "^1.3.14",
