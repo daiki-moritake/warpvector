@@ -19,6 +19,8 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, 'index.html'),
         ja: resolve(__dirname, 'ja.html'),
+        usecases: resolve(__dirname, 'usecases.html'),
+        usecases_ja: resolve(__dirname, 'usecases-ja.html'),
       },
     },
   },
