@@ -11,8 +11,9 @@
 <div align="center">
   <br />
   <a href="https://daiki-moritake.github.io/warpvector/ja.html">
-    <img src="https://img.shields.io/badge/%F0%9F%8E%AE_Playground_(Interactive_Demo)-232F3E?style=for-the-badge&logo=WebAssembly&logoColor=white" alt="インタラクティブデモを試す" height="40" />
+    <img src="./assets/demo-button-ja.svg" alt="インタラクティブデモを試す" width="360" />
   </a>
+  <br />
   <br />
   <b>ブラウザ上でWASMによるリアルタイムのベクトル空間変換や量子化を直感的なUIで体験できます。</b>
   <br />

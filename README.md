@@ -15,8 +15,9 @@ It sits between your embedding model and vector database, applying fast in-memor
 <div align="center">
   <br />
   <a href="https://daiki-moritake.github.io/warpvector/">
-    <img src="https://img.shields.io/badge/%F0%9F%8E%AE_Playground_(Interactive_Demo)-232F3E?style=for-the-badge&logo=WebAssembly&logoColor=white" alt="Try the Interactive Playground" height="40" />
+    <img src="./assets/demo-button.svg" alt="Try the Interactive Playground" width="360" />
   </a>
+  <br />
   <br />
   <b>Experience real-time vector space transformation and quantization in your browser via WASM.</b>
   <br />
