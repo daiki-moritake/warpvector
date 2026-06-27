@@ -1,6 +1,6 @@
 {
   "name": "warpvector",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "description": "Zero-dependency TypeScript middleware for dynamic vector space transformation. Warp embeddings at runtime with WASM-accelerated affine transforms, quantization, online learning, and ColBERT — no retraining needed.",
   "main": "dist/index.js",
   "module": "dist/index.mjs",

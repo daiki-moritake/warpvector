@@ -4,6 +4,24 @@ All notable changes to WarpVector will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [0.6.0] - 2026-06-27
+
+### Added
+
+#### New Packages
+- **`@warpvector/worker`** — Web Worker and Node.js `worker_threads` support for Isomorphic multithreading.
+  - Implements a generic `WarpWorkerPool` to parallelize batch processing.
+  - Features `IsomorphicWorker` abstraction for seamless execution in both browsers and backend.
+- **`@warpvector/gpu`** — WebGPU Compute Shader acceleration.
+  - Introduces `WebGpuIntentAdapter` to process massively parallel vector transformations (affine transforms) directly on the GPU.
+- **`@warpvector/opentelemetry`** — OpenTelemetry tracing integration.
+  - Exposes `OpenTelemetryTracer` which implements the `WarpTracer` interface for distributed tracing and observability.
+
+### Fixed
+- Fixed WGSL `@workgroup_size` dimension mismatch in `WebGpuIntentAdapter` to ensure proper GPU thread bounds.
+- Fixed `WarpWorkerPool` broadcast race conditions by tracking active worker jobs internally.
+- Relaxed browser environment check in `IsomorphicWorker` to properly support Service Workers and nested Web Workers.
+
 ## [0.5.1] - 2026-06-27
 
 ### Performance
