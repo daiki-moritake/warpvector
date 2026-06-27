@@ -1,6 +1,6 @@
 {
   "name": "@warpvector/eval",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Evaluation kit for WarpVector - Measure RAG accuracy (NDCG, Recall, MRR) and latency",
   "main": "src/index.ts",
   "module": "src/index.ts",

@@ -1,6 +1,6 @@
 {
   "name": "@warpvector/ml",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Lightweight non-linear and online learning adapters for edge inference",
   "main": "src/index.ts",
   "module": "src/index.ts",
