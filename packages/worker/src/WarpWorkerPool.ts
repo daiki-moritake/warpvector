@@ -36,6 +36,8 @@ export class WarpWorkerPool {
   }
 
   private handleResponse(worker: IsomorphicWorker, response: WorkerResponse) {
+    if (!this.workers.includes(worker)) return;
+
     const job = this.activeJobs.get(response.id);
     if (job) {
       if (response.success) {
@@ -108,6 +110,7 @@ export class WarpWorkerPool {
       job.reject(new Error("Worker pool terminated."));
     }
     this.activeJobs.clear();
+    this.workerActiveJobs.clear();
     await Promise.all(this.workers.map(w => w.terminate()));
     this.workers = [];
     this.idleWorkers = [];

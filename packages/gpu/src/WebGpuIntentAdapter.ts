@@ -185,6 +185,13 @@ export class WebGpuIntentAdapter implements WarpAdapter {
     const outputData = new Float32Array(arrayBuffer.slice(4)); // skip size field
     readBuffer.unmap();
 
+    // Destroy all temporary buffers to prevent GPU memory leaks
+    inputBuffer.destroy();
+    matrixBuffer.destroy();
+    biasBuffer.destroy();
+    outputBuffer.destroy();
+    readBuffer.destroy();
+
     const results: TransformOutput[] = [];
     for (let i = 0; i < batchSize; i++) {
       results.push(new Float32Array(outputData.buffer, i * this.outputDim * 4, this.outputDim));
