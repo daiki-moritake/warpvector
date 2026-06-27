@@ -140,9 +140,9 @@ graph TD
         B_Rerank[重厚リランキング<br/>ColBERT, Scattering]
     end
     
-    B_Train -.->|軽量な変換行列 (Weights) をデプロイ| E_Core
+    B_Train -.->|軽量な変換行列 （Weights） をデプロイ| E_Core
     B_Auto -.->|最適な Intent 行列を自動生成してデプロイ| E_Core
-    B_Train -.->|学習済みモデルの合成 (Task Arithmetic)| E_Core
+    B_Train -.->|学習済みモデルの合成 （Task Arithmetic）| E_Core
 ```
 
 ---
