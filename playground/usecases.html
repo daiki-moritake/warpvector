@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>WarpVector — Application Use Cases</title>
-  <meta name="description" content="Discover 5 concrete application use cases you can build with WarpVector.">
+  <title>WarpVector — High-Impact Use Cases</title>
+  <meta name="description" content="Discover concrete, business-ready applications you can build with WarpVector.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -14,8 +14,16 @@
       background: var(--bg-card);
       border: 1px solid var(--border);
       border-radius: 12px;
-      padding: 24px;
-      margin-bottom: 24px;
+      padding: 32px;
+      margin-bottom: 32px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 32px;
+    }
+    @media (max-width: 768px) {
+      .usecase-card { grid-template-columns: 1fr; }
+    }
+    .usecase-info {
       display: flex;
       flex-direction: column;
       gap: 16px;
@@ -26,7 +34,7 @@
       gap: 12px;
     }
     .usecase-title {
-      font-size: 20px;
+      font-size: 22px;
       font-weight: 700;
       color: var(--text-primary);
     }
@@ -34,26 +42,111 @@
       color: var(--text-secondary);
       line-height: 1.6;
     }
-    .interactive-demo {
-      background: var(--bg-app);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 16px;
+    .problem-box {
+      background: rgba(239, 68, 68, 0.05);
+      border-left: 3px solid #ef4444;
+      padding: 12px 16px;
+      font-size: 14px;
+      color: var(--text-primary);
     }
-    .demo-controls {
-      display: flex;
-      gap: 12px;
-      margin-bottom: 16px;
+    .solution-box {
+      background: rgba(16, 185, 129, 0.05);
+      border-left: 3px solid #10b981;
+      padding: 12px 16px;
+      font-size: 14px;
+      color: var(--text-primary);
     }
-    .demo-result {
-      font-family: 'JetBrains Mono', monospace;
+    
+    /* UI Mockups Styling */
+    .mockup-container {
       background: #0f172a;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    }
+    .mockup-header {
+      background: #1e293b;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 13px;
+      font-weight: 600;
+      color: #94a3b8;
+    }
+    .mockup-body {
+      padding: 16px;
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    
+    /* Search Results Mockup */
+    .search-bar {
+      background: #1e293b;
+      border: 1px solid #334155;
+      padding: 10px 16px;
+      border-radius: 6px;
+      color: white;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .result-item {
+      background: #1e293b;
       padding: 12px;
       border-radius: 6px;
-      font-size: 14px;
-      color: #e2e8f0;
-      white-space: pre-wrap;
+      border-left: 3px solid #3b82f6;
+      transition: all 0.2s;
     }
+    .result-title { font-weight: 600; font-size: 14px; color: #e2e8f0; margin-bottom: 4px; }
+    .result-meta { font-size: 12px; color: #94a3b8; display: flex; justify-content: space-between; }
+    
+    /* Mobile App Mockup */
+    .mobile-card {
+      background: #1e293b;
+      border-radius: 8px;
+      padding: 16px;
+      position: relative;
+    }
+    .mobile-img {
+      height: 120px;
+      background: #334155;
+      border-radius: 6px;
+      margin-bottom: 12px;
+    }
+    .mobile-title { font-weight: 600; font-size: 15px; color: #e2e8f0; margin-bottom: 4px; }
+    .btn-like {
+      background: #ec4899;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      position: absolute;
+      top: 24px;
+      right: 24px;
+    }
+    
+    .badge {
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .badge-blue { background: rgba(59,130,246,0.2); color: #60a5fa; }
+    .badge-green { background: rgba(16,185,129,0.2); color: #34d399; }
+    .badge-red { background: rgba(239,68,68,0.2); color: #f87171; }
+    .badge-amber { background: rgba(245,158,11,0.2); color: #fbbf24; }
   </style>
 </head>
 <body>
@@ -83,126 +176,199 @@
   <section class="hero" style="padding-top: 120px; padding-bottom: 60px;">
     <div class="hero-content">
       <h1 class="hero-title">
-        5 Practical <span class="gradient-text">Use Cases</span>
+        High-Impact <span class="gradient-text">Use Cases</span>
       </h1>
       <p class="hero-subtitle">
-        Explore how WarpVector's edge-native transformations and runtime warping can revolutionize your AI applications.
+        See how WarpVector solves complex business challenges—reducing costs, boosting relevance, and enabling offline AI—with concrete application examples.
       </p>
     </div>
   </section>
 
-  <section style="max-width: 1000px; margin: 0 auto; padding: 0 24px 100px 24px; position: relative; z-index: 10;">
+  <section style="max-width: 1100px; margin: 0 auto; padding: 0 24px 100px 24px; position: relative; z-index: 10;">
     
-    <!-- Use Case 1 -->
+    <!-- Use Case 1: B2B Search Warping -->
     <div class="usecase-card">
-      <div class="usecase-header">
-        <div class="feature-icon" style="background:rgba(59,130,246,0.15);color:var(--accent-blue);width:40px;height:40px;">🎯</div>
-        <div class="usecase-title">1. Ultra-Low Latency Personalized E-commerce Search</div>
-      </div>
-      <p class="usecase-desc">
-        Warp vector spaces in real-time based on the user's browsing context. When searching for "Apple", the results instantly adapt to show gadgets or fruits depending on the active intent, without querying an external LLM.
-      </p>
-      <div class="interactive-demo">
-        <div style="margin-bottom: 8px; font-weight: 600;">Interactive Demo: Query="Apple"</div>
-        <div class="demo-controls">
-          <button class="btn btn-outline" id="uc1-none">No Intent</button>
-          <button class="btn btn-outline" id="uc1-tech" style="border-color: var(--accent-blue); color: var(--accent-blue);">Tech/Gadgets</button>
-          <button class="btn btn-outline" id="uc1-food" style="border-color: var(--accent-green); color: var(--accent-green);">Food/Groceries</button>
+      <div class="usecase-info">
+        <div class="usecase-header">
+          <div class="feature-icon" style="background:rgba(59,130,246,0.15);color:var(--accent-blue);width:40px;height:40px;">🏢</div>
+          <div class="usecase-title">1. Multi-Tenant / Role-Based B2B Search</div>
         </div>
-        <div class="demo-result" id="uc1-result">
-1. Apple iPhone 15 Pro (Sim: 0.82)
-2. Fresh Fuji Apples 1kg (Sim: 0.81)
-3. Apple MacBook Air M3 (Sim: 0.79)
+        <p class="usecase-desc">
+          In enterprise portals, different roles expect different results for the exact same query.
+        </p>
+        <div class="problem-box">
+          <strong>Problem:</strong> Standard vector DBs mix marketing, sales, and devops docs together. Creating separate databases per role is expensive and hard to maintain.
+        </div>
+        <div class="solution-box">
+          <strong>WarpVector Solution:</strong> Keep one single vector database. Apply a lightweight <code>IntentAdapter</code> matrix based on the user's role (e.g., Sales vs. DevOps) to instantly warp the space and surface relevant docs.
+        </div>
+      </div>
+      <div class="mockup-container">
+        <div class="mockup-header">
+          <span>Enterprise Portal</span>
+          <div style="display:flex; gap:8px;">
+            <button class="btn btn-outline" id="uc1-dev" style="padding:4px 8px; font-size:11px; border-color:var(--accent-blue); color:var(--accent-blue);">Role: DevOps</button>
+            <button class="btn btn-outline" id="uc1-sales" style="padding:4px 8px; font-size:11px;">Role: Sales</button>
+          </div>
+        </div>
+        <div class="mockup-body">
+          <div class="search-bar">🔍 Query: "deployment"</div>
+          <div id="uc1-results" style="display:flex; flex-direction:column; gap:8px;">
+            <!-- Rendered via JS -->
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- Use Case 2 -->
+    <!-- Use Case 2: Offline Edge RAG -->
     <div class="usecase-card">
-      <div class="usecase-header">
-        <div class="feature-icon" style="background:rgba(245,158,11,0.15);color:var(--accent-amber);width:40px;height:40px;">💾</div>
-        <div class="usecase-title">2. Edge RAG with 90%+ Cost Reduction</div>
-      </div>
-      <p class="usecase-desc">
-        Run AI search directly on Edge environments (like Cloudflare Workers) by shrinking vectors up to 96.9% using Int8 or Binary Quantization, avoiding expensive vector databases.
-      </p>
-      <div class="interactive-demo">
-        <div class="demo-controls">
-          <button class="btn btn-outline" id="uc2-float">Float32 (Base)</button>
-          <button class="btn btn-outline" id="uc2-int8">Int8 Quantization</button>
-          <button class="btn btn-outline" id="uc2-binary">Binary Quantization</button>
+      <div class="usecase-info">
+        <div class="usecase-header">
+          <div class="feature-icon" style="background:rgba(245,158,11,0.15);color:var(--accent-amber);width:40px;height:40px;">📱</div>
+          <div class="usecase-title">2. Fully Offline, On-Device AI Search</div>
         </div>
-        <div class="demo-result" id="uc2-result">
-Storage per 1536-dim vector: 6,144 Bytes
-Estimated DB Cost: $100 / month
-Recall@10 Accuracy: 100% (Baseline)
+        <p class="usecase-desc">
+          Ideal for privacy-first mobile apps, medical tools, or personal note-taking apps where data shouldn't leave the device.
+        </p>
+        <div class="problem-box">
+          <strong>Problem:</strong> Float32 embeddings consume massive RAM and bandwidth. You can't fit a 100,000-document vector database into a mobile browser cache.
+        </div>
+        <div class="solution-box">
+          <strong>WarpVector Solution:</strong> Apply <code>QuantizationAdapter</code> to compress vectors into Binary format (96.9% reduction). 100k vectors now fit in ~19MB, running sub-millisecond similarity search locally via WASM.
+        </div>
+      </div>
+      <div class="mockup-container">
+        <div class="mockup-header">
+          <span>Medical Notes App</span>
+          <div style="display:flex; gap:8px;">
+            <button class="btn btn-outline" id="uc2-cloud" style="padding:4px 8px; font-size:11px; border-color:var(--accent-amber); color:var(--accent-amber);">Cloud (Float32)</button>
+            <button class="btn btn-outline" id="uc2-local" style="padding:4px 8px; font-size:11px;">On-Device (Binary)</button>
+          </div>
+        </div>
+        <div class="mockup-body" style="justify-content:center; align-items:center; text-align:center;">
+          <div id="uc2-status-icon" style="font-size: 48px; margin-bottom: 10px;">☁️</div>
+          <div id="uc2-status-text" style="font-weight: 600; font-size: 16px; color: white;">Cloud API Connected</div>
+          <div style="background: #1e293b; padding: 16px; border-radius: 8px; margin-top: 16px; width: 100%; text-align: left;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+              <span style="color:#94a3b8; font-size:13px;">RAM Usage:</span>
+              <span id="uc2-ram" style="color:white; font-weight:600;">614 MB</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+              <span style="color:#94a3b8; font-size:13px;">Latency:</span>
+              <span id="uc2-latency" style="color:#f87171; font-weight:600;">120 ms (Network)</span>
+            </div>
+            <div style="display:flex; justify-content:space-between;">
+              <span style="color:#94a3b8; font-size:13px;">Privacy Risk:</span>
+              <span id="uc2-privacy" style="color:#f87171; font-weight:600;">High</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- Use Case 3 -->
+    <!-- Use Case 3: Legal/Medical Anisotropy Correction -->
     <div class="usecase-card">
-      <div class="usecase-header">
-        <div class="feature-icon" style="background:rgba(16,185,129,0.15);color:var(--accent-green);width:40px;height:40px;">🤖</div>
-        <div class="usecase-title">3. Domain-Specific Customer Support Bot</div>
-      </div>
-      <p class="usecase-desc">
-        Internal company documents often produce embeddings that are too similar to each other (anisotropy). Use <code>WhiteningAdapter</code> to automatically stretch the vector space and improve search resolution for specific domains.
-      </p>
-      <div class="interactive-demo">
-        <div class="demo-controls">
-          <button class="btn btn-outline" id="uc3-raw">Raw Embeddings</button>
-          <button class="btn btn-outline" id="uc3-white" style="border-color: var(--accent-green); color: var(--accent-green);">Apply Whitening</button>
+      <div class="usecase-info">
+        <div class="usecase-header">
+          <div class="feature-icon" style="background:rgba(16,185,129,0.15);color:var(--accent-green);width:40px;height:40px;">⚖️</div>
+          <div class="usecase-title">3. "Microscope" Search for Legal Contracts</div>
         </div>
-        <div class="demo-result" id="uc3-result">
-Query: "How to reset password?"
-Top Match: "Account Login Guide" (Sim: 0.992)
-2nd Match: "Forgot Password FAQ" (Sim: 0.991) &lt;- Too close!
-Resolution is poor.
+        <p class="usecase-desc">
+          When dealing with highly uniform text (like legal jargon or medical records), standard embeddings fail to differentiate nuances.
+        </p>
+        <div class="problem-box">
+          <strong>Problem:</strong> Anisotropy bias causes all legal clauses to have a similarity score of 0.98+ to the query. Top results are almost random.
+        </div>
+        <div class="solution-box">
+          <strong>WarpVector Solution:</strong> The <code>WhiteningAdapter</code> analyzes the dataset's principal components on the fly and stretches the vector space, acting like a microscope to amplify the actual semantic differences.
+        </div>
+      </div>
+      <div class="mockup-container">
+        <div class="mockup-header">
+          <span>Contract Analyzer (Query: "Indemnification")</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="uc3-toggle">
+            <span class="slider round"></span>
+          </label>
+        </div>
+        <div class="mockup-body">
+          <div id="uc3-results" style="display:flex; flex-direction:column; gap:8px;">
+            <!-- Rendered via JS -->
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- Use Case 4 -->
+    <!-- Use Case 4: Privacy-Safe Personalized Feed -->
     <div class="usecase-card">
-      <div class="usecase-header">
-        <div class="feature-icon" style="background:rgba(139,92,246,0.15);color:var(--accent-purple);width:40px;height:40px;">🔒</div>
-        <div class="usecase-title">4. Privacy-Preserving "Smart" Assistant</div>
-      </div>
-      <p class="usecase-desc">
-        Run online learning (InfoNCETrainer) directly in the browser. Learn user preferences locally based on their clicks and skips without sending raw queries to a central server.
-      </p>
-      <div class="interactive-demo">
-        <div style="margin-bottom: 8px; font-weight: 600;">Simulation: You prefer Action Movies</div>
-        <div class="demo-controls">
-          <button class="btn btn-outline" id="uc4-click">👍 Click "Die Hard" (Learn)</button>
-          <button class="btn btn-outline" id="uc4-search">Search "Movie"</button>
+      <div class="usecase-info">
+        <div class="usecase-header">
+          <div class="feature-icon" style="background:rgba(139,92,246,0.15);color:var(--accent-purple);width:40px;height:40px;">📱</div>
+          <div class="usecase-title">4. Serverless "Learns What You Like" Feed</div>
         </div>
-        <div class="demo-result" id="uc4-result">
-Weights updated: 0 times.
-Try clicking the movie to train the local model!
+        <p class="usecase-desc">
+          Build TikTok or News aggregator style personalized feeds where the model learns from user clicks without expensive backend retraining.
+        </p>
+        <div class="problem-box">
+          <strong>Problem:</strong> Sending user interactions to the cloud to fine-tune a model per user is incredibly expensive, slow, and raises privacy concerns.
+        </div>
+        <div class="solution-box">
+          <strong>WarpVector Solution:</strong> Run <code>InfoNCETrainer</code> directly in the browser. Every swipe or "like" instantly fine-tunes a local 1MB transformation matrix, re-ranking the feed offline.
+        </div>
+      </div>
+      <div class="mockup-container">
+        <div class="mockup-header">
+          <span>News Feed App</span>
+          <span class="badge badge-purple" id="uc4-status">Local Model: Untrained</span>
+        </div>
+        <div class="mockup-body" style="background:#1e293b;">
+          <div class="mobile-card">
+            <div class="mobile-img" style="background: linear-gradient(45deg, #1e3a8a, #3b82f6);"></div>
+            <div class="mobile-title">The Future of Quantum Computing</div>
+            <div class="result-meta">Technology • 5 min read</div>
+            <button class="btn-like" id="uc4-like">👍 Like</button>
+          </div>
+          <div style="font-size: 12px; color: #94a3b8; text-align: center; margin-top: 8px;">
+            Up Next:
+            <div id="uc4-next" style="color: white; font-weight: 600; margin-top: 4px;">Top 10 Coffee Shops (Lifestyle)</div>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- Use Case 5 -->
+    <!-- Use Case 5: Semantic Algebra for E-Commerce -->
     <div class="usecase-card">
-      <div class="usecase-header">
-        <div class="feature-icon" style="background:rgba(236,72,153,0.15);color:var(--accent-pink);width:40px;height:40px;">🧩</div>
-        <div class="usecase-title">5. Semantic Curation via Vector Math</div>
-      </div>
-      <p class="usecase-desc">
-        Combine concepts mathematically using Vector Symbolic Architecture (VSA). Bundle vectors to create complex, nuanced queries before hitting your vector database.
-      </p>
-      <div class="interactive-demo">
-        <div class="demo-controls">
-          <button class="btn btn-outline" id="uc5-sf">Add "Sci-Fi"</button>
-          <button class="btn btn-outline" id="uc5-cyber">Add "Cyberpunk"</button>
-          <button class="btn btn-outline" id="uc5-dark">Subtract "Dark Ending"</button>
-          <button class="btn btn-outline" id="uc5-clear">Clear</button>
+      <div class="usecase-info">
+        <div class="usecase-header">
+          <div class="feature-icon" style="background:rgba(236,72,153,0.15);color:var(--accent-pink);width:40px;height:40px;">🛍️</div>
+          <div class="usecase-title">5. E-Commerce "Shop the Look" (Semantic Algebra)</div>
         </div>
-        <div class="demo-result" id="uc5-result">
-Current Query Bundle: [Empty]
+        <p class="usecase-desc">
+          Allow users to construct complex searches by adding or subtracting concepts intuitively, rather than relying on exact keyword matches.
+        </p>
+        <div class="problem-box">
+          <strong>Problem:</strong> A user has a photo of a "Red Jacket" but wants to find something similar that is "Vintage" and NOT "Modern". Standard image search can't handle logical modifiers.
+        </div>
+        <div class="solution-box">
+          <strong>WarpVector Solution:</strong> Use Vector Symbolic Architecture (<code>VsaAdapter</code>) to perform math at the edge: <code>Vector(Image) + Vector(Vintage) - Vector(Modern)</code>.
+        </div>
+      </div>
+      <div class="mockup-container">
+        <div class="mockup-header">
+          <span>Fashion Finder</span>
+        </div>
+        <div class="mockup-body">
+          <div class="search-bar" style="background: #0f172a;">
+            Base: 🧥 Red Jacket
+          </div>
+          <div style="display:flex; gap:8px; margin-top: 4px;">
+            <button class="btn btn-outline" id="uc5-add" style="padding:4px 8px; font-size:11px;">+ Vintage Concept</button>
+            <button class="btn btn-outline" id="uc5-sub" style="padding:4px 8px; font-size:11px;">- Modern Concept</button>
+            <button class="btn btn-outline" id="uc5-clear" style="padding:4px 8px; font-size:11px; border-color:#64748b; color:#94a3b8;">Reset</button>
+          </div>
+          <div id="uc5-results" style="display:flex; flex-direction:column; gap:8px; margin-top: 8px;">
+            <!-- Rendered via JS -->
+          </div>
         </div>
       </div>
     </div>
