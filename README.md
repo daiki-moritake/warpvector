@@ -244,6 +244,9 @@ Ultra-lightweight layer running directly on Cloudflare Workers or in the browser
 | **Hybrid Search** | Reciprocal Rank Fusion (RRF), Relative Score Fusion (RSF) |
 | **VSA** | Vector Symbolic Architecture (Bind / Bundle / Unbind) |
 | **Security** | AnomalyDetectionAdapter |
+| **Parallelization**| WarpWorkerPool, IsomorphicWorker (Web Worker / worker_threads) |
+| **GPU Compute**    | WebGpuIntentAdapter (WebGPU acceleration) |
+| **Observability**  | OpenTelemetryTracer (OpenTelemetry integration) |
 
 ### 🧠 Backend & Training Layer (Heavy Compute)
 Runs in resource-rich environments like Node.js or background workers to generate "weights" or optimized vectors for the edge.
