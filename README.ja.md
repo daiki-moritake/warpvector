@@ -26,6 +26,20 @@
   <a href="./README.ja.md"><img src="https://img.shields.io/badge/日本語-README-1F2937?style=for-the-badge&logo=markdown&logoColor=white" alt="日本語" /></a>
 </div>
 
+<br />
+
+### 📚 Zenn / 技術解説記事
+本ライブラリの技術的な背景や実装の工夫、具体的なユースケースについては以下の解説記事（Zenn）をご覧ください。
+
+- 🌌 [**Pineconeのコストを96%削減し、RAGの精度を劇的に向上させるTypeScriptミドルウェア『WarpVector』を作った**](./articles/reduce-pinecone-costs.md)
+- 🧠 [**Pythonなしで検索のパーソナライズを実装する：TypeScriptだけで対照学習（Contrastive Learning）を動かす**](./articles/ts-contrastive-learning.md)
+- 🌊 [**Python不要！TypeScript + WASMの物理シミュレーションでRAGをリランクする技術**](./articles/physics-graph-reranker.md)
+- 🎯 [**RAGの検索精度が低い？ベクトル空間の「異方性」を3行で解決する方法**](./articles/fix-rag-anisotropy.md)
+- ⚡ [**Cloudflare Workersで「ベクトル推論」をサブミリ秒で動かす方法【TypeScript + WASM】**](./articles/edge-vector-inference.md)
+- 🔗 [**LangChainの検索精度に不満？ミドルウェアを1つ挟むだけで劇的に改善する方法**](./articles/langchain-search-improvement.md)
+- 🤖 [**TypeScriptだけで構築するベクトルのオートチューニング（AutoML）とRAG検索精度評価の裏側**](./articles/automl-vector-tuning.md)
+- 🛡️ [**AI社会実装の壁を破る：エッジAIのプライバシー・コスト課題と、ベクトル変換による解決策**](./articles/ai-implementation-challenges-and-solution.md)
+
 ---
 
 ## ⚡ パフォーマンス概要
