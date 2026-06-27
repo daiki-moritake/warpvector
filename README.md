@@ -14,6 +14,7 @@
 `WarpVector` is a lightweight, zero-dependency TypeScript middleware that dynamically transforms vector spaces based on search context and user intent, without retraining AI models or running expensive re-inference.
 
 ## ✨ Project Highlights
+
 - ⚡️ **Blazing Fast (Edge Ready)**: Sub-millisecond inference directly on Cloudflare Workers or in-browser via WASM.
 - 🧠 **Dynamic & Smart**: Instantly warps the vector space in real-time based on user intent, boosting search accuracy.
 - 💸 **Cost-Effective**: Slashes Vector DB storage and memory costs by up to 96.9% using Int8/Binary quantization.
@@ -65,10 +66,10 @@ graph TD
 
 WarpVector occupies a highly unique position in the current ecosystem by being **edge-native, zero-dependency, and purely TypeScript**.
 
-*   **vs. Heavy LLM Frameworks (LlamaIndex / LangChain)**
-    While some massive frameworks have concepts like "Embedding Adapters", they come with huge dependencies. WarpVector extracts this concept as an **ultra-lightweight, WASM-accelerated middleware** designed to run sub-millisecond as a standalone utility on edge environments like Cloudflare Workers.
-*   **vs. Backend ML Libraries (Faiss / Sentence-Transformers)**
-    Advanced vector optimization—such as Whitening, contrastive learning, and quantization—traditionally required heavy Python/PyTorch or C++ infrastructure. WarpVector **rebuilds these complex mathematical optimizations natively in TypeScript**, liberating them for the frontend and edge runtimes.
+- **vs. Heavy LLM Frameworks (LlamaIndex / LangChain)**
+  While some massive frameworks have concepts like "Embedding Adapters", they come with huge dependencies. WarpVector extracts this concept as an **ultra-lightweight, WASM-accelerated middleware** designed to run sub-millisecond as a standalone utility on edge environments like Cloudflare Workers.
+- **vs. Backend ML Libraries (Faiss / Sentence-Transformers)**
+  Advanced vector optimization—such as Whitening, contrastive learning, and quantization—traditionally required heavy Python/PyTorch or C++ infrastructure. WarpVector **rebuilds these complex mathematical optimizations natively in TypeScript**, liberating them for the frontend and edge runtimes.
 
 ---
 
@@ -77,58 +78,63 @@ WarpVector occupies a highly unique position in the current ecosystem by being *
 Integrating `WarpVector` into your RAG or vector search systems solves the following challenges:
 
 - 🎯 **1. Intent-Aware Personalized Search**
+
   > Standard embeddings can't distinguish "Apple" (fruit) from "Apple" (company). WarpVector lets you switch **intents** to instantly warp the vector space toward the right domain.
 
 - 🔄 **2. Log-Driven Online Learning (Separation of Concerns)**
+
   > Collect user click/skip logs at the edge, run online learning in your backend, and instantly deploy only the lightweight transformation matrices to the edge — keeping inference lightning fast.
 
 - 📐 **3. Auto-Correction of Embedding Anisotropy**
+
   > Many models produce vectors that are all too similar (anisotropy bias). `WhiteningAdapter` automatically learns and removes this bias via streaming PCA, dramatically improving search resolution.
 
 - 💾 **4. 75–97% Memory Reduction via Quantization**
+
   > Add `.setFinalStage("quantize", ...)` to your pipeline to compress vectors from Float32 to Int8 or Binary format, shrinking DB costs without sacrificing accuracy.
 
 - 🚀 **5. Drop-in Integration — Just a Few Lines of TS**
   > No Python or heavy ML frameworks needed. Pure TypeScript + WASM. Integrates cleanly with LangChain, LlamaIndex, and Prisma (pgvector).
 
 ### 🤝 Drop-in Integrations
+
 `[LangChain]` `[LlamaIndex]` `[Prisma / pgvector]` `[Pinecone]` `[Cloudflare Vectorize]` `[Redis]`
 
 ---
 
 ## ⚡ Results at a Glance
 
-| Metric | Before (vanilla search) | After (WarpVector) | Improvement |
-|--------|------------------------|---------------------|-------------|
-| **Int8 Quantization Fidelity** | — | cosine sim 0.9999 | Lossless compression |
-| **MLP Inference (WASM)** | — | 1.1–3.8 µs/vector | Near-zero latency |
-| **Int8 Quantization Speed** | — | 322K vecs/sec | Real-time capable |
-| **Binary Quantization Speed** | — | 1.18M vecs/sec | Extreme throughput |
-| **Memory Reduction (Int8)** | 6 KB/vec (1536-dim) | 1.5 KB/vec | **75% reduction** |
-| **Memory Reduction (Binary)** | 6 KB/vec (1536-dim) | 192 B/vec | **96.9% reduction** |
-| **Pipeline Latency** | — | 119 µs (Intent + Projection) | Sub-millisecond |
-| **IR Accuracy (NDCG@10)** | 68.2% (vanilla) | 77.0% (Intent Warping) | **+13.0% improvement** |
-| **Quantization Recall@10 (Int8)** | — | 86–96% | Near-lossless retrieval |
+| Metric                            | Before (vanilla search) | After (WarpVector)           | Improvement             |
+| --------------------------------- | ----------------------- | ---------------------------- | ----------------------- |
+| **Int8 Quantization Fidelity**    | —                       | cosine sim 0.9999            | Lossless compression    |
+| **MLP Inference (WASM)**          | —                       | 1.1–3.8 µs/vector            | Near-zero latency       |
+| **Int8 Quantization Speed**       | —                       | 322K vecs/sec                | Real-time capable       |
+| **Binary Quantization Speed**     | —                       | 1.18M vecs/sec               | Extreme throughput      |
+| **Memory Reduction (Int8)**       | 6 KB/vec (1536-dim)     | 1.5 KB/vec                   | **75% reduction**       |
+| **Memory Reduction (Binary)**     | 6 KB/vec (1536-dim)     | 192 B/vec                    | **96.9% reduction**     |
+| **Pipeline Latency**              | —                       | 119 µs (Intent + Projection) | Sub-millisecond         |
+| **IR Accuracy (NDCG@10)**         | 68.2% (vanilla)         | 77.0% (Intent Warping)       | **+13.0% improvement**  |
+| **Quantization Recall@10 (Int8)** | —                       | 86–96%                       | Near-lossless retrieval |
 
 <details>
 <summary>📊 Full Benchmark Results</summary>
 
-| Adapter | Dimensions | Avg Latency | Accuracy Metric | Value |
-|---------|-----------|-------------|----------------|-------|
-| IntentAdapter | 128D | 21.1 µs | Identity precision | 1.000000 |
-| IntentAdapter | 768D | 603.3 µs | Identity precision | 1.000000 |
-| IntentAdapter | 1536D | 2406.2 µs | Identity precision | 1.000000 |
-| ProjectionAdapter | 1536 → 512 | 807.0 µs | — | — |
-| ProjectionAdapter | 768 → 256 | 204.0 µs | — | — |
-| QuantizationAdapter | 128D (Int8) | 0.7 µs | Quantization fidelity | 0.999992 |
-| QuantizationAdapter | 768D (Int8) | 4.2 µs | Quantization fidelity | 0.999992 |
-| QuantizationAdapter | 1536D (Int8) | 4.2 µs | Quantization fidelity | 0.999992 |
-| MlpAdapter (WASM) | 128 → 64 | 2.2 µs | — | — |
-| MlpAdapter (WASM) | 768 → 256 | 3.8 µs | — | — |
-| MlpAdapter (WASM) | 1536 → 512 → 128 | 1.1 µs | — | — |
-| Pipeline | 768 → 256 (Intent+Proj) | 119.1 µs | — | — |
+| Adapter             | Dimensions              | Avg Latency | Accuracy Metric       | Value    |
+| ------------------- | ----------------------- | ----------- | --------------------- | -------- |
+| IntentAdapter       | 128D                    | 21.1 µs     | Identity precision    | 1.000000 |
+| IntentAdapter       | 768D                    | 603.3 µs    | Identity precision    | 1.000000 |
+| IntentAdapter       | 1536D                   | 2406.2 µs   | Identity precision    | 1.000000 |
+| ProjectionAdapter   | 1536 → 512              | 807.0 µs    | —                     | —        |
+| ProjectionAdapter   | 768 → 256               | 204.0 µs    | —                     | —        |
+| QuantizationAdapter | 128D (Int8)             | 0.7 µs      | Quantization fidelity | 0.999992 |
+| QuantizationAdapter | 768D (Int8)             | 4.2 µs      | Quantization fidelity | 0.999992 |
+| QuantizationAdapter | 1536D (Int8)            | 4.2 µs      | Quantization fidelity | 0.999992 |
+| MlpAdapter (WASM)   | 128 → 64                | 2.2 µs      | —                     | —        |
+| MlpAdapter (WASM)   | 768 → 256               | 3.8 µs      | —                     | —        |
+| MlpAdapter (WASM)   | 1536 → 512 → 128        | 1.1 µs      | —                     | —        |
+| Pipeline            | 768 → 256 (Intent+Proj) | 119.1 µs    | —                     | —        |
 
-*Benchmarked on Apple M-series, Bun runtime. Run `bun run benchmarks/accuracy.ts` to reproduce.*
+_Benchmarked on Apple M-series, Bun runtime. Run `bun run benchmarks/accuracy.ts` to reproduce._
 
 </details>
 
@@ -146,13 +152,13 @@ graph TD
         E_Opt[Optimization & Compression<br/>Whitening, Quantization]
         E_Search[Hybrid Search & VSA]
     end
-    
+
     subgraph "🧠 Backend & Training Layer (Node.js/Workers)"
         B_Train[Trainers<br/>InfoNCETrainer, TripletTrainer]
         B_Auto[Auto-ML<br/>IntentMatrixFactory]
         B_Rerank[Heavy Reranking<br/>ColBERT, Scattering]
     end
-    
+
     B_Train -. "Deploy Lightweight Weights" .-> E_Core
     B_Auto -. "Auto-generate Intent Matrices" .-> E_Core
     B_Train -. "Task Arithmetic Model Merging" .-> E_Core
@@ -189,17 +195,18 @@ npm install @langchain/core
 WarpVector is feature-rich, so we've grouped the basic usage by category. Refer to the documentation links below for details.
 
 ### 1. Basic Pipeline Configuration (WarpPipeline)
+
 Compose complex vector transformations and DB format outputs intuitively.
 
 ```typescript
-import { WarpPipeline } from 'warpvector';
-import { MlpAdapter } from 'warpvector/ml';
-import { QuantizationAdapter } from 'warpvector/extras';
+import { WarpPipeline } from "warpvector";
+import { MlpAdapter } from "warpvector/ml";
+import { QuantizationAdapter } from "warpvector/extras";
 
 // 1. Compose the pipeline
 const pipeline = new WarpPipeline(1536)
   .addStep(new MlpAdapter(layers))
-  .addIntent({ "domain_x": intentWeights })
+  .addIntent({ domain_x: intentWeights })
   .setFinalStage(new QuantizationAdapter({ type: "int8", dim: 1536 }));
 
 // 2. Async init (WASM setup, etc.)
@@ -207,13 +214,14 @@ await pipeline.init();
 
 // 3. Fast inference & output formatting
 const pineconeQuery = pipeline.runAndFormat(
-  rawVector, 
+  rawVector,
   { format: "pinecone", topK: 10, filter: { genre: "action" } },
-  { intent: "domain_x" }
+  { intent: "domain_x" },
 );
 ```
 
 ### 2. Core Transforms (Intent & Dimensionality Reduction)
+
 <details>
 <summary>💻 Domain Warping (IntentAdapter) & Dimensionality Reduction (ProjectionAdapter)</summary>
 
@@ -230,15 +238,17 @@ const warpedVector = adapter.tune(baseVector, "riskAnalysis");
 const projAdapter = new ProjectionAdapter(1536, 512, { v1: { matrix: projMatrix, bias: projBias } });
 const compressedVector = projAdapter.tune(baseVector, "v1");
 ```
+
 </details>
 
 ### 3. Neural Nets & Space Optimization
+
 <details>
 <summary>💻 WASM MLP Inference / Whitening / Inverse Diffusion</summary>
 
 ```typescript
-import { MlpAdapter, WhiteningAdapter } from 'warpvector/ml';
-import { SoftWhiteningAdapter } from 'warpvector/train';
+import { MlpAdapter, WhiteningAdapter } from "warpvector/ml";
+import { SoftWhiteningAdapter } from "warpvector/train";
 
 // 1. MlpAdapter: Ultra-fast non-linear inference via WASM
 const mlp = new MlpAdapter([{ matrix, bias, activation: "relu" }]);
@@ -246,7 +256,10 @@ await mlp.init();
 const mlpOutput = mlp.tune(inputVector);
 
 // 2. Whitening: Remove online spatial bias (anisotropy)
-const whitener = new WhiteningAdapter(1536, { learningRate: 0.01, numComponents: 1 });
+const whitener = new WhiteningAdapter(1536, {
+  learningRate: 0.01,
+  numComponents: 1,
+});
 whitener.update(rawVector); // Streaming PCA
 const whitened = whitener.tune(searchVector);
 
@@ -254,14 +267,20 @@ const whitened = whitener.tune(searchVector);
 const softWhitener = new SoftWhiteningAdapter(1536, { tau: 2.0 });
 const sharpVector = softWhitener.tune(queryVector);
 ```
+
 </details>
 
 ### 4. Auto-Learning & Federated Learning (Backend Layer)
+
 <details>
 <summary>💻 IntentMatrixFactory / Federated Learning</summary>
 
 ```typescript
-import { IntentMatrixFactory, InfoNCETrainer, FeedbackCollector } from 'warpvector/train';
+import {
+  IntentMatrixFactory,
+  InfoNCETrainer,
+  FeedbackCollector,
+} from "warpvector/train";
 
 // 1. IntentMatrixFactory: Auto-generate matrices from samples 🆕
 const factory = new IntentMatrixFactory(1536);
@@ -272,16 +291,27 @@ const intents = await factory.build(); // Generated via InfoNCE loss
 const collector = new FeedbackCollector({ dwellThresholdMs: 3000 });
 // ... (collect logs)
 const trainer = new InfoNCETrainer(1536);
-const updatedWeights = await trainer.updateOnline(currentWeights, collector.toTripletExamples()[0], { learningRate: 0.001 });
+const updatedWeights = await trainer.updateOnline(
+  currentWeights,
+  collector.toTripletExamples()[0],
+  { learningRate: 0.001 },
+);
 ```
+
 </details>
 
 ### 5. Advanced Search Algorithms
+
 <details>
 <summary>💻 Quantization / Hybrid Search / ColBERT / VSA</summary>
 
 ```typescript
-import { QuantizationAdapter, rrf, ColbertAdapter, VsaAdapter } from 'warpvector';
+import {
+  QuantizationAdapter,
+  rrf,
+  ColbertAdapter,
+  VsaAdapter,
+} from "warpvector";
 
 // 1. Quantization: Int8 (1/4 size) or Binary (1/32 size)
 const int8Adapter = new QuantizationAdapter({ type: "int8", dim: 1536 });
@@ -298,36 +328,49 @@ const ranks = colbert.rank(queryTokens, [doc1Tokens, doc2Tokens], 1536);
 const bundled = VsaAdapter.bundle([scienceVec, technologyVec]);
 const bound = VsaAdapter.bind(keyVec, valueVec);
 ```
+
 </details>
 
 ### 6. Ecosystem Integrations
+
 <details>
 <summary>💻 Prisma (pgvector) / LangChain / Cloudflare</summary>
 
 **Prisma + pgvector:**
+
 ```typescript
-import { PrismaClient } from '@prisma/client';
-import { withWarpVector } from 'warpvector/prisma';
+import { PrismaClient } from "@prisma/client";
+import { withWarpVector } from "warpvector/prisma";
 
 const prisma = new PrismaClient().$extends(
-  withWarpVector({ adapter: myAdapter, vectorField: "embedding" })
+  withWarpVector({ adapter: myAdapter, vectorField: "embedding" }),
 );
-const results = await prisma.document.searchByVector({ vector: rawVector, topK: 10 });
+const results = await prisma.document.searchByVector({
+  vector: rawVector,
+  topK: 10,
+});
 ```
 
 **LangChain:**
+
 ```typescript
 import { WarpEmbeddings } from "warpvector/langchain";
-const warpEmbeddings = new WarpEmbeddings({ baseEmbeddings, adapter, intentName: "domain_x" });
+const warpEmbeddings = new WarpEmbeddings({
+  baseEmbeddings,
+  adapter,
+  intentName: "domain_x",
+});
 ```
 
 **Cloudflare Vectorize:**
+
 ```typescript
 import { VectorDBAdapter } from "warpvector";
 const tunedVector = await pipeline.run(queryEmbedding);
 const { vector, options } = VectorDBAdapter.toVectorizeQuery(tunedVector, 10);
 const results = await env.VECTORIZE_INDEX.query(vector, options);
 ```
+
 </details>
 
 ---
@@ -347,30 +390,30 @@ See the `examples/` and `docs/cookbook/` directories for drop-in solutions:
 
 ## 📖 Documentation
 
-| # | Topic | Description |
-|---|-------|-------------|
-| 0 | [Edge Quickstart](./docs/edge-quickstart.md) | Deploy on Cloudflare Workers / Vercel Edge |
-| 0.5 | [Auto-Learning Guide](./docs/auto-learning-guide.md) | Build self-optimizing search pipelines |
-| 1 | [Core Adapters](./docs/1-core-adapters.md) | IntentAdapter, ProjectionAdapter, LoRA |
-| 2 | [Neural Networks](./docs/2-neural-networks.md) | MLP inference with WASM |
-| 3 | [Whitening / PCA](./docs/3-whitening-pca.md) | Online anisotropy correction |
-| 4 | [Quantization](./docs/4-quantization.md) | Int8 (4×) and Binary (32×) compression |
-| 5 | [ColBERT](./docs/5-colbert.md) | WASM-accelerated late interaction |
-| 6 | [Hybrid Search](./docs/6-hybrid-search.md) | RRF & RSF fusion |
-| 7 | [Trainers](./docs/7-trainers.md) | InfoNCE, Triplet, Online learning |
-| 8 | [Integrations](./docs/8-integrations.md) | LangChain, Prisma, LlamaIndex |
-| 9 | [Serialization](./docs/9-serialization.md) | State persistence & restoration |
-| 10 | [Projection & Migration](./docs/10-projection-migration.md) | Dimension reduction & model migration |
-| 11 | [Task Arithmetic](./docs/11-task-arithmetic.md) | Zero-overhead model merging |
-| 12 | [VSA](./docs/12-vsa.md) | Vector Symbolic Architecture |
-| 13 | [Feedback & Federated](./docs/13-feedback-loop.md) | FeedbackCollector + FedAvg |
-| 14 | [Inverse Diffusion](./docs/14-soft-whitening.md) | Semantic sharpening |
-| 15 | [Time-Reversal Reranker](./docs/15-time-reversal-reranker.md) | Wave-inspired reranking |
-| 16 | [Multipath Scattering](./docs/16-multipath-scattering-reranker.md) | Random-walk hub detection |
-| 17 | [IntentMatrixFactory](./docs/17-intent-matrix-factory.md) | Auto-generate intent matrices from samples |
-| — | [API Reference](./docs/api-reference.md) | Full API documentation |
-| — | [Troubleshooting](./docs/troubleshooting.md) | Common issues & solutions |
-| — | [Migration Guide](./docs/migration-guide.md) | v0.1 → v0.2 upgrade guide |
+| #   | Topic                                                              | Description                                |
+| --- | ------------------------------------------------------------------ | ------------------------------------------ |
+| 0   | [Edge Quickstart](./docs/edge-quickstart.md)                       | Deploy on Cloudflare Workers / Vercel Edge |
+| 0.5 | [Auto-Learning Guide](./docs/auto-learning-guide.md)               | Build self-optimizing search pipelines     |
+| 1   | [Core Adapters](./docs/1-core-adapters.md)                         | IntentAdapter, ProjectionAdapter, LoRA     |
+| 2   | [Neural Networks](./docs/2-neural-networks.md)                     | MLP inference with WASM                    |
+| 3   | [Whitening / PCA](./docs/3-whitening-pca.md)                       | Online anisotropy correction               |
+| 4   | [Quantization](./docs/4-quantization.md)                           | Int8 (4×) and Binary (32×) compression     |
+| 5   | [ColBERT](./docs/5-colbert.md)                                     | WASM-accelerated late interaction          |
+| 6   | [Hybrid Search](./docs/6-hybrid-search.md)                         | RRF & RSF fusion                           |
+| 7   | [Trainers](./docs/7-trainers.md)                                   | InfoNCE, Triplet, Online learning          |
+| 8   | [Integrations](./docs/8-integrations.md)                           | LangChain, Prisma, LlamaIndex              |
+| 9   | [Serialization](./docs/9-serialization.md)                         | State persistence & restoration            |
+| 10  | [Projection & Migration](./docs/10-projection-migration.md)        | Dimension reduction & model migration      |
+| 11  | [Task Arithmetic](./docs/11-task-arithmetic.md)                    | Zero-overhead model merging                |
+| 12  | [VSA](./docs/12-vsa.md)                                            | Vector Symbolic Architecture               |
+| 13  | [Feedback & Federated](./docs/13-feedback-loop.md)                 | FeedbackCollector + FedAvg                 |
+| 14  | [Inverse Diffusion](./docs/14-soft-whitening.md)                   | Semantic sharpening                        |
+| 15  | [Time-Reversal Reranker](./docs/15-time-reversal-reranker.md)      | Wave-inspired reranking                    |
+| 16  | [Multipath Scattering](./docs/16-multipath-scattering-reranker.md) | Random-walk hub detection                  |
+| 17  | [IntentMatrixFactory](./docs/17-intent-matrix-factory.md)          | Auto-generate intent matrices from samples |
+| —   | [API Reference](./docs/api-reference.md)                           | Full API documentation                     |
+| —   | [Troubleshooting](./docs/troubleshooting.md)                       | Common issues & solutions                  |
+| —   | [Migration Guide](./docs/migration-guide.md)                       | v0.1 → v0.2 upgrade guide                  |
 
 ---
 
@@ -386,9 +429,12 @@ const debug = pipeline.dryRun(testVector, { intent: "tech" });
 // OpenTelemetry compatible tracing
 import { WarpTracer } from "warpvector";
 const tracer = new WarpTracer();
-const warped = tracer.trace("intent.tune", { intent: "tech" }, () => adapter.tune(vector, "tech"));
+const warped = tracer.trace("intent.tune", { intent: "tech" }, () =>
+  adapter.tune(vector, "tech"),
+);
 console.log(tracer.getMetrics());
 ```
+
 </details>
 
 ---
