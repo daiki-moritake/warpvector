@@ -1,6 +1,6 @@
 {
   "name": "@warpvector/worker",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Web Worker and Node.js Worker Thread support for WarpVector",
   "main": "dist/index.js",
   "module": "dist/index.mjs",

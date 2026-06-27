@@ -13,7 +13,11 @@
 
 `warpvector` is a lightweight, zero-dependency TypeScript middleware that dynamically transforms vector spaces based on search context and user intent, without retraining AI models or running expensive re-inference.
 
-It sits between your embedding model and vector database, applying fast in-memory affine transformations to bring semantic distances closer to the user's **true intent**.
+### ✨ Project Highlights
+- ⚡️ **Blazing Fast (Edge Ready)**: Sub-millisecond inference directly on Cloudflare Workers or in-browser via WASM.
+- 🧠 **Dynamic & Smart**: Instantly warps the vector space in real-time based on user intent, boosting search accuracy.
+- 💸 **Cost-Effective**: Slashes Vector DB storage and memory costs by up to 96.9% using Int8/Binary quantization.
+- 📦 **Zero-Python (Pure TS)**: No heavy ML frameworks. Bring advanced machine learning directly into your JS/TS backend.
 
 <div align="center">
   <br />
@@ -27,7 +31,57 @@ It sits between your embedding model and vector database, applying fast in-memor
   <br />
 </div>
 
+<br />
 
+---
+
+## 💡 Why WarpVector?
+
+Traditional vector search is **static** — it depends entirely on pre-generated embedding distances. When you need context-aware tuning, your only options have been metadata filtering or expensive re-inference with instruction-tuned models (usually requiring a Python backend).
+
+**WarpVector changes this.** It acts as a "magic filter" without ever touching the base embedding model.
+
+### 🔄 Before / After: Evolution of Search Architecture
+
+```mermaid
+graph TD
+    subgraph "❌ Before (Traditional Static Search)"
+        B_Query[User Query<br/>e.g., 'Apple'] --> B_LLM[Embedding Model<br/>ada-002, etc.]
+        B_LLM -->|Static Vector| B_DB[(Vector DB)]
+        B_DB -.->|Problem| B_Result[Mixes up fruit & company.<br/>Noisy search results.]
+    end
+
+    subgraph "✨ After (Dynamic Search with WarpVector)"
+        A_Query[User Query<br/>e.g., 'Apple'] --> A_LLM[Embedding Model<br/>ada-002, etc.]
+        A_LLM -->|Static Vector| A_WV{⚡️ WarpVector Middleware<br/>Applies 'IT Domain' Intent}
+        A_WV -->|Optimized Vector| A_DB[(Vector DB)]
+        A_DB -.->|Solution| A_Result[Space is warped!<br/>Apple Inc. instantly rises to top.]
+    end
+```
+
+---
+
+## 🎯 5 Key Use Cases
+
+Integrating `warpvector` into your RAG or vector search systems solves the following challenges:
+
+- 🎯 **1. Intent-Aware Personalized Search**
+  > Standard embeddings can't distinguish "Apple" (fruit) from "Apple" (company). WarpVector lets you switch **intents** to instantly warp the vector space toward the right domain.
+
+- 🔄 **2. Log-Driven Online Learning (Separation of Concerns)**
+  > Collect user click/skip logs at the edge, run online learning in your backend, and instantly deploy only the lightweight transformation matrices to the edge — keeping inference lightning fast.
+
+- 📐 **3. Auto-Correction of Embedding Anisotropy**
+  > Many models produce vectors that are all too similar (anisotropy bias). `WhiteningAdapter` automatically learns and removes this bias via streaming PCA, dramatically improving search resolution.
+
+- 💾 **4. 75–97% Memory Reduction via Quantization**
+  > Add `.setFinalStage("quantize", ...)` to your pipeline to compress vectors from Float32 to Int8 or Binary format, shrinking DB costs without sacrificing accuracy.
+
+- 🚀 **5. Drop-in Integration — Just a Few Lines of TS**
+  > No Python or heavy ML frameworks needed. Pure TypeScript + WASM. Integrates cleanly with LangChain, LlamaIndex, and Prisma (pgvector).
+
+### 🤝 Drop-in Integrations
+`[LangChain]` `[LlamaIndex]` `[Prisma / pgvector]` `[Pinecone]` `[Cloudflare Vectorize]` `[Redis]`
 
 ---
 
@@ -69,44 +123,29 @@ It sits between your embedding model and vector database, applying fast in-memor
 
 ---
 
-## 💡 Why WarpVector?
+## 🧩 Feature Architecture (Edge vs Backend)
 
-Traditional vector search is **static** — it depends entirely on pre-generated embedding distances. When you need context-aware tuning, your only options have been metadata filtering or expensive re-inference with instruction-tuned models.
-
-**WarpVector changes this.** It applies lightweight matrix operations at query time, warping the vector space to match user intent — all without touching the base embedding model.
+`warpvector` adopts a clear architectural separation between "Edge Inference" (requiring ultra-low latency) and "Backend Training" (requiring heavy compute resources).
 
 ```mermaid
-graph LR
-    Input["Search Query"] --> LLM["OpenAI / Cohere / etc."]
-    LLM -->|"Base Vector"| WP{"WarpPipeline"}
-    
-    subgraph WarpVector["In-Memory Transformation (sub-ms)"]
-        WP --> Step1["MlpAdapter<br/>Non-linear Transform"]
-        Step1 --> Step2["IntentAdapter<br/>Domain Warping"]
-        Step2 --> Final["QuantizationAdapter<br/>Int8 Compression"]
+graph TD
+    subgraph "⚡ Edge Inference Layer (Sub-ms, WASM, Zero-dep)"
+        E_Core[Core Transforms<br/>Intent, Projection, Lora]
+        E_ML[Neural Nets<br/>MlpAdapter, Non-linear]
+        E_Opt[Optimization & Compression<br/>Whitening, Quantization]
+        E_Search[Hybrid Search & VSA]
     end
     
-    Final -->|"Optimized Vector"| DB[("Vector DB<br/>Pinecone / pgvector / etc.")]
+    subgraph "🧠 Backend & Training Layer (Node.js/Workers)"
+        B_Train[Trainers<br/>InfoNCE, TripletTrainer]
+        B_Auto[Auto-ML<br/>IntentMatrixFactory]
+        B_Rerank[Heavy Reranking<br/>ColBERT, Scattering]
+    end
+    
+    B_Train -.->|Deploy Lightweight Weights| E_Core
+    B_Auto -.->|Auto-generate Intent Matrices| E_Core
+    B_Train -.->|Task Arithmetic Model Merging| E_Core
 ```
-
----
-
-## 🎯 Key Use Cases
-
-### 1. Intent-Aware Personalized Search
-Standard embeddings can't distinguish "Apple" (fruit) from "Apple" (company). WarpVector lets you switch **intents** to instantly warp the vector space toward the right domain.
-
-### 2. Log-Driven Online Learning (Separation of Concerns)
-No need to retrain LLMs. Collect user click/skip logs at the edge, and run the online learning in your Node.js or backend workers. You update only the lightweight transformation matrix, not the model itself, and instantly deploy the new matrix to the edge—keeping inference lightning fast.
-
-### 3. Auto-Correction of Embedding Anisotropy
-Many embedding models produce vectors that are all too similar (anisotropy). `WhiteningAdapter` automatically learns and removes this bias via streaming PCA, dramatically improving search resolution.
-
-### 4. 75–97% Memory Reduction via Quantization
-Add `.setFinalStage("quantize", quantizer)` to your pipeline to compress vectors from Float32 to Int8 (4× reduction) or Binary (32× reduction) with 0.9999+ cosine similarity preservation.
-
-### 5. Drop-in Integration — Just a Few Lines
-No Python. No heavy ML frameworks. Pure TypeScript + WASM. Works with **LangChain, Prisma (pgvector), and LlamaIndex** out of the box.
 
 ---
 
@@ -118,177 +157,179 @@ npm install warpvector
 bun add warpvector
 ```
 
-All core features work with **zero dependencies**. For integrations:
+Core features operate with **zero dependencies**. For integrations:
 
 ```bash
 # Prisma + pgvector
 npm install @prisma/client sql-template-tag
 
-# LangChain
+# LangChain / LlamaIndex
 npm install @langchain/core
 ```
 
 ---
 
-## 🚀 Quick Start
+## 🛠 Quick Start Guide
 
-### Basic Pipeline (5 lines to production-ready search)
+WarpVector is feature-rich, so we've grouped the basic usage by category. Refer to the documentation links below for details.
+
+### 1. Basic Pipeline Configuration (WarpPipeline)
+Compose complex vector transformations and DB format outputs intuitively.
 
 ```typescript
 import { WarpPipeline } from 'warpvector';
-
-const pipeline = new WarpPipeline(1536)
-  .addIntent({ tech: { matrix: techMatrix, bias: techBias } })
-  .setFinalStage("quantize", new QuantizationAdapter({ type: "int8", dim: 1536 }));
-
-// Auto-initializes WASM on first call — no manual init() needed
-const result = pipeline.run(baseVector, { intent: "tech" });
-```
-
-### Intent-Aware Transformation
-
-```typescript
-import { IntentAdapter } from 'warpvector';
-
-const adapter = new IntentAdapter(1536);
-adapter.addIntent("technical", { matrix: techMatrix, bias: techBias });
-adapter.addIntent("business",  { matrix: bizMatrix,  bias: bizBias  });
-
-// Same vector, different results based on intent
-const techResult = adapter.tune(queryVector, "technical");
-const bizResult  = adapter.tune(queryVector, "business");
-```
-
-### Auto-Generate Intent Matrices (NEW)
-
-```typescript
-import { IntentMatrixFactory } from 'warpvector/train';
-import { IntentAdapter } from 'warpvector';
-
-// No manual matrix needed — just provide category samples
-const factory = new IntentMatrixFactory(1536);
-factory.addCategory("tech", [techVec1, techVec2, techVec3]);
-factory.addCategory("business", [bizVec1, bizVec2, bizVec3]);
-
-// Auto-learns optimal affine transformations via contrastive learning
-const intents = await factory.build();
-
-const adapter = new IntentAdapter(1536);
-adapter.addIntent("tech", intents.tech);
-adapter.addIntent("business", intents.business);
-
-// Auto-blending: automatically routes queries to the best intent
-const result = adapter.tuneAutoBlended(queryVector);
-```
-
-### WASM-Accelerated Neural Network Inference
-
-```typescript
 import { MlpAdapter } from 'warpvector/ml';
+import { QuantizationAdapter } from 'warpvector/extras';
 
-const mlp = new MlpAdapter([
-  { matrix: layer1Weights, bias: layer1Bias, activation: "relu" },
-  { matrix: layer2Weights, bias: layer2Bias, activation: "linear" },
-]);
-await mlp.init(); // Load WASM
+// 1. Compose the pipeline
+const pipeline = new WarpPipeline(1536)
+  .addStep(new MlpAdapter(layers))
+  .addIntent({ "domain_x": intentWeights })
+  .setFinalStage(new QuantizationAdapter({ type: "int8", dim: 1536 }));
 
-const output = mlp.tune(inputVector); // ~2µs per inference
+// 2. Async init (WASM setup, etc.)
+await pipeline.init();
+
+// 3. Fast inference & output formatting
+const pineconeQuery = pipeline.runAndFormat(
+  rawVector, 
+  { format: "pinecone", topK: 10, filter: { genre: "action" } },
+  { intent: "domain_x" }
+);
 ```
 
-### Online Whitening (Auto-fix Embedding Anisotropy)
+### 2. Core Transforms (Intent & Dimensionality Reduction)
+<details>
+<summary>💻 Domain Warping (IntentAdapter) & Dimensionality Reduction (ProjectionAdapter)</summary>
 
 ```typescript
-import { WhiteningAdapter } from 'warpvector/ml';
+import { IntentAdapter, ProjectionAdapter } from 'warpvector';
 
-const adapter = new WhiteningAdapter(1536, { learningRate: 0.01, numComponents: 1 });
+// 1. IntentAdapter: Define domain-specific affine transformations
+const adapter = new IntentAdapter({
+  riskAnalysis: { matrix: [...], bias: [...] }
+});
+const warpedVector = adapter.tune(baseVector, "riskAnalysis");
 
-// Streaming learning — call update() with each incoming vector
-adapter.update(vector1);
-adapter.update(vector2);
-
-// Apply whitening to remove learned bias
-const improved = adapter.tune(searchVector);
+// 2. ProjectionAdapter: Fast WASM dimensionality reduction (e.g., 1536D -> 512D)
+const projAdapter = new ProjectionAdapter(1536, 512, { v1: { matrix: projMatrix, bias: projBias } });
+const compressedVector = projAdapter.tune(baseVector, "v1");
 ```
+</details>
 
-### Prisma + pgvector Integration
+### 3. Neural Nets & Space Optimization
+<details>
+<summary>💻 WASM MLP Inference / Whitening / Inverse Diffusion</summary>
 
+```typescript
+import { MlpAdapter, WhiteningAdapter } from 'warpvector/ml';
+import { SoftWhiteningAdapter } from 'warpvector/train';
+
+// 1. MlpAdapter: Ultra-fast non-linear inference via WASM
+const mlp = new MlpAdapter([{ matrix, bias, activation: "relu" }]);
+await mlp.init();
+const mlpOutput = mlp.tune(inputVector);
+
+// 2. Whitening: Remove online spatial bias (anisotropy)
+const whitener = new WhiteningAdapter(1536, { learningRate: 0.01, numComponents: 1 });
+whitener.update(rawVector); // Streaming PCA
+const whitened = whitener.tune(searchVector);
+
+// 3. Inverse Diffusion: Extract sharp intent from mixed contexts
+const softWhitener = new SoftWhiteningAdapter(1536, { tau: 2.0 });
+const sharpVector = softWhitener.tune(queryVector);
+```
+</details>
+
+### 4. Auto-Learning & Federated Learning (Backend Layer)
+<details>
+<summary>💻 IntentMatrixFactory / Federated Learning</summary>
+
+```typescript
+import { IntentMatrixFactory, InfoNCETrainer, FeedbackCollector } from 'warpvector/train';
+
+// 1. IntentMatrixFactory: Auto-generate matrices from samples 🆕
+const factory = new IntentMatrixFactory(1536);
+factory.addCategory("tech", [techVec1, techVec2]);
+const intents = await factory.build(); // Generated via InfoNCE loss
+
+// 2. Feedback & Training: Generate training data from logs
+const collector = new FeedbackCollector({ dwellThresholdMs: 3000 });
+// ... (collect logs)
+const trainer = new InfoNCETrainer(1536);
+const updatedWeights = await trainer.updateOnline(currentWeights, collector.toTripletExamples()[0], { learningRate: 0.001 });
+```
+</details>
+
+### 5. Advanced Search Algorithms
+<details>
+<summary>💻 Quantization / Hybrid Search / ColBERT / VSA</summary>
+
+```typescript
+import { QuantizationAdapter, rrf, ColbertAdapter, VsaAdapter } from 'warpvector';
+
+// 1. Quantization: Int8 (1/4 size) or Binary (1/32 size)
+const int8Adapter = new QuantizationAdapter({ type: "int8", dim: 1536 });
+const int8Vec = int8Adapter.tune(floatVector);
+
+// 2. Hybrid Search (RRF): Merge Dense & Sparse (BM25) results
+const rrfResults = rrf([denseResults, sparseResults]);
+
+// 3. ColBERT: WASM-accelerated MaxSim token matching
+const colbert = new ColbertAdapter();
+const ranks = colbert.rank(queryTokens, [doc1Tokens, doc2Tokens], 1536);
+
+// 4. VSA (Vector Symbolic Architecture): Bundle and bind vectors
+const bundled = VsaAdapter.bundle([scienceVec, technologyVec]);
+const bound = VsaAdapter.bind(keyVec, valueVec);
+```
+</details>
+
+### 6. Ecosystem Integrations
+<details>
+<summary>💻 Prisma (pgvector) / LangChain / Cloudflare</summary>
+
+**Prisma + pgvector:**
 ```typescript
 import { PrismaClient } from '@prisma/client';
-import sql from 'sql-template-tag';
 import { withWarpVector } from 'warpvector/prisma';
 
 const prisma = new PrismaClient().$extends(
-  withWarpVector({ adapter, vectorField: "embedding", distanceOperator: "<=>" })
+  withWarpVector({ adapter: myAdapter, vectorField: "embedding" })
 );
-
-const results = await prisma.document.searchByVector({
-  vector: rawVector, topK: 10, where: sql`category = 'science'`
-});
+const results = await prisma.document.searchByVector({ vector: rawVector, topK: 10 });
 ```
 
----
-
-## 🧩 Feature Architecture
-
-`warpvector` adopts a clear architectural separation between "Edge Inference" (requiring ultra-low latency) and "Backend / Heavy Reranking" (requiring heavy compute resources).
-
-### ⚡ Edge Inference Layer (Sub-millisecond & Zero-dependency)
-Ultra-lightweight layer running directly on Cloudflare Workers or in the browser.
-
-| Category | Features |
-|----------|----------|
-| **Core Transforms** | IntentAdapter, LoraIntentAdapter, ProjectionAdapter |
-| **Neural Nets** | MlpAdapter (WASM), MoeAdapter (MoE), Non-linear activations (ReLU, Sigmoid, Tanh) |
-| **Light Streaming** | WhiteningAdapter (Online PCA) |
-| **Quantization** | Int8 scalar (4× compression), Binary (32× compression), SafeQuantizationAdapter |
-| **Hybrid Search** | Reciprocal Rank Fusion (RRF), Relative Score Fusion (RSF) |
-| **VSA** | Vector Symbolic Architecture (Bind / Bundle / Unbind) |
-| **Security** | AnomalyDetectionAdapter |
-
-### 🧠 Backend & Training Layer (Heavy Compute)
-Runs in resource-rich environments like Node.js or background workers to generate "weights" or optimized vectors for the edge.
-
-| Category | Features |
-|----------|----------|
-| **Training** | IntentTrainer, CrossEncoderTrainer, InfoNCE, Triplet Loss, MigrationTrainer |
-| **Auto-ML** | IntentMatrixFactory, PipelineAutoTuner |
-| **Advanced Learning** | SoftWhiteningAdapter (Inverse Diffusion) |
-| **Model Merging** | Task Arithmetic, Federated Learning (FedAvg) |
-
-### 🚀 Heavy Reranking Layer (Server-side Only)
-Advanced search algorithms that require dedicated compute environments and shouldn't be run on the edge.
-
-| Category | Features |
-|----------|----------|
-| **Late Interaction** | ColBERT (MaxSim Token Matching) |
-| **Wave/Scattering** | TimeReversalReranker, MultipathScatteringReranker |
-
----
-
-## 🔍 Debugging & Observability
-
+**LangChain:**
 ```typescript
-// Inspect pipeline structure
-console.log(pipeline.inspect());
-// Pipeline [1536-dim]
-//   Step 0: MlpAdapter
-//   Step 1: IntentAdapter
-//   Final: QuantizationAdapter
-
-// Debug each step's intermediate output
-const debug = pipeline.dryRun(testVector, { intent: "tech" });
-debug.forEach(r => console.log(`${r.step}: dim=${r.output.length}, ${r.durationMs.toFixed(2)}ms`));
-
-// Enable metrics collection
-pipeline.metrics.enable();
-pipeline.run(vector, { intent: "tech" });
-console.log(pipeline.metrics.getMetrics());
-// { totalRuns: 1, avgRunDurationMs: 0.12, avgStepDurationMs: { MlpAdapter: 0.05, ... } }
+import { WarpEmbeddings } from "warpvector/langchain";
+const warpEmbeddings = new WarpEmbeddings({ baseEmbeddings, adapter, intentName: "domain_x" });
 ```
+
+**Cloudflare Vectorize:**
+```typescript
+import { VectorDBAdapter } from "warpvector";
+const { vector, options } = VectorDBAdapter.toVectorizeQuery(pipeline.run(queryEmbedding), 10);
+const results = await env.VECTORIZE_INDEX.query(vector, options);
+```
+</details>
 
 ---
 
-## 📚 Documentation
+## 📚 Cookbooks (Practical Examples)
+
+See the `examples/` and `docs/cookbook/` directories for drop-in solutions:
+
+1. **[Secure RAG Pipeline](./examples/01-secure-rag-pipeline.ts)** (`AnomalyDetection` + `SafeQuantization`)
+2. **[MoE and Auto-Tuning](./examples/02-moe-auto-tuning.ts)**
+3. **[Cross-Encoder Training for Rerankers](./examples/03-cross-encoder-training.ts)**
+4. **[E-commerce Search Cookbook](./docs/cookbook/ecommerce-search.md)**
+5. **[Cost-efficient RAG with Pinecone](./docs/cookbook/rag-with-pinecone.md)**
+6. **[Cloudflare Edge Execution](./docs/cookbook/edge-cloudflare.md)**
+
+---
+
+## 📖 Documentation
 
 | # | Topic | Description |
 |---|-------|-------------|
@@ -311,12 +352,28 @@ console.log(pipeline.metrics.getMetrics());
 | 15 | [Time-Reversal Reranker](./docs/15-time-reversal-reranker.md) | Wave-inspired reranking |
 | 16 | [Multipath Scattering](./docs/16-multipath-scattering-reranker.md) | Random-walk hub detection |
 | 17 | [IntentMatrixFactory](./docs/17-intent-matrix-factory.md) | Auto-generate intent matrices from samples |
-| C1 | [E-commerce Search Cookbook](./docs/cookbook/ecommerce-search.md) | Intent-based routing |
-| C2 | [Pinecone RAG Cookbook](./docs/cookbook/rag-with-pinecone.md) | Cost-efficient RAG |
-| C3 | [Cloudflare Edge Cookbook](./docs/cookbook/edge-cloudflare.md) | Edge inference |
 | — | [API Reference](./docs/api-reference.md) | Full API documentation |
 | — | [Troubleshooting](./docs/troubleshooting.md) | Common issues & solutions |
 | — | [Migration Guide](./docs/migration-guide.md) | v0.1 → v0.2 upgrade guide |
+
+---
+
+## 🔍 Debugging & Observability
+
+<details>
+<summary>💻 Inspect pipelines and OpenTelemetry tracing</summary>
+
+```typescript
+// Debug intermediate steps
+const debug = pipeline.dryRun(testVector, { intent: "tech" });
+
+// OpenTelemetry compatible tracing
+import { WarpTracer } from "warpvector";
+const tracer = new WarpTracer();
+const warped = tracer.trace("intent.tune", { intent: "tech" }, () => adapter.tune(vector, "tech"));
+console.log(tracer.getMetrics());
+```
+</details>
 
 ---
 
@@ -331,52 +388,6 @@ $$\mathbf{x}' = \sigma(\mathbf{W}_I \mathbf{x} + \mathbf{b}_I)$$
 - $\sigma$: Non-linear activation function (ReLU, Sigmoid, Tanh)
 
 Computational complexity is $\mathcal{O}(d^2)$ (or $\mathcal{O}(d \cdot r)$ with LoRA), optimized via WASM and `Float32Array` memory alignment for **sub-millisecond inference on edge devices**.
-
----
-
-## ☁️ Cloudflare Vectorize Integration
-
-```typescript
-import { WarpPipeline, VectorDBAdapter } from "warpvector";
-
-// Upsert warped vectors
-const records = documents.map((doc, i) =>
-  VectorDBAdapter.toVectorizeRecord(`doc-${i}`, pipeline.run(doc.embedding), { title: doc.title })
-);
-await env.VECTORIZE_INDEX.upsert(records);
-
-// Query with intent warping
-const { vector, options } = VectorDBAdapter.toVectorizeQuery(
-  pipeline.run(queryEmbedding),
-  10,
-  { returnMetadata: true }
-);
-const results = await env.VECTORIZE_INDEX.query(vector, options);
-```
-
-Also supports **pgvector**, **Pinecone**, and **Redis** out of the box.
-
----
-
-## 📊 OpenTelemetry-Compatible Tracing
-
-```typescript
-import { WarpTracer, IntentAdapter } from "warpvector";
-
-const tracer = new WarpTracer();
-const adapter = new IntentAdapter(768);
-
-// Trace any operation
-const warped = tracer.trace("intent.tune", { intent: "tech", dim: 768 }, () => {
-  return adapter.tune(vector, "tech");
-});
-
-// Get metrics
-const metrics = tracer.getMetrics();
-// { totalCalls: 1, avgLatencyMs: 0.12, operationCounts: { "intent.tune": 1 } }
-```
-
-Zero-dependency — works without `@opentelemetry/api` installed.
 
 ---
 
