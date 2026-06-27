@@ -1,3 +1,5 @@
+import { WarpDimensionMismatchError } from "../errors";
+
 /**
  * 2次元配列（行列）を指定した次元数で1次元のFloat32Arrayにフラット化します。
  *
@@ -6,7 +8,7 @@
  * @param {number} cols - 期待される列数
  * @param {string} contextName - エラーメッセージ用のコンテキスト名
  * @returns {Float32Array} フラット化された1次元配列
- * @throws {Error} 次元数が一致しない場合にエラーをスローします。
+ * @throws {WarpDimensionMismatchError} 次元数が一致しない場合にエラーをスローします。
  */
 export function flattenMatrix(
   matrix: number[][],
@@ -15,15 +17,19 @@ export function flattenMatrix(
   contextName: string = "Matrix",
 ): Float32Array {
   if (matrix.length !== rows) {
-    throw new Error(
-      `${contextName}: Row dimension mismatch. Expected ${rows}, got ${matrix.length}.`,
+    throw new WarpDimensionMismatchError(
+      `${contextName} (rows)`,
+      rows,
+      matrix.length,
     );
   }
   const flat = new Float32Array(rows * cols);
   for (let i = 0; i < rows; i++) {
     if (matrix[i].length !== cols) {
-      throw new Error(
-        `${contextName}: Column dimension mismatch at row ${i}. Expected ${cols}, got ${matrix[i].length}.`,
+      throw new WarpDimensionMismatchError(
+        `${contextName} (row ${i} cols)`,
+        cols,
+        matrix[i].length,
       );
     }
     for (let j = 0; j < cols; j++) {

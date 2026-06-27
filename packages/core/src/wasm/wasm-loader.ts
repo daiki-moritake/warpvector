@@ -2,7 +2,7 @@ import { wasmBase64 } from "./wasm-binary";
 
 let wasmInstance: WebAssembly.Instance | null = null;
 let wasmMemory: WebAssembly.Memory | null = null;
-let initPromise: Promise<WebAssembly.Instance> | null = null;
+let initPromise: Promise<WebAssembly.Instance | null> | null = null;
 
 export function getWasmMemory(): WebAssembly.Memory | null {
   return wasmMemory;
@@ -16,18 +16,23 @@ export async function initWasm(): Promise<WebAssembly.Instance | null> {
   if (wasmInstance) return wasmInstance;
   if (initPromise) return initPromise;
 
-  try {
-    const bytes = Uint8Array.from(atob(wasmBase64), (c) => c.charCodeAt(0));
-    const module = await WebAssembly.compile(bytes);
+  initPromise = (async () => {
+    try {
+      const bytes = Uint8Array.from(atob(wasmBase64), (c) => c.charCodeAt(0));
+      const module = await WebAssembly.compile(bytes);
 
-    wasmInstance = new WebAssembly.Instance(module);
+      wasmInstance = new WebAssembly.Instance(module);
 
-    wasmMemory = wasmInstance.exports.memory as WebAssembly.Memory;
-    return wasmInstance;
-  } catch (e) {
-    console.warn("WASM initialization failed, falling back to JS.", e);
-    return null;
-  }
+      wasmMemory = wasmInstance.exports.memory as WebAssembly.Memory;
+      return wasmInstance;
+    } catch (e) {
+      console.warn("WASM initialization failed, falling back to JS.", e);
+      initPromise = null; // 失敗時はリトライ可能にする
+      return null;
+    }
+  })();
+
+  return initPromise;
 }
 
 export function ensureWasmMemory(requiredBytes: number): boolean {

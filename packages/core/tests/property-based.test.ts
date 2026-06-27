@@ -167,7 +167,7 @@ describe("プロパティベーステスト: Serialization Roundtrip", () => {
     expect(maxAbsDiff(original, roundtripped)).toBe(0);
   });
 
-  it("WarpPipeline: exportState → importState で出力が再現される", () => {
+  it("WarpPipeline: exportState → importState で出力が再現される", async () => {
     const pipeline = new WarpPipeline(dim).addIntent({
       tech: { matrix: testMatrix(dim, 1), bias: testVector(dim, 2) },
     });
@@ -176,13 +176,13 @@ describe("プロパティベーステスト: Serialization Roundtrip", () => {
     const restored = WarpPipeline.importState(state);
 
     const input = testVector(dim, 33);
-    const original = pipeline.run(input, { intent: "tech" });
-    const roundtripped = restored.run(input, { intent: "tech" });
+    const original = await pipeline.run(input, { intent: "tech" });
+    const roundtripped = await restored.run(input, { intent: "tech" });
 
     expect(maxAbsDiff(original as Float32Array, roundtripped as Float32Array)).toBeLessThan(epsilon);
   });
 
-  it("WarpPipeline + FinalStage: exportState → importState で出力が再現される", () => {
+  it("WarpPipeline + FinalStage: exportState → importState で出力が再現される", async () => {
     const quantizer = new QuantizationAdapter({ type: "int8", dim });
     const pipeline = new WarpPipeline(dim)
       .addIntent({
@@ -194,8 +194,8 @@ describe("プロパティベーステスト: Serialization Roundtrip", () => {
     const restored = WarpPipeline.importState(state);
 
     const input = testVector(dim, 44);
-    const original = pipeline.run(input, { intent: "tech" });
-    const roundtripped = restored.run(input, { intent: "tech" });
+    const original = await pipeline.run(input, { intent: "tech" });
+    const roundtripped = await restored.run(input, { intent: "tech" });
 
     expect(original.length).toBe(roundtripped.length);
     expect(maxAbsDiff(original, roundtripped)).toBe(0);
@@ -287,22 +287,22 @@ describe("プロパティベーステスト: Numerical Stability", () => {
     }
   });
 
-  it("パイプライン: 空のパイプラインは入力をそのまま返す", () => {
+  it("パイプライン: 空のパイプラインは入力をそのまま返す", async () => {
     const pipeline = new WarpPipeline(dim);
     const input = testVector(dim, 42);
-    const output = pipeline.run(input);
+    const output = await pipeline.run(input);
     expect(output).toBeInstanceOf(Float32Array);
     expect(maxAbsDiff(output as Float32Array, input)).toBe(0);
   });
 
-  it("パイプライン: 同じ入力に対して決定的な出力を返す", () => {
+  it("パイプライン: 同じ入力に対して決定的な出力を返す", async () => {
     const pipeline = new WarpPipeline(dim).addIntent({
       test: { matrix: testMatrix(dim), bias: testVector(dim, 1) },
     });
 
     const input = testVector(dim, 42);
-    const output1 = pipeline.run(input, { intent: "test" });
-    const output2 = pipeline.run(input, { intent: "test" });
+    const output1 = await pipeline.run(input, { intent: "test" });
+    const output2 = await pipeline.run(input, { intent: "test" });
 
     expect(maxAbsDiff(output1 as Float32Array, output2 as Float32Array)).toBe(0);
   });

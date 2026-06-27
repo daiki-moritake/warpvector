@@ -47,7 +47,7 @@ export class PipelineAutoTuner {
     }
   }
 
-  private evaluatePipeline(pipeline: WarpPipeline, metric: MetricType): number {
+  private async evaluatePipeline(pipeline: WarpPipeline, metric: MetricType): Promise<number> {
     if (this.dataset.length === 0) return 0;
 
     let scoreSum = 0;
@@ -55,9 +55,11 @@ export class PipelineAutoTuner {
     // データセット全体を一度に変換してメモリ配列に保持するのではなく、
     // 1件ずつ推論してスコアを加算することで O(1) のメモリオーバーヘッドを実現します。
     for (const ex of this.dataset) {
-      const transformedQuery = pipeline.run(ex.query);
-      const transformedPositive = pipeline.run(ex.positive);
-      const transformedNegatives = ex.negatives ? ex.negatives.map(neg => pipeline.run(neg)) : [];
+      const transformedQuery = await pipeline.run(ex.query);
+      const transformedPositive = await pipeline.run(ex.positive);
+      const transformedNegatives = ex.negatives
+        ? await Promise.all(ex.negatives.map(neg => pipeline.run(neg)))
+        : [];
 
       const rank = getPositiveRank(transformedQuery, transformedPositive, transformedNegatives);
 
@@ -133,7 +135,7 @@ export class PipelineAutoTuner {
       // パイプラインの初期化（WASMロードなどが必要な場合）
       await pipeline.init();
 
-      const score = this.evaluatePipeline(pipeline, metric);
+      const score = await this.evaluatePipeline(pipeline, metric);
       allResults.push({ params, score });
 
       if (score > bestScore) {

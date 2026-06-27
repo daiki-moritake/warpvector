@@ -149,6 +149,8 @@ export class MetricsCollector {
       avgStepDurationMs[key] = value.count > 0 ? value.total / value.count : 0;
     }
 
+    const totalExecutions = this._totalRuns + this._totalBatchRuns;
+
     return {
       totalRuns: this._totalRuns,
       totalBatchRuns: this._totalBatchRuns,
@@ -156,7 +158,7 @@ export class MetricsCollector {
       avgStepDurationMs,
       lastRunDurationMs: this._lastRunDurationMs,
       avgRunDurationMs:
-        this._totalRuns > 0 ? this._totalRunDurationMs / this._totalRuns : 0,
+        totalExecutions > 0 ? this._totalRunDurationMs / totalExecutions : 0,
     };
   }
 
