@@ -268,7 +268,7 @@ import { QuantizationAdapter, rrf, ColbertAdapter, VsaAdapter } from 'warpvector
 
 // 1. 量子化: Int8 (1/4圧縮) または Binary (1/32圧縮)
 const int8Adapter = new QuantizationAdapter({ type: "int8", dim: 1536 });
-const int8Vec = int8Adapter.tune(floatVector);
+const int8Vec = int8Adapter.encode(floatVector);
 
 // 2. Hybrid Search (RRF): Vector検索とKeyword検索の結果を統合
 const rrfResults = rrf([denseResults, sparseResults]);
@@ -308,7 +308,8 @@ const warpEmbeddings = new WarpEmbeddings({ baseEmbeddings, adapter, intentName:
 **Cloudflare Vectorize:**
 ```typescript
 import { VectorDBAdapter } from "warpvector";
-const { vector, options } = VectorDBAdapter.toVectorizeQuery(pipeline.run(queryEmbedding), 10);
+const tunedVector = await pipeline.run(queryEmbedding);
+const { vector, options } = VectorDBAdapter.toVectorizeQuery(tunedVector, 10);
 const results = await env.VECTORIZE_INDEX.query(vector, options);
 ```
 </details>
