@@ -18,6 +18,7 @@
 - ⚡️ **Blazing Fast (Edge Ready)**: Sub-millisecond inference directly on Cloudflare Workers or in-browser via WASM.
 - 🧠 **Dynamic & Smart**: Instantly warps the vector space in real-time based on user intent, boosting search accuracy.
 - 💸 **Cost-Effective**: Slashes Vector DB storage and memory costs by up to 96.9% using Int8/Binary quantization.
+- 🔄 **Zero-Downtime Migration**: Translate vector spaces on the fly (e.g., 1536D to 512D) to eliminate vendor lock-in without re-indexing.
 - 📦 **Zero-Python (Pure TS)**: No heavy ML frameworks. Bring advanced machine learning directly into your JS/TS backend.
 
 <div align="center">
@@ -93,7 +94,11 @@ Integrating `WarpVector` into your RAG or vector search systems solves the follo
 
   > Add `.setFinalStage("quantize", ...)` to your pipeline to compress vectors from Float32 to Int8 or Binary format, shrinking DB costs without sacrificing accuracy.
 
-- 🚀 **5. Drop-in Integration — Just a Few Lines of TS**
+- 🔄 **5. Zero-Downtime Model Migration (No Re-indexing)**
+
+  > Upgrading from `ada-002` to `text-embedding-3`? Train an `AlignmentAdapter` with just 100 pairs, and translate new queries into your old vector space instantly, eliminating vendor lock-in.
+
+- 🚀 **6. Drop-in Integration — Just a Few Lines of TS**
   > No Python or heavy ML frameworks needed. Pure TypeScript + WASM. Integrates cleanly with LangChain, LlamaIndex, and Prisma (pgvector).
 
 ### 🤝 Drop-in Integrations
@@ -403,7 +408,7 @@ See the `examples/` and `docs/cookbook/` directories for drop-in solutions:
 | 7   | [Trainers](./docs/7-trainers.md)                                   | InfoNCE, Triplet, Online learning          |
 | 8   | [Integrations](./docs/8-integrations.md)                           | LangChain, Prisma, LlamaIndex              |
 | 9   | [Serialization](./docs/9-serialization.md)                         | State persistence & restoration            |
-| 10  | [Projection & Migration](./docs/10-projection-migration.md)        | Dimension reduction & model migration      |
+| 10  | [Alignment & Migration](./docs/10-alignment-and-migration.md)        | Dimension reduction & zero-downtime migration      |
 | 11  | [Task Arithmetic](./docs/11-task-arithmetic.md)                    | Zero-overhead model merging                |
 | 12  | [VSA](./docs/12-vsa.md)                                            | Vector Symbolic Architecture               |
 | 13  | [Feedback & Federated](./docs/13-feedback-loop.md)                 | FeedbackCollector + FedAvg                 |
