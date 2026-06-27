@@ -373,6 +373,47 @@
       </div>
     </div>
 
+    <!-- Use Case 6: Model Migration / Cross-Space Alignment -->
+    <div class="usecase-card">
+      <div class="usecase-info">
+        <div class="usecase-header">
+          <div class="feature-icon" style="background:rgba(14,165,233,0.15);color:#0ea5e9;width:40px;height:40px;">🔄</div>
+          <div class="usecase-title">6. Zero-Downtime Model Migration</div>
+        </div>
+        <p class="usecase-desc">
+          Migrate from old embedding models (like <code>text-embedding-ada-002</code>) to new ones without re-embedding your entire multi-million document database.
+        </p>
+        <div class="problem-box">
+          <strong>Problem:</strong> When a cheaper, better embedding model is released, upgrading means re-vectorizing millions of records at a massive API cost, causing system downtime. Vendor lock-in is real.
+        </div>
+        <div class="solution-box">
+          <strong>WarpVector Solution:</strong> Provide 100 anchor pairs to the <code>AlignmentTrainer</code>. It learns an <code>AlignmentAdapter</code> that instantly translates queries from the new model's space back into the old database's space.
+        </div>
+      </div>
+      <div class="mockup-container">
+        <div class="mockup-header">
+          <span>Migration Dashboard</span>
+          <button class="btn btn-outline" id="uc6-migrate" style="padding:4px 8px; font-size:11px; border-color:#0ea5e9; color:#0ea5e9;">Train AlignmentAdapter</button>
+        </div>
+        <div class="mockup-body" style="background:#0f172a; position: relative;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 16px;">
+            <div style="background:#1e293b; padding:12px; border-radius:6px; flex:1; text-align:center;">
+              <div style="color:#94a3b8; font-size:11px; margin-bottom:4px;">Legacy DB</div>
+              <div style="color:white; font-size:13px; font-weight:600;">ada-002 (1536d)</div>
+            </div>
+            <div style="padding:0 16px; color:#64748b; font-size:20px;">←</div>
+            <div style="background:#1e293b; padding:12px; border-radius:6px; flex:1; text-align:center; border: 1px solid #334155;" id="uc6-new-model">
+              <div style="color:#94a3b8; font-size:11px; margin-bottom:4px;">New Query</div>
+              <div style="color:white; font-size:13px; font-weight:600;">text-embedding-3 (512d)</div>
+            </div>
+          </div>
+          <div id="uc6-status" style="background:rgba(239,68,68,0.1); border:1px solid #ef4444; color:#f87171; padding:8px; border-radius:4px; font-size:12px; text-align:center;">
+            Status: Dimension Mismatch (512 != 1536) - Search Failed
+          </div>
+        </div>
+      </div>
+    </div>
+
   </section>
 
   <script type="module" src="./src/usecases.ts"></script>

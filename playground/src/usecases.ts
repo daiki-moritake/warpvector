@@ -197,3 +197,32 @@ document.getElementById('uc5-clear')?.addEventListener('click', () => {
 
 // Initialize on load
 updateUc5();
+
+// ---- Use Case 6: Model Migration / Alignment ----
+const uc6Migrate = document.getElementById('uc6-migrate');
+const uc6Status = document.getElementById('uc6-status');
+const uc6NewModel = document.getElementById('uc6-new-model');
+
+uc6Migrate?.addEventListener('click', () => {
+  if (!uc6Status || !uc6NewModel || !uc6Migrate) return;
+  
+  const originalText = uc6Migrate.textContent;
+  uc6Migrate.textContent = isJa ? '学習中...' : 'Training...';
+  uc6Migrate.style.opacity = '0.7';
+  
+  setTimeout(() => {
+    uc6Migrate.textContent = isJa ? '学習完了 (100ペア)' : 'Trained (100 pairs)';
+    uc6Migrate.style.background = 'rgba(14,165,233,0.1)';
+    uc6Migrate.style.opacity = '1';
+    
+    uc6NewModel.style.borderColor = '#0ea5e9';
+    uc6NewModel.style.background = 'rgba(14,165,233,0.1)';
+    
+    uc6Status.style.background = 'rgba(16,185,129,0.1)';
+    uc6Status.style.borderColor = '#10b981';
+    uc6Status.style.color = '#34d399';
+    uc6Status.textContent = isJa ? 
+      'ステータス: 接続完了 - AlignmentAdapter が 512次元を 1536次元空間へ翻訳' : 
+      'Status: Connected - AlignmentAdapter translates 512d to 1536d space';
+  }, 800);
+});
