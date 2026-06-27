@@ -657,33 +657,69 @@ export function quantizeToInt8Wasm(
   dim: i32,
   isDynamic: boolean
 ): void {
+  let scale: f32 = 127.0 as f32;
+
   if (isDynamic) {
     let maxVal: f32 = 1e-8 as f32;
-    for (let i = 0; i < dim; i++) {
+    let v_max = f32x4.splat(1e-8 as f32);
+    let i = 0;
+    
+    // SIMD max loop
+    for (; i <= dim - 4; i += 4) {
+      let v = v128.load(vectorPtr + i * 4);
+      let v_abs = f32x4.abs(v);
+      v_max = f32x4.max(v_max, v_abs);
+    }
+    
+    // Extract SIMD max
+    maxVal = Math.max(f32x4.extract_lane(v_max, 0),
+             Math.max(f32x4.extract_lane(v_max, 1),
+             Math.max(f32x4.extract_lane(v_max, 2),
+                      f32x4.extract_lane(v_max, 3)))) as f32;
+                      
+    // Remainder scalar max loop
+    for (; i < dim; i++) {
       let val = Math.abs(load<f32>(vectorPtr + i * 4)) as f32;
       if (val > maxVal) {
         maxVal = val;
       }
     }
 
-    let scale: f32 = 127.0 as f32 / maxVal;
-    for (let i = 0; i < dim; i++) {
-      let fval = load<f32>(vectorPtr + i * 4) * scale;
-      let ival = Math.round(fval as f64) as i32;
-      if (ival > 127) ival = 127;
-      if (ival < -128) ival = -128;
-      store<i8>(outPtr + i, ival as i8);
-    }
+    scale = 127.0 as f32 / maxVal;
+    
     // 最後に maxVal を f32 (リトルエンディアン) として dim バイト目から書き込む
     store<f32>(outPtr + dim, maxVal);
-  } else {
-    for (let i = 0; i < dim; i++) {
-      let fval = load<f32>(vectorPtr + i * 4) * 127.0 as f32;
-      let ival = Math.round(fval as f64) as i32;
-      if (ival > 127) ival = 127;
-      if (ival < -128) ival = -128;
-      store<i8>(outPtr + i, ival as i8);
-    }
+  }
+
+  let v_scale = f32x4.splat(scale);
+  let j = 0;
+
+  // SIMD Quantization loop (16 elements per iteration)
+  for (; j <= dim - 16; j += 16) {
+    let v1 = v128.load(vectorPtr + j * 4);
+    let v2 = v128.load(vectorPtr + (j + 4) * 4);
+    let v3 = v128.load(vectorPtr + (j + 8) * 4);
+    let v4 = v128.load(vectorPtr + (j + 12) * 4);
+
+    let r1 = i32x4.trunc_sat_f32x4_s(f32x4.nearest(f32x4.mul(v1, v_scale)));
+    let r2 = i32x4.trunc_sat_f32x4_s(f32x4.nearest(f32x4.mul(v2, v_scale)));
+    let r3 = i32x4.trunc_sat_f32x4_s(f32x4.nearest(f32x4.mul(v3, v_scale)));
+    let r4 = i32x4.trunc_sat_f32x4_s(f32x4.nearest(f32x4.mul(v4, v_scale)));
+
+    let i16_1 = i16x8.narrow_i32x4_s(r1, r2);
+    let i16_2 = i16x8.narrow_i32x4_s(r3, r4);
+
+    let i8 = i8x16.narrow_i16x8_s(i16_1, i16_2);
+    v128.store(outPtr + j, i8);
+  }
+
+  // Remainder loop
+  for (; j < dim; j++) {
+    let fval = load<f32>(vectorPtr + j * 4) * scale;
+    let ival = Math.round(fval as f64) as i32;
+    if (ival > 127) ival = 127;
+    if (ival < -128) ival = -128;
+    store<i8>(outPtr + j, ival as i8);
   }
 }
 
@@ -699,8 +735,37 @@ export function quantizeToBinaryWasm(
   outPtr: usize,
   dim: i32
 ): void {
+  let zero = f32x4.splat(0.0 as f32);
   let byteIndex = 0;
-  for (let i = 0; i < dim; i += 8) {
+  let i = 0;
+
+  // SIMD Quantization loop (16 elements / 2 bytes per iteration)
+  for (; i <= dim - 16; i += 16) {
+    let v1 = v128.load(vectorPtr + i * 4);
+    let v2 = v128.load(vectorPtr + (i + 4) * 4);
+    let v3 = v128.load(vectorPtr + (i + 8) * 4);
+    let v4 = v128.load(vectorPtr + (i + 12) * 4);
+
+    let m1 = i32x4.bitmask(f32x4.gt(v1, zero));
+    let m2 = i32x4.bitmask(f32x4.gt(v2, zero));
+    let m3 = i32x4.bitmask(f32x4.gt(v3, zero));
+    let m4 = i32x4.bitmask(f32x4.gt(v4, zero));
+
+    let r1 = ((m1 & 1) << 3) | ((m1 & 2) << 1) | ((m1 & 4) >> 1) | ((m1 & 8) >> 3);
+    let r2 = ((m2 & 1) << 3) | ((m2 & 2) << 1) | ((m2 & 4) >> 1) | ((m2 & 8) >> 3);
+    let r3 = ((m3 & 1) << 3) | ((m3 & 2) << 1) | ((m3 & 4) >> 1) | ((m3 & 8) >> 3);
+    let r4 = ((m4 & 1) << 3) | ((m4 & 2) << 1) | ((m4 & 4) >> 1) | ((m4 & 8) >> 3);
+
+    let byte1 = (r1 << 4) | r2;
+    let byte2 = (r3 << 4) | r4;
+
+    store<u8>(outPtr + byteIndex, byte1 as u8);
+    store<u8>(outPtr + byteIndex + 1, byte2 as u8);
+    byteIndex += 2;
+  }
+
+  // Remainder loop (8 elements / 1 byte)
+  for (; i < dim; i += 8) {
     let byte: u8 = 0;
     if (load<f32>(vectorPtr + i * 4) > 0) byte |= 128;
     if (load<f32>(vectorPtr + (i + 1) * 4) > 0) byte |= 64;
