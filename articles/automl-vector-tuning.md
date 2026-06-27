@@ -8,23 +8,23 @@ published: true
 
 ## はじめに
 
-ベクトル検索や RAG（Retrieval-Augmented Generation）のシステムを本番運用する際、最も頭を悩ませるのが**「どうすれば検索精度を最大化できるか？」**というパラメータ調整です。
+ベクトル検索や RAG（Retrieval-Augmented Generation）のシステムを本番運用する際、最も頭を悩ませるのが「**どうすれば検索精度を最大化できるか？**」というパラメータ調整です。
 
 - ベクトルの次元数を何次元に圧縮すべきか？
 - 異方性補正（Whitening）の学習率や主成分数はいくつが最適か？
 - コサイン類似度だけで不十分な場合、クエリの「意図（Intent）」に合わせた空間変形行列をどう設計するか？
 
-これらのハイパーパラメータの調整は、これまで**「勘と度胸」**で行われるか、あるいは **Python のデータ分析エコシステム（Optuna, scikit-learn 等）** に頼らざるを得ませんでした。
+これらのハイパーパラメータの調整は、これまで「**勘と度胸**」で行われるか、あるいは **Python のデータ分析エコシステム（Optuna, scikit-learn 等）** に頼らざるを得ませんでした。
 
 しかし、RAG のミドルウェアやアプリケーションサーバーを Node.js や Bun、Cloudflare Workers 等の JavaScript / TypeScript 環境で構築している場合、評価やチューニングのためだけに Python 環境を用意したり、プロセス間通信を挟むのは大きな開発・運用コストになります。
 
-WarpVector の最新リリース（v0.4.0 / v0.5.0）では、**JS/TS だけで動作する「AutoML（PipelineAutoTuner）」** と、**検索精度（NDCG@K や MRR）を定量測定する「RAG 評価キット」** を導入しました。本記事では、この仕組みと、実稼働を支える安全な量子化設計（SafeQuantizationAdapter）の裏側を解説します。
+WarpVector の最新リリース（v0.4.0 / v0.5.0）では、 **JS/TS だけで動作する「AutoML（PipelineAutoTuner）」** と、 **検索精度（NDCG@K や MRR）を定量測定する「RAG 評価キット」** を導入しました。本記事では、この仕組みと、実稼働を支える安全な量子化設計（SafeQuantizationAdapter）の裏側を解説します。
 
 ---
 
 ## 📊 TypeScript で実装する RAG 評価キット（`@warpvector/eval`）
 
-精度の高いチューニングを行うための大前提は、**「現在の検索精度を定量的に測定できること」**です。WarpVector では、情報検索（Information Retrieval）の代表的な指標である **NDCG@K** や **MRR（Mean Reciprocal Rank）** を TypeScript のみで計算できる軽量な評価パッケージを提供しています。
+精度の高いチューニングを行うための大前提は、「**現在の検索精度を定量的に測定できること**」です。WarpVector では、情報検索（Information Retrieval）の代表的な指標である **NDCG@K** や **MRR（Mean Reciprocal Rank）** を TypeScript のみで計算できる軽量な評価パッケージを提供しています。
 
 ### 代表的な指標の TS 実装
 
@@ -88,7 +88,7 @@ npx warpvector-eval --input results.json --k 10 --format markdown
 
 ### 1. メモリオーバーヘッドを抑えるストリーミング評価 (`O(1)` メモリ)
 
-一般的な機械学習の評価では、データセット全体を一度に変換（エンコード）してメモリに保持しがちですが、これではサーバーのメモリを圧迫します。WarpVector では、**1件ずつ推論（パイプライン実行）してスコアを加算するストリーミング方式**を採用することで、メモリオーバーヘッドを `O(1)` に抑えています。
+一般的な機械学習の評価では、データセット全体を一度に変換（エンコード）してメモリに保持しがちですが、これではサーバーのメモリを圧迫します。WarpVector では、 **1件ずつ推論（パイプライン実行）してスコアを加算するストリーミング方式** を採用することで、メモリオーバーヘッドを `O(1)` に抑えています。
 
 ```typescript
 // PipelineAutoTuner.ts 内の評価ループの簡略版
@@ -156,7 +156,7 @@ console.log("最良パラメータ:", result.bestParams);
 
 それは、API から返される埋め込みベクトルに稀に混入する **NaN（Not a Number）や極端に巨大な値（Infinity、オーバーフロー）** です。これらがフィルタなしで量子化器に入ると、配列全体が破壊されたり、検索が全く機能しなくなるバグを引き起こします。
 
-WarpVector v0.4.0 で導入された `SafeQuantizationAdapter` は、量子化を実行する直前に極めて厳密な**サニタイズ（クレンジング）とクリッピング**を施します。
+WarpVector v0.4.0 で導入された `SafeQuantizationAdapter` は、量子化を実行する直前に極めて厳密な **サニタイズ（クレンジング）とクリッピング** を施します。
 
 ### NaN/Infinity ガードとクリッピング
 
@@ -195,7 +195,7 @@ export class SafeQuantizationAdapter implements FinalStageAdapter {
 
 ### 開発者体験（DX）へのこだわり：静的/動的なプロパティチェック
 
-さらに、`SafeQuantizationAdapter` では**「壊れた設定のまま本番稼働して検索精度が下がるのを未然に防ぐ」**ために、古い API からのマイグレーションミスやパラメータ設計の誤りをコンストラクタで徹底的にバリデーションし、詳細なエラーメッセージを投げます。
+さらに、`SafeQuantizationAdapter` では「**壊れた設定のまま本番稼働して検索精度が下がるのを未然に防ぐ**」ために、古い API からのマイグレーションミスやパラメータ設計の誤りをコンストラクタで徹底的にバリデーションし、詳細なエラーメッセージを投げます。
 
 ```typescript
 constructor(options: SafeQuantizationOptions) {
@@ -240,13 +240,13 @@ constructor(options: SafeQuantizationOptions) {
 | **Intent Warping (手動アフィン変換)** | 384 | 84.3% (+16.9%) | 88.2% (+15.2%) |
 | **IntentMatrixFactory (自動チューン)** | 384 | **89.5% (+24.1%)** | **92.4% (+20.7%)** |
 
-コサイン類似度だけに依存した単純な検索（Vanilla）に比べ、`IntentMatrixFactory` と `PipelineAutoTuner` を用いて自動最適化されたパイプラインでは、**NDCG@10が 24% 以上改善**し、欲しい情報が的確にトップ10圏内に浮上するようになりました。
+コサイン類似度だけに依存した単純な検索（Vanilla）に比べ、`IntentMatrixFactory` と `PipelineAutoTuner` を用いて自動最適化されたパイプラインでは、 **NDCG@10が 24% 以上改善** し、欲しい情報が的確にトップ10圏内に浮上するようになりました。
 
 ---
 
 ## まとめ
 
-通常は Python や重厚な ML 用コンテナが必要だった「ベクトルの評価」「オートチューニング」「セーフガード付き量子化」ですが、TypeScript の表現力と WASM による計算加速の組み合わせにより、**すべて JS / TS のライブラリ単体で完結**させることができます。
+通常は Python や重厚な ML 用コンテナが必要だった「ベクトルの評価」「オートチューニング」「セーフガード付き量子化」ですが、TypeScript の表現力と WASM による計算加速の組み合わせにより、 **すべて JS / TS のライブラリ単体で完結** させることができます。
 
 RAG やベクトル検索のシステム開発において、「動いた後」のチューニングや安定運用に課題を感じている方は、ぜひ WarpVector のオートチューンと安全設計アダプターを活用してみてください！
 
