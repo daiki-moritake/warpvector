@@ -4,6 +4,16 @@ All notable changes to WarpVector will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [0.7.1] - 2026-06-28
+
+### Fixed
+- **VsaAdapter**: Fixed sign inversion bug in `unbind()` where division key near negative zero (`-0.0`) was clamped to positive `EPSILON` due to standard JS `-0.0 >= 0` evaluation. Implemented strict `Object.is` check to preserve the sign.
+- **ColbertAdapter**: Fixed a potential crash in `rank()` when WebAssembly memory growth occurred during a loop, which invalidated (detached) the cached `Float32Array` view. Modified to use `writeFloat32ArrayToWasm` on each iteration to always obtain the latest buffer.
+- **BaseGraphReranker & Rerankers**: Added strict boundary validation and type/NaN checking for configurations (`threshold`, `alpha`, `maxIterations`, `tolerance`, `tau`, `iterations`) in reranker constructors to prevent calculation failure from invalid parameters.
+- **Trainers**: Added validation guards for hyperparameters (`learningRate`, `regularization`, `epochs`, `margin`, `temperature`) in `BaseTrainer`, `TripletTrainer`, and `InfoNCETrainer` to fail fast and prevent parameter corruption with `NaN` weights.
+- **VectorDBAdapter**: Implemented vector type and finite number check (validating `NaN` and `Infinity`) in database serialization methods (`toPgvector`, `toPineconeQuery`, `toRedis`, `toVectorizeQuery`, `toVectorizeRecord`) to prevent SQL/query crashes at database connection layer.
+- **Performance Regression Tests**: Relaxed sub-millisecond benchmarking assertion thresholds to prevent flaky test failures during concurrent execution under high CPU load.
+
 ## [0.7.0] - 2026-06-28
 
 ### Added
