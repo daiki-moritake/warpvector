@@ -230,9 +230,11 @@ export class LoraIntentAdapter implements WarpAdapter {
         `intents.${name}.matrixB`,
       );
       const bias = assertNumberArray(intent.bias, `intents.${name}.bias`);
-      adapter.matricesA.set(name, new Float32Array(matrixA));
-      adapter.matricesB.set(name, new Float32Array(matrixB));
-      adapter.biases.set(name, new Float32Array(bias));
+      adapter.addIntent(name, {
+        matrixA: new Float32Array(matrixA),
+        matrixB: new Float32Array(matrixB),
+        bias: new Float32Array(bias),
+      });
     }
     return adapter;
   }
