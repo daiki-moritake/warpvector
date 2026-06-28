@@ -1,6 +1,10 @@
-import pc from 'picocolors';
-import { writePackageJson, writeTemplateFile, getExecCommand } from '../scaffold';
-import type { TemplateDefinition } from './types';
+import pc from "picocolors";
+import {
+  writePackageJson,
+  writeTemplateFile,
+  getExecCommand,
+} from "../scaffold";
+import type { TemplateDefinition } from "./types";
 
 const INTENT_TEMPLATE = `\
 /**
@@ -108,34 +112,36 @@ npx tsx src/index.ts
 }
 
 export const minimalIntentTemplate: TemplateDefinition = {
-  id: 'minimal-intent',
-  title: pc.bold('Minimal Intent Search') + pc.dim(' — Auto-learn intent matrices, zero config'),
-  description: 'Best for getting started quickly',
+  id: "minimal-intent",
+  title:
+    pc.bold("Minimal Intent Search") +
+    pc.dim(" — Auto-learn intent matrices, zero config"),
+  description: "Best for getting started quickly",
 
   generate(dir: string, name: string, version: string) {
     writePackageJson(dir, {
       name,
-      version: '0.1.0',
+      version: "0.1.0",
       private: true,
       scripts: {
-        start: 'tsx src/index.ts',
-        dev: 'tsx watch src/index.ts',
+        start: "tsx src/index.ts",
+        dev: "tsx watch src/index.ts",
       },
       dependencies: {
-        'warpvector': `^${version}`,
-        '@warpvector/core': `^${version}`,
-        '@warpvector/ml': `^${version}`,
-        '@warpvector/train': `^${version}`,
+        warpvector: `^${version}`,
+        "@warpvector/core": `^${version}`,
+        "@warpvector/ml": `^${version}`,
+        "@warpvector/train": `^${version}`,
       },
       devDependencies: {
-        typescript: '^5.0.0',
-        tsx: '^4.0.0',
-        '@types/node': '^20',
+        typescript: "^5.0.0",
+        tsx: "^4.0.0",
+        "@types/node": "^20",
       },
     });
 
-    writeTemplateFile(dir, 'src/index.ts', INTENT_TEMPLATE);
-    writeTemplateFile(dir, 'README.md', readme(name));
+    writeTemplateFile(dir, "src/index.ts", INTENT_TEMPLATE);
+    writeTemplateFile(dir, "README.md", readme(name));
   },
 
   getNextSteps(pm: string) {

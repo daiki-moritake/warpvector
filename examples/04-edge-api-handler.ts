@@ -1,9 +1,9 @@
 /**
  * WarpVector: Vercel Edge / Cloudflare Workers Cookbook
- * 
+ *
  * このファイルは、Next.js Edge Runtime や Cloudflare Workers といった
  * "エッジ環境"（サーバーレス）で WarpVector を利用するための実践的なテンプレートです。
- * 
+ *
  * ====================================================================
  * 特徴とベストプラクティス:
  * 1. 【ゼロレイテンシ初期化】
@@ -18,13 +18,22 @@
  */
 
 import { WarpPipeline, AdapterRegistry } from "@warpvector/core";
-import { SafeQuantizationAdapter, AnomalyDetectionAdapter } from "@warpvector/extras";
-import { SoftWhiteningAdapter } from "@warpvector/ml";
+import {
+  SafeQuantizationAdapter,
+  AnomalyDetectionAdapter,
+} from "@warpvector/extras";
+import { SoftWhiteningAdapter } from "@warpvector/train";
 
 // プラグイン・アダプターをシステムに登録（AdapterState は string | object のため型アサーションを使用）
-AdapterRegistry.register("SafeQuantizationAdapter", (state) => SafeQuantizationAdapter.importState(state as string));
-AdapterRegistry.register("AnomalyDetectionAdapter", (state) => AnomalyDetectionAdapter.importState(state as string));
-AdapterRegistry.register("SoftWhiteningAdapter", (state) => SoftWhiteningAdapter.importState(state as string));
+AdapterRegistry.registerFinalStage("SafeQuantizationAdapter", (state) =>
+  SafeQuantizationAdapter.importState(state as string),
+);
+AdapterRegistry.register("AnomalyDetectionAdapter", (state) =>
+  AnomalyDetectionAdapter.importState(state as string),
+);
+AdapterRegistry.register("SoftWhiteningAdapter", (state) =>
+  SoftWhiteningAdapter.importState(state as string),
+);
 
 /**
  * 1. グローバルキャッシュによるパイプラインの保持
@@ -44,13 +53,19 @@ async function getPipeline(): Promise<WarpPipeline> {
   // 初回リクエスト時に一度だけ構築される
   const pipeline = new WarpPipeline(VECTOR_DIMENSION)
     .addStep("anomaly", new AnomalyDetectionAdapter({ maxValue: 3.0 }))
-    .addStep("whitening", new SoftWhiteningAdapter(VECTOR_DIMENSION, { tau: 0.5 }))
-    .addStep("quantize", new SafeQuantizationAdapter({
-      type: "int8",
-      dim: VECTOR_DIMENSION,
-      dynamic: true,
-      clipThreshold: 127.0
-    }));
+    .addStep(
+      "whitening",
+      new SoftWhiteningAdapter(VECTOR_DIMENSION, { tau: 0.5 }),
+    )
+    .setFinalStage(
+      "SafeQuantizationAdapter",
+      new SafeQuantizationAdapter({
+        type: "int8",
+        dim: VECTOR_DIMENSION,
+        dynamic: true,
+        clipThreshold: 127.0,
+      }),
+    );
 
   await pipeline.init(); // WASMの初期化など
   globalPipeline = pipeline;
@@ -61,7 +76,7 @@ async function getPipeline(): Promise<WarpPipeline> {
 
 /**
  * 3. Next.js Edge API / Cloudflare Workers 用のハンドラ例
- * 
+ *
  * @example Request Body
  * {
  *   "vector": [0.1, -0.2, 0.5, ...]
@@ -77,10 +92,15 @@ export default async function handler(req: Request): Promise<Response> {
     const body = await req.json();
     const inputVector = body.vector;
 
-    if (!Array.isArray(inputVector) || inputVector.length !== VECTOR_DIMENSION) {
+    if (
+      !Array.isArray(inputVector) ||
+      inputVector.length !== VECTOR_DIMENSION
+    ) {
       return new Response(
-        JSON.stringify({ error: `Invalid vector dimension. Expected ${VECTOR_DIMENSION}` }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+        JSON.stringify({
+          error: `Invalid vector dimension. Expected ${VECTOR_DIMENSION}`,
+        }),
+        { status: 400, headers: { "Content-Type": "application/json" } },
       );
     }
 
@@ -89,7 +109,7 @@ export default async function handler(req: Request): Promise<Response> {
 
     // 4. ベクトルの変換（推論実行）
     const float32Input = new Float32Array(inputVector);
-    const optimizedVector = pipeline.run(float32Input);
+    const optimizedVector = await pipeline.run(float32Input);
 
     // 5. 結果の返却
     // Float32Array や Int8Array は JSON.stringify の前に通常の配列に変換する
@@ -97,19 +117,21 @@ export default async function handler(req: Request): Promise<Response> {
       JSON.stringify({
         status: "success",
         optimized_vector: Array.from(optimizedVector),
-        dimension: optimizedVector.length
+        dimension: optimizedVector.length,
       }),
       {
         status: 200,
-        headers: { "Content-Type": "application/json" }
-      }
+        headers: { "Content-Type": "application/json" },
+      },
     );
-
   } catch (error: any) {
     console.error("WarpVector Edge Execution Error:", error);
     return new Response(
-      JSON.stringify({ error: "Internal Server Error", details: error.message }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
+      JSON.stringify({
+        error: "Internal Server Error",
+        details: error.message,
+      }),
+      { status: 500, headers: { "Content-Type": "application/json" } },
     );
   }
 }

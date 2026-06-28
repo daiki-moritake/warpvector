@@ -4,23 +4,35 @@ import { SafeQuantizationAdapter } from "../src/adapters/SafeQuantizationAdapter
 
 describe("AnomalyDetectionAdapter", () => {
   test("strict mode throws error on NaN, Infinity, and OutOfBounds", () => {
-    const strictAdapter = new AnomalyDetectionAdapter({ mode: "strict", maxValue: 100.0 });
-    
+    const strictAdapter = new AnomalyDetectionAdapter({
+      mode: "strict",
+      maxValue: 100.0,
+    });
+
     // Normal vector
     expect(() => strictAdapter.tune([1, 2, 3])).not.toThrow();
 
     // NaN
-    expect(() => strictAdapter.tune([1, NaN, 3])).toThrow("AnomalyDetectionAdapter [STRICT MODE]: NaN detected");
+    expect(() => strictAdapter.tune([1, NaN, 3])).toThrow(
+      "AnomalyDetectionAdapter [STRICT MODE]: NaN detected",
+    );
 
     // Infinity
-    expect(() => strictAdapter.tune([1, Infinity, 3])).toThrow("AnomalyDetectionAdapter [STRICT MODE]: Infinity detected");
+    expect(() => strictAdapter.tune([1, Infinity, 3])).toThrow(
+      "AnomalyDetectionAdapter [STRICT MODE]: Infinity detected",
+    );
 
     // MaxValue exceeded
-    expect(() => strictAdapter.tune([100.1, 2, 3])).toThrow("AnomalyDetectionAdapter [STRICT MODE]: Value 100.1 exceeds maxValue");
+    expect(() => strictAdapter.tune([100.1, 2, 3])).toThrow(
+      "AnomalyDetectionAdapter [STRICT MODE]: Value 100.1 exceeds maxValue",
+    );
   });
 
   test("safe mode clips and sanitizes vectors", () => {
-    const safeAdapter = new AnomalyDetectionAdapter({ mode: "safe", maxValue: 50.0 });
+    const safeAdapter = new AnomalyDetectionAdapter({
+      mode: "safe",
+      maxValue: 50.0,
+    });
 
     const input = [1, NaN, Infinity, 100, -60, 25];
     const output = safeAdapter.tune(input);
@@ -38,13 +50,17 @@ describe("SafeQuantizationAdapter", () => {
   test("wraps QuantizationAdapter and prevents overflow for int8", () => {
     // QuantizationAdapterは、non-dynamicのint8の場合、入力を[-1.0, 1.0]と仮定して127倍します。
     // そのため、clipThresholdを1.0に設定して安全を担保します。
-    const safeQ = new SafeQuantizationAdapter({ type: "int8", dim: 3, clipThreshold: 1.0 });
+    const safeQ = new SafeQuantizationAdapter({
+      type: "int8",
+      dim: 3,
+      clipThreshold: 1.0,
+    });
 
-    const input = [0.1, 2.0, -3.0]; 
+    const input = [0.1, 2.0, -3.0];
     // 0.1 * 127 = 13 (Math.round)
     // 2.0 > 1.0 なので 1.0にクリップ -> 127
     // -3.0 < -1.0 なので -1.0にクリップ -> -127 (QuantizationAdapterでは -128)
-    
+
     const output = safeQ.encode(new Float32Array(input)) as Int8Array;
 
     expect(output.length).toBe(3);
@@ -54,7 +70,11 @@ describe("SafeQuantizationAdapter", () => {
   });
 
   test("handles NaN safely", () => {
-    const safeQ = new SafeQuantizationAdapter({ type: "int8", dim: 2, clipThreshold: 1.0 });
+    const safeQ = new SafeQuantizationAdapter({
+      type: "int8",
+      dim: 2,
+      clipThreshold: 1.0,
+    });
     const output = safeQ.encode(new Float32Array([0.1, NaN])) as Int8Array;
     expect(output[0]).toBe(13);
     expect(output[1]).toBe(0); // NaN -> 0
@@ -62,18 +82,23 @@ describe("SafeQuantizationAdapter", () => {
 
   test("WarpPipeline serialization and deserialization works", async () => {
     const { WarpPipeline } = require("@warpvector/core");
-    const pipeline = new WarpPipeline(3)
-      .addStep("AnomalyDetectionAdapter", new AnomalyDetectionAdapter({ mode: "safe", maxValue: 50.0 }));
-    pipeline.setFinalStage("SafeQuantizationAdapter", new SafeQuantizationAdapter({ type: "int8", dim: 3, clipThreshold: 1.0 }));
+    const pipeline = new WarpPipeline(3).addStep(
+      "AnomalyDetectionAdapter",
+      new AnomalyDetectionAdapter({ mode: "safe", maxValue: 50.0 }),
+    );
+    pipeline.setFinalStage(
+      "SafeQuantizationAdapter",
+      new SafeQuantizationAdapter({ type: "int8", dim: 3, clipThreshold: 1.0 }),
+    );
 
     const state = pipeline.exportState();
     const restored = WarpPipeline.importState(state);
 
     expect(restored).toBeDefined();
-    
+
     // 復元されたパイプラインを実行して、元の動作と同じか確認
     const input = [0.1, 2.0, -3.0];
-    const output = await restored.run(input) as Int8Array;
+    const output = (await restored.run(input)) as Int8Array;
 
     expect(output.length).toBe(3);
     expect(output[0]).toBe(13);
@@ -81,4 +106,3 @@ describe("SafeQuantizationAdapter", () => {
     expect(output[2]).toBe(-127);
   });
 });
-

@@ -58,13 +58,13 @@ export class MigrationTrainer extends BaseTrainer<
   protected calculateLoss(
     matrix: Float32Array,
     bias: Float32Array,
-    example: MigrationExample
+    example: MigrationExample,
   ): number {
     const sDim = this._sourceDimension;
     const tDim = this._targetDimension;
     const pred = new Float32Array(tDim);
     applyAffine(matrix, bias, example.source, pred, sDim, tDim);
-    
+
     let loss = 0;
     for (let i = 0; i < tDim; i++) {
       const diff = pred[i] - example.target[i];
@@ -83,7 +83,7 @@ export class MigrationTrainer extends BaseTrainer<
     example: MigrationExample,
     lr: number,
     reg: number,
-    t: number
+    t: number,
   ): void {
     const sDim = this._sourceDimension;
     const tDim = this._targetDimension;
@@ -106,7 +106,7 @@ export class MigrationTrainer extends BaseTrainer<
       outputGradients,
       lr,
       reg,
-      t
+      t,
     );
   }
 }

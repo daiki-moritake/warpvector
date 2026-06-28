@@ -9,7 +9,7 @@ import {
   allocateWasmMemory,
   withWasmMemoryStack,
   writeFloat32ArrayToWasm,
-  type OutputVector
+  type OutputVector,
 } from "@warpvector/core";
 
 export type QuantizationType = "int8" | "binary";
@@ -68,7 +68,10 @@ export class QuantizationAdapter implements FinalStageAdapter {
     return this.tuneJs(vector);
   }
 
-  private tuneWasm(vector: number[] | Float32Array, exports: any): Int8Array | Uint8Array {
+  private tuneWasm(
+    vector: number[] | Float32Array,
+    exports: any,
+  ): Int8Array | Uint8Array {
     const memory = exports.memory as WebAssembly.Memory;
 
     return withWasmMemoryStack(() => {
@@ -148,14 +151,14 @@ export class QuantizationAdapter implements FinalStageAdapter {
       // 8要素ごとにループ展開して高速化
       for (let i = 0, byteIndex = 0; i < this.dim; i += 8, byteIndex++) {
         let byte = 0;
-        if (vector[i] > 0) byte |= 128;     // 1 << 7
-        if (vector[i + 1] > 0) byte |= 64;  // 1 << 6
-        if (vector[i + 2] > 0) byte |= 32;  // 1 << 5
-        if (vector[i + 3] > 0) byte |= 16;  // 1 << 4
-        if (vector[i + 4] > 0) byte |= 8;   // 1 << 3
-        if (vector[i + 5] > 0) byte |= 4;   // 1 << 2
-        if (vector[i + 6] > 0) byte |= 2;   // 1 << 1
-        if (vector[i + 7] > 0) byte |= 1;   // 1 << 0
+        if (vector[i] > 0) byte |= 128; // 1 << 7
+        if (vector[i + 1] > 0) byte |= 64; // 1 << 6
+        if (vector[i + 2] > 0) byte |= 32; // 1 << 5
+        if (vector[i + 3] > 0) byte |= 16; // 1 << 4
+        if (vector[i + 4] > 0) byte |= 8; // 1 << 3
+        if (vector[i + 5] > 0) byte |= 4; // 1 << 2
+        if (vector[i + 6] > 0) byte |= 2; // 1 << 1
+        if (vector[i + 7] > 0) byte |= 1; // 1 << 0
         result[byteIndex] = byte;
       }
       return result;

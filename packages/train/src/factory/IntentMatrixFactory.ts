@@ -314,9 +314,7 @@ export class IntentMatrixFactory {
   /**
    * ベクトル群のセントロイド（平均ベクトル）を計算します。
    */
-  private computeCentroid(
-    vectors: (number[] | Float32Array)[],
-  ): Float32Array {
+  private computeCentroid(vectors: (number[] | Float32Array)[]): Float32Array {
     const dim = this.dimension;
     const centroid = new Float32Array(dim);
 

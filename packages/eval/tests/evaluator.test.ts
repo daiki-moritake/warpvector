@@ -5,7 +5,7 @@ import {
   calculateNDCG,
   evaluatePipeline,
   CorpusItem,
-  EvalQuery
+  EvalQuery,
 } from "../src/evaluator";
 
 describe("Evaluation Metrics", () => {
@@ -27,7 +27,7 @@ describe("Evaluation Metrics", () => {
 
   test("calculateMRR works correctly", () => {
     const expected = ["doc1", "doc2"];
-    
+
     // 最初のマッチが1位の場合 (1 / 1 = 1.0)
     expect(calculateMRR(["doc1", "doc3"], expected)).toBe(1.0);
 
@@ -40,19 +40,23 @@ describe("Evaluation Metrics", () => {
 
   test("calculateNDCG works correctly", () => {
     const expected = ["doc1", "doc2"];
-    
+
     // 全て正解が上位に来た場合 (NDCG = 1.0)
     // DCG = 1/log2(2) + 1/log2(3) = 1 + 0.6309 = 1.6309
     // IDCG = 1/log2(2) + 1/log2(3) = 1.6309
-    expect(calculateNDCG(["doc1", "doc2", "doc3"], expected, 3)).toBeCloseTo(1.0);
+    expect(calculateNDCG(["doc1", "doc2", "doc3"], expected, 3)).toBeCloseTo(
+      1.0,
+    );
 
     // 順位が下がった場合 (NDCG < 1.0)
     // Retrieved: ["doc3", "doc1", "doc2"]
     // DCG = 0/log2(2) + 1/log2(3) + 1/log2(4) = 0 + 0.6309 + 0.5 = 1.1309
     // IDCG = 1.6309 (K=3, expected.length=2 => 期待値は2つ全て正解の場合)
     // NDCG = 1.1309 / 1.6309 = 0.6934
-    expect(calculateNDCG(["doc3", "doc1", "doc2"], expected, 3)).toBeCloseTo(1.13093 / 1.63093);
-    
+    expect(calculateNDCG(["doc3", "doc1", "doc2"], expected, 3)).toBeCloseTo(
+      1.13093 / 1.63093,
+    );
+
     // 全くマッチしない場合 (NDCG = 0.0)
     expect(calculateNDCG(["doc3", "doc4"], expected, 3)).toBe(0.0);
   });

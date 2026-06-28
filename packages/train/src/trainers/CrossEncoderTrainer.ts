@@ -56,7 +56,7 @@ export class CrossEncoderTrainer extends BaseTrainer<
    */
   private buildInteractionFeature(
     query: number[] | Float32Array,
-    document: number[] | Float32Array
+    document: number[] | Float32Array,
   ): Float32Array {
     const feature = new Float32Array(this.sourceDimension);
     for (let i = 0; i < this._queryDimension; i++) {
@@ -72,14 +72,14 @@ export class CrossEncoderTrainer extends BaseTrainer<
     matrix: Float32Array,
     bias: Float32Array,
     example: CrossEncoderExample,
-    options?: BaseTrainingOptions
+    options?: BaseTrainingOptions,
   ): number {
     const input = this.buildInteractionFeature(example.query, example.document);
     const pred = new Float32Array(1);
-    
+
     // 順伝播
     applyAffine(matrix, bias, input, pred, this.sourceDimension, 1);
-    
+
     // MSE (Mean Squared Error)
     const diff = pred[0] - example.score;
     return diff * diff;
@@ -96,14 +96,14 @@ export class CrossEncoderTrainer extends BaseTrainer<
     lr: number,
     reg: number,
     t: number,
-    options?: BaseTrainingOptions
+    options?: BaseTrainingOptions,
   ): void {
     const input = this.buildInteractionFeature(example.query, example.document);
     const pred = new Float32Array(1);
-    
+
     // 順伝播
     applyAffine(matrix, bias, input, pred, this.sourceDimension, 1);
-    
+
     // MSE Loss の微分 (pred - target)
     // ※ 定数係数2は学習率に吸収させるため省略
     const outputGradients = new Float32Array(1);
@@ -121,7 +121,7 @@ export class CrossEncoderTrainer extends BaseTrainer<
       outputGradients,
       lr,
       reg,
-      t
+      t,
     );
   }
 }

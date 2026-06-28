@@ -119,7 +119,12 @@ export class VectorDBAdapter {
     },
   ): {
     vector: number[];
-    options: { topK: number; returnMetadata?: boolean; returnValues?: boolean; filter?: Record<string, unknown> };
+    options: {
+      topK: number;
+      returnMetadata?: boolean;
+      returnValues?: boolean;
+      filter?: Record<string, unknown>;
+    };
   } {
     return {
       vector: Array.from(vector),
@@ -161,4 +166,3 @@ export class VectorDBAdapter {
     };
   }
 }
-

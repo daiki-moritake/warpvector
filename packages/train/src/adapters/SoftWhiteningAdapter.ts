@@ -78,15 +78,15 @@ export class SoftWhiteningAdapter implements WarpAdapter {
     if (arguments.length > 2) {
       throw new Error(
         "[WarpVector DX Error] SoftWhiteningAdapter のコンストラクタ引数が変更されました。\n" +
-        "次元数 (dim) を第1引数、設定オブジェクトを第2引数として渡してください（引数は最大2つです）。\n" +
-        "例: new SoftWhiteningAdapter(1536, { tau: 0.5 })"
+          "次元数 (dim) を第1引数、設定オブジェクトを第2引数として渡してください（引数は最大2つです）。\n" +
+          "例: new SoftWhiteningAdapter(1536, { tau: 0.5 })",
       );
     }
-    
+
     if (typeof dim !== "number" || dim <= 0) {
       throw new Error(
         "[WarpVector DX Error] SoftWhiteningAdapter の第1引数 'dim' (次元数) は正の数値である必要があります。\n" +
-        "もし設定オブジェクトのみを渡している場合は、必ず第1引数に次元数を指定してください。"
+          "もし設定オブジェクトのみを渡している場合は、必ず第1引数に次元数を指定してください。",
       );
     }
 
@@ -233,12 +233,12 @@ export class SoftWhiteningAdapter implements WarpAdapter {
     for (let k = 0; k < this.numComponents; k++) {
       const w = this.components[k];
       const lambda = this.eigenvalues[k];
-      
+
       const projection = innerProduct(result, w);
-      
+
       // 減衰係数: 固有値が大きい（より拡散している）成分ほど大きく引く
       const attenuation = 1.0 - Math.exp(-this.tau * lambda);
-      
+
       addScaledVector(result, w, -attenuation * projection);
     }
 
@@ -289,7 +289,7 @@ export class SoftWhiteningAdapter implements WarpAdapter {
         const w = this.components[k];
         const projection = innerProduct(result, w);
         const attenuation = attenuations[k];
-        
+
         // inline addScaledVector to avoid function call overhead
         const scale = -attenuation * projection;
         for (let j = 0; j < this.dim; j++) {
@@ -349,7 +349,8 @@ export class SoftWhiteningAdapter implements WarpAdapter {
       "numComponents",
     );
     const tau = typeof data.tau === "number" ? data.tau : 1.0;
-    const normalizeOutput = typeof data.normalizeOutput === "boolean" ? data.normalizeOutput : true;
+    const normalizeOutput =
+      typeof data.normalizeOutput === "boolean" ? data.normalizeOutput : true;
     const count = assertNonNegativeInt(data.count, "count");
     const mean = assertNumberArray(data.mean, "mean");
     const eigenvalues = assertNumberArray(data.eigenvalues, "eigenvalues");

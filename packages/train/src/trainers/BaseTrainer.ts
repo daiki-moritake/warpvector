@@ -1,7 +1,4 @@
-import {
-  initWasm,
-  wasmMutex,
-} from "@warpvector/core";
+import { initWasm, wasmMutex } from "@warpvector/core";
 
 import { AbstractAdamTrainer } from "./AbstractAdamTrainer";
 import { BaseTrainingOptions } from "./types";
@@ -94,14 +91,19 @@ export abstract class BaseTrainer<
             lr,
             reg,
             this.t,
-            options // allow passing custom options like temperature or margin
+            options, // allow passing custom options like temperature or margin
           );
         }
 
         if (patience !== undefined) {
           let currentLoss = 0;
           for (const example of this.examples) {
-            currentLoss += this.calculateLoss(flatMatrix, bias, example, options);
+            currentLoss += this.calculateLoss(
+              flatMatrix,
+              bias,
+              example,
+              options,
+            );
           }
           currentLoss /= this.examples.length || 1;
 
@@ -125,14 +127,14 @@ export abstract class BaseTrainer<
   /**
    * メモリに全データを保持せず、ストリームやジェネレータからデータを逐次読み込んで学習を実行します。
    * 大規模なデータセット（数百万件など）で OOM を防ぐためのスケーラブルな学習メソッドです。
-   * 
+   *
    * @param dataFactory 1エポック分の学習データを生成する関数。AsyncIterable または Iterable を返します。
    * @param options 学習のハイパーパラメータオプション
    * @returns 学習済みの重みを返します。
    */
   public async trainFromGenerator(
     dataFactory: () => AsyncIterable<TExample> | Iterable<TExample>,
-    options: BaseTrainingOptions = {}
+    options: BaseTrainingOptions = {},
   ): Promise<TResult> {
     return wasmMutex.runExclusive(async () => {
       await initWasm();
@@ -175,11 +177,16 @@ export abstract class BaseTrainer<
             lr,
             reg,
             this.t,
-            options
+            options,
           );
 
           if (patience !== undefined) {
-            currentLossSum += this.calculateLoss(flatMatrix, bias, example, options);
+            currentLossSum += this.calculateLoss(
+              flatMatrix,
+              bias,
+              example,
+              options,
+            );
             exampleCount++;
           }
         }
@@ -247,7 +254,7 @@ export abstract class BaseTrainer<
             lr,
             reg,
             t,
-            options
+            options,
           );
         }
       }
@@ -280,7 +287,7 @@ export abstract class BaseTrainer<
     matrix: Float32Array,
     bias: Float32Array,
     example: TExample,
-    options?: BaseTrainingOptions
+    options?: BaseTrainingOptions,
   ): number;
 
   /**
@@ -311,6 +318,6 @@ export abstract class BaseTrainer<
     lr: number,
     reg: number,
     t: number,
-    options?: BaseTrainingOptions
+    options?: BaseTrainingOptions,
   ): void;
 }

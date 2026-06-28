@@ -15,7 +15,11 @@ export class WarpWorkerPool {
   private nextMessageId = 1;
 
   constructor(private options: WarpWorkerPoolOptions) {
-    const numWorkers = options.numWorkers || (typeof navigator !== 'undefined' ? navigator.hardwareConcurrency || 4 : 4);
+    const numWorkers =
+      options.numWorkers ||
+      (typeof navigator !== "undefined"
+        ? navigator.hardwareConcurrency || 4
+        : 4);
     for (let i = 0; i < numWorkers; i++) {
       this.addWorker();
     }
@@ -47,7 +51,7 @@ export class WarpWorkerPool {
       }
       this.activeJobs.delete(response.id);
     }
-    
+
     let count = this.workerActiveJobs.get(worker) || 1;
     count--;
     this.workerActiveJobs.set(worker, count);
@@ -63,14 +67,21 @@ export class WarpWorkerPool {
     }
   }
 
-  private assignJob(worker: IsomorphicWorker, message: WorkerMessage, job: Job) {
+  private assignJob(
+    worker: IsomorphicWorker,
+    message: WorkerMessage,
+    job: Job,
+  ) {
     this.activeJobs.set(message.id, job);
     const count = this.workerActiveJobs.get(worker) || 0;
     this.workerActiveJobs.set(worker, count + 1);
     worker.postMessage(message);
   }
 
-  public async executeTask(type: WorkerMessage["type"], payload?: any): Promise<any> {
+  public async executeTask(
+    type: WorkerMessage["type"],
+    payload?: any,
+  ): Promise<any> {
     return new Promise((resolve, reject) => {
       const id = this.nextMessageId++;
       const message: WorkerMessage = { id, type, payload };
@@ -88,14 +99,17 @@ export class WarpWorkerPool {
   /**
    * Broadcasts a message to all workers (e.g. for initialization).
    */
-  public async broadcast(type: WorkerMessage["type"], payload?: any): Promise<any[]> {
-    const promises = this.workers.map(worker => {
+  public async broadcast(
+    type: WorkerMessage["type"],
+    payload?: any,
+  ): Promise<any[]> {
+    const promises = this.workers.map((worker) => {
       return new Promise((resolve, reject) => {
         const id = this.nextMessageId++;
         const message: WorkerMessage = { id, type, payload };
         const job: Job = { id, resolve, reject };
 
-        // To broadcast correctly, we temporarily skip the normal job queue for this specific message 
+        // To broadcast correctly, we temporarily skip the normal job queue for this specific message
         // to ensure it goes to a specific worker. By using assignJob, the worker's active job count
         // is incremented, ensuring it isn't marked as idle prematurely.
         this.assignJob(worker, message, job);
@@ -111,7 +125,7 @@ export class WarpWorkerPool {
     }
     this.activeJobs.clear();
     this.workerActiveJobs.clear();
-    await Promise.all(this.workers.map(w => w.terminate()));
+    await Promise.all(this.workers.map((w) => w.terminate()));
     this.workers = [];
     this.idleWorkers = [];
   }

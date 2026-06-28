@@ -54,9 +54,7 @@ describe("validation utilities", () => {
       expect(() => assertType(42, "string", "myField")).toThrow(
         WarpValidationError,
       );
-      expect(() => assertType(42, "string", "myField")).toThrow(
-        "string",
-      );
+      expect(() => assertType(42, "string", "myField")).toThrow("string");
     });
   });
 
@@ -80,9 +78,7 @@ describe("validation utilities", () => {
     });
 
     test("throws for string", () => {
-      expect(() => assertPositiveInt("3" as any, "dim")).toThrow(
-        "正の整数",
-      );
+      expect(() => assertPositiveInt("3" as any, "dim")).toThrow("正の整数");
     });
 
     test("throws for NaN", () => {

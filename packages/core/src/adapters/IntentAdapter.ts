@@ -147,8 +147,6 @@ export class IntentAdapter implements WarpAdapter {
     this.routingVectors.delete(intentName);
   }
 
-
-
   /**
    * 複数の意図を指定された重みでブレンドした一時的な行列とバイアスを計算します。
    * W_blend = Σ(w_i * W_i), b_blend = Σ(w_i * b_i)

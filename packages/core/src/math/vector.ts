@@ -286,7 +286,7 @@ export function int8DotProduct(a: Int8Array, b: Int8Array): number {
     const viewB = new DataView(b.buffer, b.byteOffset, b.byteLength);
     maxA = viewA.getFloat32(dim, true);
     maxB = viewB.getFloat32(dim, true);
-    
+
     // 妥当な浮動小数点スケール値であるかの検証
     if (
       Number.isFinite(maxA) &&
@@ -331,7 +331,7 @@ export function int8CosineSimilarity(a: Int8Array, b: Int8Array): number {
     const viewB = new DataView(b.buffer, b.byteOffset, b.byteLength);
     const maxA = viewA.getFloat32(dim, true);
     const maxB = viewB.getFloat32(dim, true);
-    
+
     if (
       Number.isFinite(maxA) &&
       Number.isFinite(maxB) &&
@@ -348,7 +348,7 @@ export function int8CosineSimilarity(a: Int8Array, b: Int8Array): number {
   let dot = 0;
   let normASq = 0;
   let normBSq = 0;
-  
+
   for (let i = 0; i < dim; i++) {
     const valA = a[i];
     const valB = b[i];
@@ -356,7 +356,7 @@ export function int8CosineSimilarity(a: Int8Array, b: Int8Array): number {
     normASq += valA * valA;
     normBSq += valB * valB;
   }
-  
+
   if (normASq === 0 || normBSq === 0) return 0;
   return dot / (Math.sqrt(normASq) * Math.sqrt(normBSq));
 }
@@ -370,12 +370,27 @@ export function int8CosineSimilarity(a: Int8Array, b: Int8Array): number {
  * - Int8(Int8Array): Int8空間でのコサイン類似度
  * - Float32(Float32Array) / number[]: 通常のコサイン類似度
  */
-export function computeVectorScore(a: number[] | Float32Array | Int8Array | Uint8Array, b: number[] | Float32Array | Int8Array | Uint8Array): number {
-  const typeA = a instanceof Uint8Array ? "binary" : a instanceof Int8Array ? "int8" : "float";
-  const typeB = b instanceof Uint8Array ? "binary" : b instanceof Int8Array ? "int8" : "float";
-  
+export function computeVectorScore(
+  a: number[] | Float32Array | Int8Array | Uint8Array,
+  b: number[] | Float32Array | Int8Array | Uint8Array,
+): number {
+  const typeA =
+    a instanceof Uint8Array
+      ? "binary"
+      : a instanceof Int8Array
+        ? "int8"
+        : "float";
+  const typeB =
+    b instanceof Uint8Array
+      ? "binary"
+      : b instanceof Int8Array
+        ? "int8"
+        : "float";
+
   if (typeA !== typeB) {
-    throw new Error(`Cannot compute similarity between different vector types: ${typeA} and ${typeB}`);
+    throw new Error(
+      `Cannot compute similarity between different vector types: ${typeA} and ${typeB}`,
+    );
   }
 
   if (a instanceof Uint8Array && b instanceof Uint8Array) {
@@ -387,7 +402,7 @@ export function computeVectorScore(a: number[] | Float32Array | Int8Array | Uint
   } else {
     return cosineSimilarity(
       a as number[] | Float32Array,
-      b as number[] | Float32Array
+      b as number[] | Float32Array,
     );
   }
 }

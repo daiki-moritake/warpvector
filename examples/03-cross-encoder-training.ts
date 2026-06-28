@@ -1,6 +1,6 @@
 /**
  * Cookbook 03: Cross-Encoder Training
- * 
+ *
  * このスクリプトは、1st-pass Retrieval (初回のベクトル検索) で得られた
  * 候補ドキュメント群の順位をより高精度に並べ替える (Reranking) ための
  * Cross-Encoder モデルを学習し、ストリーミングデータでOOMを防ぐ方法を示します。
@@ -18,10 +18,10 @@ async function* dataStreamGenerator(): AsyncIterable<CrossEncoderExample> {
     const isRelated = Math.random() > 0.5;
     yield {
       query: [Math.random(), Math.random(), Math.random()],
-      document: isRelated 
-        ? [0.9, 0.8, 0.9]  // 関連している場合の仮想特徴
+      document: isRelated
+        ? [0.9, 0.8, 0.9] // 関連している場合の仮想特徴
         : [-0.9, -0.8, -0.9], // 関連していない場合
-      score: isRelated ? 1.0 : 0.0
+      score: isRelated ? 1.0 : 0.0,
     };
   }
 }
@@ -32,21 +32,23 @@ async function run() {
   // 1. Cross-Encoder Trainer の初期化
   const trainer = new CrossEncoderTrainer(dim, dim);
 
-  console.log("Starting streaming training (this avoids OOM on large datasets)...");
+  console.log(
+    "Starting streaming training (this avoids OOM on large datasets)...",
+  );
 
   // 2. メモリに全てロードせず、ストリームから逐次学習する
   // `trainFromGenerator` にデータ生成関数を渡すことで、
   // エポックごとに必要な分だけメモリに展開して最適化を行います。
   const weights = await trainer.trainFromGenerator(dataStreamGenerator, {
-    epochs: 5,           // ストリームを5周する
+    epochs: 5, // ストリームを5周する
     learningRate: 0.05,
-    regularization: 0.01 // 過学習を防ぐためのL2正則化
+    regularization: 0.01, // 過学習を防ぐためのL2正則化
   });
 
   console.log("Training complete!");
   const flatMatrix = weights.matrix as Float32Array;
   const biasValue = weights.bias ? weights.bias[0] : 0;
-  
+
   console.log(`Learned weights matrix size: ${flatMatrix.length}`);
   console.log(`Learned bias: ${biasValue}`);
 
@@ -56,7 +58,7 @@ async function run() {
 
   // クエリとドキュメントを連結 (Concatenate)
   const interactionFeature = [...newQuery, ...newDocument];
-  
+
   // 射影行列によるスコア計算 (Affine Transformation: w*x + b)
   let score = biasValue;
   for (let i = 0; i < interactionFeature.length; i++) {

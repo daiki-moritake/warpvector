@@ -41,7 +41,10 @@ describe("@warpvector/experimental", () => {
   });
 
   test("AnomalyDetectionAdapter で異常検知が動作する", () => {
-    const detector = new AnomalyDetectionAdapter({ mode: "safe", maxValue: 1.0 });
+    const detector = new AnomalyDetectionAdapter({
+      mode: "safe",
+      maxValue: 1.0,
+    });
     // NaN を含むベクトル → safe mode でゼロ埋め
     const input = new Float32Array([0.5, NaN, 0.3, 999]);
     const result = detector.tune(input);

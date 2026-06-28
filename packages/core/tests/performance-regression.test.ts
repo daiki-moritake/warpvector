@@ -5,11 +5,7 @@
  * 閾値は「遅すぎないか」を検出するためのもので、厳密なベンチマークではありません。
  */
 import { describe, test, expect } from "bun:test";
-import {
-  IntentAdapter,
-  WarpPipeline,
-  initWasm,
-} from "@warpvector/core";
+import { IntentAdapter, WarpPipeline, initWasm } from "@warpvector/core";
 import { WhiteningAdapter } from "@warpvector/ml";
 import { QuantizationAdapter } from "@warpvector/extras";
 
@@ -80,9 +76,18 @@ describe("パフォーマンス回帰テスト", () => {
 
   test("IntentAdapter.tuneBlended() — ブレンド変換 < 3ms (768d)", () => {
     const adapter = new IntentAdapter(DIM);
-    adapter.addIntent("a", { matrix: randomMatrix(DIM), bias: new Float32Array(DIM) });
-    adapter.addIntent("b", { matrix: randomMatrix(DIM), bias: new Float32Array(DIM) });
-    adapter.addIntent("c", { matrix: randomMatrix(DIM), bias: new Float32Array(DIM) });
+    adapter.addIntent("a", {
+      matrix: randomMatrix(DIM),
+      bias: new Float32Array(DIM),
+    });
+    adapter.addIntent("b", {
+      matrix: randomMatrix(DIM),
+      bias: new Float32Array(DIM),
+    });
+    adapter.addIntent("c", {
+      matrix: randomMatrix(DIM),
+      bias: new Float32Array(DIM),
+    });
     const vec = randomVec(DIM);
     const weights = { a: 0.5, b: 0.3, c: 0.2 };
 
@@ -150,7 +155,10 @@ describe("パフォーマンス回帰テスト", () => {
 
   test("WarpPipeline.run() — パイプライン全体 < 2ms (768d)", async () => {
     const intentKey = "test";
-    const intents: Record<string, { matrix: Float32Array; bias: Float32Array }> = {
+    const intents: Record<
+      string,
+      { matrix: Float32Array; bias: Float32Array }
+    > = {
       [intentKey]: {
         matrix: randomMatrix(DIM),
         bias: new Float32Array(DIM),
@@ -165,7 +173,8 @@ describe("パフォーマンス回帰テスト", () => {
 
     const t0 = performance.now();
     const iterations = 100;
-    for (let i = 0; i < iterations; i++) await pipeline.run(vec, { intent: intentKey });
+    for (let i = 0; i < iterations; i++)
+      await pipeline.run(vec, { intent: intentKey });
     const avgMs = (performance.now() - t0) / iterations;
 
     console.log(`  WarpPipeline.run(): ${avgMs.toFixed(3)}ms/op`);

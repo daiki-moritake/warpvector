@@ -37,8 +37,7 @@ function seededMatrix(rows: number, cols: number, seed: number): number[][] {
   for (let r = 0; r < rows; r++) {
     m.push([]);
     for (let c = 0; c < cols; c++) {
-      const hash =
-        Math.sin((seed + r * 100) * 127.1 + c * 311.7) * 43758.5453;
+      const hash = Math.sin((seed + r * 100) * 127.1 + c * 311.7) * 43758.5453;
       m[r].push(((hash - Math.floor(hash)) * 2 - 1) / Math.sqrt(cols));
     }
   }
@@ -360,7 +359,8 @@ describe("WASM vs JS equivalence", () => {
 
       const singleResults = await Promise.all(
         vectors.map(
-          async (v) => await pipeline.run(v, { intent: "test" }) as Float32Array,
+          async (v) =>
+            (await pipeline.run(v, { intent: "test" })) as Float32Array,
         ),
       );
       const batchResults = await pipeline.runBatch(vectors, { intent: "test" });
@@ -390,8 +390,12 @@ describe("WASM vs JS equivalence", () => {
         });
 
       const vector = seededVector(dim, 1);
-      const result1 = await pipeline.run(vector, { intent: "test" }) as Float32Array;
-      const result2 = await pipeline.run(vector, { intent: "test" }) as Float32Array;
+      const result1 = (await pipeline.run(vector, {
+        intent: "test",
+      })) as Float32Array;
+      const result2 = (await pipeline.run(vector, {
+        intent: "test",
+      })) as Float32Array;
 
       expect(result1.length).toBe(outDim);
       for (let i = 0; i < outDim; i++) {
@@ -429,5 +433,3 @@ describe("WASM vs JS equivalence", () => {
     });
   });
 });
-
-

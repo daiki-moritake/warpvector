@@ -23,7 +23,7 @@ export abstract class BaseGraphReranker {
   /**
    * 候補ベクトル群に対してクエリベクトルを用い、グラフベースのアルゴリズムでリランキングを行います。
    * ベクトルDB等ですでにスコアが計算済みの場合は initialScores を渡すことでクエリベクトルを省略（null）可能です。
-   * 
+   *
    * @param query クエリベクトル（initialScoresがある場合はnull可）
    * @param candidates 検索システム等から返された候補ベクトル群
    * @param initialScores （任意）計算済みの初期コサイン類似度スコア
@@ -32,16 +32,18 @@ export abstract class BaseGraphReranker {
   public rerank(
     query: Float32Array | number[] | null,
     candidates: (Float32Array | number[])[],
-    initialScores?: number[]
+    initialScores?: number[],
   ): GraphRerankerResult[] {
     const N = candidates.length;
     if (N === 0) return [];
 
     if (!query && (!initialScores || initialScores.length !== N)) {
-      throw new Error("BaseGraphReranker: Must provide either 'query' or a valid 'initialScores' array.");
+      throw new Error(
+        "BaseGraphReranker: Must provide either 'query' or a valid 'initialScores' array.",
+      );
     }
 
-    const CNorm = candidates.map(c => normalize(new Float32Array(c)));
+    const CNorm = candidates.map((c) => normalize(new Float32Array(c)));
     const S0 = new Float32Array(N);
 
     if (initialScores && initialScores.length === N) {
@@ -54,7 +56,14 @@ export abstract class BaseGraphReranker {
     }
 
     if (N === 1) {
-      return [{ originalIndex: 0, score: S0[0], initialScore: S0[0], vector: CNorm[0] }];
+      return [
+        {
+          originalIndex: 0,
+          score: S0[0],
+          initialScore: S0[0],
+          vector: CNorm[0],
+        },
+      ];
     }
 
     const scaleFactor = this.prepareInitialScores(S0, N, initialScores);
@@ -67,14 +76,32 @@ export abstract class BaseGraphReranker {
         for (let i = 0; i < N; i++) {
           flatVectors.set(CNorm[i], i * dim);
         }
-        
+
         const currentS = this.executeWasm(flatVectors, S0, N, dim, exports);
-        return this.formatResults(currentS, S0, CNorm, null, N, dim, initialScores, scaleFactor);
+        return this.formatResults(
+          currentS,
+          S0,
+          CNorm,
+          null,
+          N,
+          dim,
+          initialScores,
+          scaleFactor,
+        );
       }
     }
 
     const currentS = this.executeJs(CNorm, S0, N);
-    return this.formatResults(currentS, S0, CNorm, null, N, CNorm[0].length, initialScores, scaleFactor);
+    return this.formatResults(
+      currentS,
+      S0,
+      CNorm,
+      null,
+      N,
+      CNorm[0].length,
+      initialScores,
+      scaleFactor,
+    );
   }
 
   /**
@@ -82,7 +109,7 @@ export abstract class BaseGraphReranker {
    * ゼロコピー最適化版リランク関数。
    * エッジ環境やベクトルDBから直接バッファを受け取れる場合に極めて高速に動作します。
    * ※入力される flatCandidates は L2 正規化済みである必要があります。
-   * 
+   *
    * @param query クエリベクトル
    * @param flatCandidates 平坦化された候補ベクトル群 (サイズ: numDocs * dim)
    * @param numDocs ドキュメント数
@@ -94,7 +121,7 @@ export abstract class BaseGraphReranker {
     flatCandidates: Float32Array,
     numDocs: number,
     dim: number,
-    initialScores?: number[]
+    initialScores?: number[],
   ): GraphRerankerResult[] {
     const N = numDocs;
     if (N === 0) return [];
@@ -103,7 +130,9 @@ export abstract class BaseGraphReranker {
     }
 
     if (!query && (!initialScores || initialScores.length !== N)) {
-      throw new Error("BaseGraphReranker: Must provide either 'query' or a valid 'initialScores' array.");
+      throw new Error(
+        "BaseGraphReranker: Must provide either 'query' or a valid 'initialScores' array.",
+      );
     }
 
     const S0 = new Float32Array(N);
@@ -118,7 +147,14 @@ export abstract class BaseGraphReranker {
     }
 
     if (N === 1) {
-      return [{ originalIndex: 0, score: S0[0], initialScore: S0[0], vector: flatCandidates.slice(0, dim) }];
+      return [
+        {
+          originalIndex: 0,
+          score: S0[0],
+          initialScore: S0[0],
+          vector: flatCandidates.slice(0, dim),
+        },
+      ];
     }
 
     const scaleFactor = this.prepareInitialScores(S0, N, initialScores);
@@ -127,7 +163,16 @@ export abstract class BaseGraphReranker {
       const exports = this.wasm.exports as any;
       if (this.hasRequiredWasmExports(exports)) {
         const currentS = this.executeWasm(flatCandidates, S0, N, dim, exports);
-        return this.formatResults(currentS, S0, null, flatCandidates, N, dim, initialScores, scaleFactor);
+        return this.formatResults(
+          currentS,
+          S0,
+          null,
+          flatCandidates,
+          N,
+          dim,
+          initialScores,
+          scaleFactor,
+        );
       }
     }
 
@@ -136,7 +181,16 @@ export abstract class BaseGraphReranker {
       CNorm.push(flatCandidates.slice(i * dim, (i + 1) * dim));
     }
     const currentS = this.executeJs(CNorm, S0, N);
-    return this.formatResults(currentS, S0, CNorm, null, N, dim, initialScores, scaleFactor);
+    return this.formatResults(
+      currentS,
+      S0,
+      CNorm,
+      null,
+      N,
+      dim,
+      initialScores,
+      scaleFactor,
+    );
   }
 
   private formatResults(
@@ -147,15 +201,20 @@ export abstract class BaseGraphReranker {
     N: number,
     dim: number,
     initialScores: number[] | undefined,
-    scaleFactor: number
+    scaleFactor: number,
   ): GraphRerankerResult[] {
     const results: GraphRerankerResult[] = [];
     for (let i = 0; i < N; i++) {
       results.push({
         originalIndex: i,
         score: currentS[i],
-        initialScore: initialScores && initialScores.length === N ? initialScores[i] : this.restoreInitialScore(S0[i], scaleFactor),
-        vector: CNorm ? CNorm[i] : flatCandidates!.slice(i * dim, (i + 1) * dim)
+        initialScore:
+          initialScores && initialScores.length === N
+            ? initialScores[i]
+            : this.restoreInitialScore(S0[i], scaleFactor),
+        vector: CNorm
+          ? CNorm[i]
+          : flatCandidates!.slice(i * dim, (i + 1) * dim),
       });
     }
     results.sort((a, b) => b.score - a.score);
@@ -170,20 +229,37 @@ export abstract class BaseGraphReranker {
    * S0 (内積または初期スコア) に対して独自の加工(非負化や正規化)を行う。
    * @returns scaleFactor formatResults で復元する際の手掛かりとして使う値
    */
-  protected abstract prepareInitialScores(S0: Float32Array, N: number, initialScores?: number[]): number;
+  protected abstract prepareInitialScores(
+    S0: Float32Array,
+    N: number,
+    initialScores?: number[],
+  ): number;
 
   /**
    * formatResults 時に、S0[i] から元の initialScore を復元するためのロジック。
    */
-  protected abstract restoreInitialScore(s0Val: number, scaleFactor: number): number;
+  protected abstract restoreInitialScore(
+    s0Val: number,
+    scaleFactor: number,
+  ): number;
 
   /**
    * WASMのメモリ管理(allocateWasmMemory等)と計算の呼び出しを行い、最終的なスコア配列(currentS)を返す。
    */
-  protected abstract executeWasm(flatVectors: Float32Array, S0: Float32Array, N: number, dim: number, exports: any): Float32Array;
+  protected abstract executeWasm(
+    flatVectors: Float32Array,
+    S0: Float32Array,
+    N: number,
+    dim: number,
+    exports: any,
+  ): Float32Array;
 
   /**
    * JSでの計算コア。最終的なスコア配列(currentS)を返す。
    */
-  protected abstract executeJs(CNorm: Float32Array[], S0: Float32Array, N: number): Float32Array;
+  protected abstract executeJs(
+    CNorm: Float32Array[],
+    S0: Float32Array,
+    N: number,
+  ): Float32Array;
 }

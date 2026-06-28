@@ -10,7 +10,11 @@ import {
   assertObject,
   assertNumberArray,
 } from "../validation";
-import { WarpAdapter, TransformOutput, InputVector } from "../interfaces/WarpAdapter";
+import {
+  WarpAdapter,
+  TransformOutput,
+  InputVector,
+} from "../interfaces/WarpAdapter";
 
 /**
  * 低ランク適応（LoRA）の重みを定義するインターフェース

@@ -22,8 +22,12 @@ describe("SoftWhiteningAdapter", () => {
   });
 
   test("should throw error for invalid parameters", () => {
-    expect(() => new SoftWhiteningAdapter(10, { tau: -1.0 })).toThrow("non-negative");
-    expect(() => new SoftWhiteningAdapter(10, { numComponents: 0 })).toThrow("positive");
+    expect(() => new SoftWhiteningAdapter(10, { tau: -1.0 })).toThrow(
+      "non-negative",
+    );
+    expect(() => new SoftWhiteningAdapter(10, { numComponents: 0 })).toThrow(
+      "positive",
+    );
   });
 
   test("should track eigenvalues and update components online", () => {
@@ -39,14 +43,16 @@ describe("SoftWhiteningAdapter", () => {
       const vec = new Float32Array(5);
       const sign = Math.random() > 0.5 ? 1 : -1;
       for (let j = 0; j < 5; j++) {
-        vec[j] = bias[j] * sign * (0.8 + Math.random() * 0.4) + (Math.random() - 0.5) * 0.1;
+        vec[j] =
+          bias[j] * sign * (0.8 + Math.random() * 0.4) +
+          (Math.random() - 0.5) * 0.1;
       }
       adapter.update(vec);
     }
 
     // The first eigenvalue should have grown significantly (close to 1.0)
     expect(adapter.eigenvalues[0]).toBeGreaterThan(0.5);
-    
+
     // The top component should be aligned with the bias
     const alignment = Math.abs(innerProduct(adapter.components[0], bias));
     expect(alignment).toBeGreaterThan(0.9);
@@ -63,28 +69,33 @@ describe("SoftWhiteningAdapter", () => {
     const bias = new Float32Array([1, 0, 0, 0]);
     for (let i = 0; i < 100; i++) {
       const sign = Math.random() > 0.5 ? 1 : -1;
-      adapter.update([sign * (1 + Math.random() * 0.1), (Math.random() - 0.5) * 0.1, (Math.random() - 0.5) * 0.1, (Math.random() - 0.5) * 0.1]);
+      adapter.update([
+        sign * (1 + Math.random() * 0.1),
+        (Math.random() - 0.5) * 0.1,
+        (Math.random() - 0.5) * 0.1,
+        (Math.random() - 0.5) * 0.1,
+      ]);
     }
 
     // Now test sharpening
     // A vector that is mostly bias with a bit of orthogonal signal
     const testVec = new Float32Array([1.0, 0.5, 0, 0]);
-    
+
     // Original projection on bias is large
-    const origProj = testVec[0] - adapter.mean[0]; 
+    const origProj = testVec[0] - adapter.mean[0];
     const origOrtho = testVec[1] - adapter.mean[1];
-    
+
     const sharpVec = adapter.tune(testVec);
-    
+
     // The sharp vector should have reduced the dominant component significantly
     // and preserved the orthogonal component
     const sharpProj = innerProduct(sharpVec, adapter.components[0]);
     const sharpOrtho = sharpVec[1]; // Since component 0 is roughly [1,0,0,0], index 1 is orthogonal
-    
+
     // Relative strength of orthogonal component should be higher now
     const origRatio = Math.abs(origOrtho / origProj);
     const sharpRatio = Math.abs(sharpOrtho / sharpProj);
-    
+
     expect(sharpRatio).toBeGreaterThan(origRatio);
   });
 
@@ -116,7 +127,7 @@ describe("SoftWhiteningAdapter", () => {
     });
     const vec = new Float32Array([1, 2, 3, 4]);
     const tuned = adapter.tune(vec);
-    
+
     // Check if the norm is 1.0
     const norm = Math.sqrt(tuned.reduce((sum, v) => sum + v * v, 0));
     expect(norm).toBeCloseTo(1.0, 5);
@@ -142,7 +153,7 @@ describe("SoftWhiteningAdapter", () => {
     ];
 
     const batchResults = adapter.tuneBatch(vectors);
-    const loopResults = vectors.map(v => adapter.tune(v));
+    const loopResults = vectors.map((v) => adapter.tune(v));
 
     expect(batchResults.length).toBe(vectors.length);
     for (let i = 0; i < vectors.length; i++) {

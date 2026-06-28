@@ -72,7 +72,9 @@ describe("Graceful Degradation", () => {
       expect((correct as Float32Array).length).toBe(3);
 
       // 間違った次元 → エラー
-      await expect(pipeline.run([1, 2, 3, 4], { intent: "test" })).rejects.toThrow();
+      await expect(
+        pipeline.run([1, 2, 3, 4], { intent: "test" }),
+      ).rejects.toThrow();
     });
   });
 
@@ -160,8 +162,8 @@ describe("Graceful Degradation", () => {
       const restored = WarpPipeline.importState(JSON.parse(json));
 
       const input = [1, 1, 1];
-      const r1 = await pipeline.run(input, { intent: "x" }) as Float32Array;
-      const r2 = await restored.run(input, { intent: "x" }) as Float32Array;
+      const r1 = (await pipeline.run(input, { intent: "x" })) as Float32Array;
+      const r2 = (await restored.run(input, { intent: "x" })) as Float32Array;
 
       for (let i = 0; i < 3; i++) {
         expect(r1[i]).toBeCloseTo(r2[i], 6);

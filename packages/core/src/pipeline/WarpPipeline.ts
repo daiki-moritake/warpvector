@@ -14,6 +14,7 @@ import {
   ProjectionAdapter,
   ProjectionWeights,
 } from "../adapters/ProjectionAdapter";
+import { AlignmentAdapter } from "../adapters/AlignmentAdapter";
 import { VectorDBAdapter } from "../adapters/VectorDBAdapter";
 import { AdapterRegistry } from "./AdapterRegistry";
 import { FormatRegistry } from "./FormatRegistry";
@@ -154,10 +155,7 @@ export class WarpPipeline {
    * @param inputDim 入力ベクトルの次元数
    * @param options パイプラインの初期化オプション
    */
-  constructor(
-    inputDim: number,
-    options?: PipelineOptions,
-  ) {
+  constructor(inputDim: number, options?: PipelineOptions) {
     this._inputDim = inputDim;
     this._autoInit = options?.autoInit ?? true;
   }
@@ -170,13 +168,19 @@ export class WarpPipeline {
    * @param typeOrAdapter アダプタの識別子 (例: "QuantizationAdapter") または FinalStageAdapter インスタンス
    * @param adapter FinalStageAdapter を実装したインスタンス（第一引数が文字列の場合のみ必要）
    */
-  public setFinalStage(typeOrAdapter: string | FinalStageAdapter, adapterParam?: FinalStageAdapter): this {
+  public setFinalStage(
+    typeOrAdapter: string | FinalStageAdapter,
+    adapterParam?: FinalStageAdapter,
+  ): this {
     let type: string;
     let adapter: FinalStageAdapter;
 
     if (typeof typeOrAdapter === "string") {
       type = typeOrAdapter;
-      if (!adapterParam) throw new Error("adapterParam is required when first argument is a string.");
+      if (!adapterParam)
+        throw new Error(
+          "adapterParam is required when first argument is a string.",
+        );
       adapter = adapterParam;
     } else {
       adapter = typeOrAdapter;
@@ -233,13 +237,19 @@ export class WarpPipeline {
    * @param typeOrAdapter アダプタの識別子 または WarpAdapter インスタンス
    * @param adapter WarpAdapterを実装したインスタンス（第一引数が文字列の場合のみ必要）
    */
-  public addStep(typeOrAdapter: string | WarpAdapter, adapterParam?: WarpAdapter): this {
+  public addStep(
+    typeOrAdapter: string | WarpAdapter,
+    adapterParam?: WarpAdapter,
+  ): this {
     let type: string;
     let adapter: WarpAdapter;
 
     if (typeof typeOrAdapter === "string") {
       type = typeOrAdapter;
-      if (!adapterParam) throw new Error("adapterParam is required when first argument is a string.");
+      if (!adapterParam)
+        throw new Error(
+          "adapterParam is required when first argument is a string.",
+        );
       adapter = adapterParam;
     } else {
       adapter = typeOrAdapter;
@@ -256,7 +266,7 @@ export class WarpPipeline {
    */
   public async init(): Promise<void> {
     if (this._initialized) return;
-    
+
     // WasmPoolはランタイムで必須になったため初期化する
     await initWasm();
 
@@ -288,7 +298,10 @@ export class WarpPipeline {
    * @param context インテントやバージョンなどのコンテキスト情報
    * @returns パイプラインを通過した最終的なベクトル (Float32Array または Uint8Array/Int8Array)
    */
-  public async run(vector: InputVector, context?: RunContext): Promise<OutputVector> {
+  public async run(
+    vector: InputVector,
+    context?: RunContext,
+  ): Promise<OutputVector> {
     await this.ensureInitialized();
     // ステップが空でfinalStageもない場合は不要な変換を避ける
     if (this.steps.length === 0 && !this.finalStage) {
@@ -300,51 +313,50 @@ export class WarpPipeline {
       globalWasmPool.setCurrentSyncContext(wasmCtx);
       const stopRun = this._metrics.startRun();
 
-    let currentVector: Float32Array =
-      vector instanceof Float32Array ? vector : new Float32Array(vector);
+      let currentVector: Float32Array =
+        vector instanceof Float32Array ? vector : new Float32Array(vector);
 
-    for (let i = 0; i < this.steps.length; i++) {
-      const step = this.steps[i];
-      const stopStep = this._metrics.startStep(step.type);
-      try {
-        // 全てのアダプタにコンテキストを渡す（不要なアダプタは内部で無視する）
-        const result = step.adapter.tune(
-          currentVector,
-          context?.intent || "default",
-        );
-        // WarpAdapter の中間段は常に Float32Array (TransformOutput) を返すことを期待
-        if (!(result instanceof Float32Array)) {
-          throw new Error(`Intermediate adapter ${step.type} must return Float32Array.`);
+      for (let i = 0; i < this.steps.length; i++) {
+        const step = this.steps[i];
+        const stopStep = this._metrics.startStep(step.type);
+        try {
+          // 全てのアダプタにコンテキストを渡す（不要なアダプタは内部で無視する）
+          const result = step.adapter.tune(
+            currentVector,
+            context?.intent || "default",
+          );
+          // WarpAdapter の中間段は常に Float32Array (TransformOutput) を返すことを期待
+          if (!(result instanceof Float32Array)) {
+            throw new Error(
+              `Intermediate adapter ${step.type} must return Float32Array.`,
+            );
+          }
+          currentVector = result;
+        } catch (e) {
+          throw new WarpPipelineError((e as Error).message, i, step.type, {
+            cause: e,
+          });
         }
-        currentVector = result;
-      } catch (e) {
-        throw new WarpPipelineError(
-          (e as Error).message,
-          i,
-          step.type,
-          { cause: e },
-        );
+        stopStep?.();
       }
-      stopStep?.();
-    }
 
-    // 最終段（量子化等）が設定されている場合、encode() を適用
-    if (this.finalStage) {
-      const stopFinal = this._metrics.startStep(this.finalStage.type);
-      try {
-        const result = this.finalStage.adapter.encode(currentVector);
-        stopFinal?.();
-        stopRun?.();
-        return result;
-      } catch (e) {
-        throw new WarpPipelineError(
-          (e as Error).message,
-          this.steps.length,
-          this.finalStage.type,
-          { cause: e },
-        );
+      // 最終段（量子化等）が設定されている場合、encode() を適用
+      if (this.finalStage) {
+        const stopFinal = this._metrics.startStep(this.finalStage.type);
+        try {
+          const result = this.finalStage.adapter.encode(currentVector);
+          stopFinal?.();
+          stopRun?.();
+          return result;
+        } catch (e) {
+          throw new WarpPipelineError(
+            (e as Error).message,
+            this.steps.length,
+            this.finalStage.type,
+            { cause: e },
+          );
+        }
       }
-    }
 
       stopRun?.();
       return currentVector;
@@ -381,77 +393,80 @@ export class WarpPipeline {
       }
 
       for (let si = 0; si < this.steps.length; si++) {
-      const step = this.steps[si];
-      const stopStep = this._metrics.startStep(step.type);
-      try {
-        if (typeof step.adapter.tuneBatchAsync === "function") {
-          // tuneBatchAsync メソッドがある場合は非同期一括処理を委譲（WebGPU等）
-          const results = await step.adapter.tuneBatchAsync(
-            currentVectors,
-            context?.intent || "default",
-          );
-          for (let i = 0; i < batchSize; i++) {
-            if (!(results[i] instanceof Float32Array)) {
-               throw new Error(`Intermediate adapter ${step.type} must return Float32Array in tuneBatchAsync.`);
-            }
-          }
-          currentVectors = results as Float32Array[];
-        } else if (typeof step.adapter.tuneBatch === "function") {
-          // tuneBatch メソッドがある場合は同期一括処理を委譲（WASM/SIMD等）
-          const results = step.adapter.tuneBatch(
-            currentVectors,
-            context?.intent || "default",
-          );
-          for (let i = 0; i < batchSize; i++) {
-            if (!(results[i] instanceof Float32Array)) {
-               throw new Error(`Intermediate adapter ${step.type} must return Float32Array in tuneBatch.`);
-            }
-          }
-          currentVectors = results as Float32Array[];
-        } else {
-          // tuneBatch がない場合は通常のループ処理へフォールバック
-          for (let i = 0; i < batchSize; i++) {
-            const result = step.adapter.tune(
-              currentVectors[i],
+        const step = this.steps[si];
+        const stopStep = this._metrics.startStep(step.type);
+        try {
+          if (typeof step.adapter.tuneBatchAsync === "function") {
+            // tuneBatchAsync メソッドがある場合は非同期一括処理を委譲（WebGPU等）
+            const results = await step.adapter.tuneBatchAsync(
+              currentVectors,
               context?.intent || "default",
             );
-            if (!(result instanceof Float32Array)) {
-               throw new Error(`Intermediate adapter ${step.type} must return Float32Array.`);
+            for (let i = 0; i < batchSize; i++) {
+              if (!(results[i] instanceof Float32Array)) {
+                throw new Error(
+                  `Intermediate adapter ${step.type} must return Float32Array in tuneBatchAsync.`,
+                );
+              }
             }
-            currentVectors[i] = result;
+            currentVectors = results as Float32Array[];
+          } else if (typeof step.adapter.tuneBatch === "function") {
+            // tuneBatch メソッドがある場合は同期一括処理を委譲（WASM/SIMD等）
+            const results = step.adapter.tuneBatch(
+              currentVectors,
+              context?.intent || "default",
+            );
+            for (let i = 0; i < batchSize; i++) {
+              if (!(results[i] instanceof Float32Array)) {
+                throw new Error(
+                  `Intermediate adapter ${step.type} must return Float32Array in tuneBatch.`,
+                );
+              }
+            }
+            currentVectors = results as Float32Array[];
+          } else {
+            // tuneBatch がない場合は通常のループ処理へフォールバック
+            for (let i = 0; i < batchSize; i++) {
+              const result = step.adapter.tune(
+                currentVectors[i],
+                context?.intent || "default",
+              );
+              if (!(result instanceof Float32Array)) {
+                throw new Error(
+                  `Intermediate adapter ${step.type} must return Float32Array.`,
+                );
+              }
+              currentVectors[i] = result;
+            }
           }
+        } catch (e) {
+          throw new WarpPipelineError((e as Error).message, si, step.type, {
+            cause: e,
+          });
         }
-      } catch (e) {
-        throw new WarpPipelineError(
-          (e as Error).message,
-          si,
-          step.type,
-          { cause: e },
-        );
+        stopStep?.();
       }
-      stopStep?.();
-    }
 
-    // 最終段（量子化等）が設定されている場合、encode() を適用
-    if (this.finalStage) {
-      const stopFinal = this._metrics.startStep(this.finalStage.type);
-      try {
-        const results = new Array<OutputVector>(batchSize);
-        for (let i = 0; i < batchSize; i++) {
-          results[i] = this.finalStage!.adapter.encode(currentVectors[i]);
+      // 最終段（量子化等）が設定されている場合、encode() を適用
+      if (this.finalStage) {
+        const stopFinal = this._metrics.startStep(this.finalStage.type);
+        try {
+          const results = new Array<OutputVector>(batchSize);
+          for (let i = 0; i < batchSize; i++) {
+            results[i] = this.finalStage!.adapter.encode(currentVectors[i]);
+          }
+          stopFinal?.();
+          stopBatch?.();
+          return results;
+        } catch (e) {
+          throw new WarpPipelineError(
+            (e as Error).message,
+            this.steps.length,
+            this.finalStage.type,
+            { cause: e },
+          );
         }
-        stopFinal?.();
-        stopBatch?.();
-        return results;
-      } catch (e) {
-        throw new WarpPipelineError(
-          (e as Error).message,
-          this.steps.length,
-          this.finalStage.type,
-          { cause: e },
-        );
       }
-    }
 
       stopBatch?.();
       return currentVectors;
@@ -471,7 +486,11 @@ export class WarpPipeline {
    */
   public async *runStream(
     vectorStream: AsyncIterable<InputVector> | Iterable<InputVector>,
-    options?: { context?: RunContext; batchSize?: number; maxBufferBatches?: number },
+    options?: {
+      context?: RunContext;
+      batchSize?: number;
+      maxBufferBatches?: number;
+    },
   ): AsyncGenerator<OutputVector, void, unknown> {
     // 自動初期化
     await this.ensureInitialized();
@@ -667,7 +686,9 @@ export class WarpPipeline {
           context?.intent || "default",
         );
         if (!(result instanceof Float32Array)) {
-          throw new Error(`Intermediate adapter ${step.type} must return Float32Array.`);
+          throw new Error(
+            `Intermediate adapter ${step.type} must return Float32Array.`,
+          );
         }
         currentVector = result;
         results.push({
@@ -676,12 +697,9 @@ export class WarpPipeline {
           durationMs: performance.now() - start,
         });
       } catch (e) {
-        throw new WarpPipelineError(
-          (e as Error).message,
-          i,
-          step.type,
-          { cause: e },
-        );
+        throw new WarpPipelineError((e as Error).message, i, step.type, {
+          cause: e,
+        });
       }
     }
 
@@ -727,6 +745,9 @@ WarpPipeline.registerAdapter("LoraIntentAdapter", (state) =>
 );
 WarpPipeline.registerAdapter("ProjectionAdapter", (state) =>
   ProjectionAdapter.importState(state as string),
+);
+WarpPipeline.registerAdapter("AlignmentAdapter", (state) =>
+  AlignmentAdapter.importState(state as string),
 );
 
 // 組み込みフォーマットを初期登録

@@ -126,11 +126,11 @@ describe("WarpPipeline", () => {
 
   test("runAndFormat outputs to pinecone format correctly", async () => {
     const pipeline = new WarpPipeline(2);
-    const result = await pipeline.runAndFormat(new Float32Array([0.5, 1.0]), {
+    const result = (await pipeline.runAndFormat(new Float32Array([0.5, 1.0]), {
       format: "pinecone",
       topK: 5,
       filter: { genre: "action" },
-    }) as { vector: number[]; topK: number; filter: Record<string, unknown> };
+    })) as { vector: number[]; topK: number; filter: Record<string, unknown> };
     expect(result.vector.length).toBe(2);
     expect(result.topK).toBe(5);
     expect(result.filter.genre).toBe("action");
@@ -138,9 +138,9 @@ describe("WarpPipeline", () => {
 
   test("runAndFormat outputs to redis format correctly", async () => {
     const pipeline = new WarpPipeline(2);
-    const result = await pipeline.runAndFormat([1.0, -1.0], {
+    const result = (await pipeline.runAndFormat([1.0, -1.0], {
       format: "redis",
-    }) as Uint8Array;
+    })) as Uint8Array;
     expect(result).toBeInstanceOf(Uint8Array);
     // Float32Array [1.0, -1.0] has byte length 8
     expect(result.length).toBe(8);

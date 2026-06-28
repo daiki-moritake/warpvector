@@ -101,12 +101,14 @@ export class WasmPool {
 
   public getCurrentSyncContext(): WasmWorker | null {
     if (this.currentContext) return this.currentContext;
-    
+
     // 互換性のため、acquireされずに単発で呼ばれた場合（テストやレガシー呼び出し）は
     // フォールバック用の単一インスタンスを返す
     if (!this.fallbackInstance) {
-        if (!this.module) return null;
-        this.fallbackInstance = new WasmWorker(new WebAssembly.Instance(this.module));
+      if (!this.module) return null;
+      this.fallbackInstance = new WasmWorker(
+        new WebAssembly.Instance(this.module),
+      );
     }
     return this.fallbackInstance;
   }

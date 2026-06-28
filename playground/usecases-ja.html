@@ -374,6 +374,47 @@
       </div>
     </div>
 
+    <!-- Use Case 6: Model Migration / Cross-Space Alignment -->
+    <div class="usecase-card">
+      <div class="usecase-info">
+        <div class="usecase-header">
+          <div class="feature-icon" style="background:rgba(14,165,233,0.15);color:#0ea5e9;width:40px;height:40px;">🔄</div>
+          <div class="usecase-title">6. ゼロダウンタイム・モデル移行</div>
+        </div>
+        <p class="usecase-desc">
+          数百万件のベクトルDBを再計算（リインデックス）することなく、古いモデル（例: <code>ada-002</code>）から新しいモデルへ瞬時に移行します。
+        </p>
+        <div class="problem-box">
+          <strong>課題:</strong> より安価で高精度な新モデルが登場しても、既存の膨大なベクトルDBを作り直すには莫大なAPI費用とシステムダウンタイムが発生するため、ベンダーロックインが避けられません。
+        </div>
+        <div class="solution-box">
+          <strong>WarpVector の解決策:</strong> わずか100件の対応データペアを <code>AlignmentTrainer</code> に学習させます。<code>AlignmentAdapter</code> が瞬時に新モデルのクエリ空間を旧モデルのデータベース空間へと翻訳・結合し、即座に検索可能にします。
+        </div>
+      </div>
+      <div class="mockup-container">
+        <div class="mockup-header">
+          <span>移行ダッシュボード</span>
+          <button class="btn btn-outline" id="uc6-migrate" style="padding:4px 8px; font-size:11px; border-color:#0ea5e9; color:#0ea5e9;">AlignmentAdapterを学習</button>
+        </div>
+        <div class="mockup-body" style="background:#0f172a; position: relative;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 16px;">
+            <div style="background:#1e293b; padding:12px; border-radius:6px; flex:1; text-align:center;">
+              <div style="color:#94a3b8; font-size:11px; margin-bottom:4px;">既存データベース</div>
+              <div style="color:white; font-size:13px; font-weight:600;">ada-002 (1536次元)</div>
+            </div>
+            <div style="padding:0 16px; color:#64748b; font-size:20px;">←</div>
+            <div style="background:#1e293b; padding:12px; border-radius:6px; flex:1; text-align:center; border: 1px solid #334155;" id="uc6-new-model">
+              <div style="color:#94a3b8; font-size:11px; margin-bottom:4px;">新規クエリ</div>
+              <div style="color:white; font-size:13px; font-weight:600;">text-embedding-3 (512次元)</div>
+            </div>
+          </div>
+          <div id="uc6-status" style="background:rgba(239,68,68,0.1); border:1px solid #ef4444; color:#f87171; padding:8px; border-radius:4px; font-size:12px; text-align:center;">
+            ステータス: 次元数の不一致 (512 != 1536) - 検索失敗
+          </div>
+        </div>
+      </div>
+    </div>
+
   </section>
 
   <script type="module" src="./src/usecases.ts"></script>

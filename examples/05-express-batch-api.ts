@@ -1,6 +1,6 @@
 /**
  * WarpVector Example 05: Node.js (Express) Streaming API
- * 
+ *
  * このサンプルでは、WarpVectorの `runStream` を用いて、
  * クライアントから送信される大量のベクトル（例: 100万件）を
  * メモリを枯渇させることなく（OOMフリーで）安全かつ高速にバッチ変換する
@@ -8,8 +8,11 @@
  */
 
 import { WarpPipeline } from "@warpvector/core";
-import { AnomalyDetectionAdapter, SafeQuantizationAdapter } from "@warpvector/extras";
-import { SoftWhiteningAdapter } from "@warpvector/ml";
+import {
+  AnomalyDetectionAdapter,
+  SafeQuantizationAdapter,
+} from "@warpvector/extras";
+import { WhiteningAdapter } from "@warpvector/ml";
 
 const VECTOR_DIMENSION = 1536; // e.g. text-embedding-3-small
 let globalPipeline: WarpPipeline | null = null;
@@ -19,13 +22,19 @@ async function getPipeline(): Promise<WarpPipeline> {
 
   const pipeline = new WarpPipeline(VECTOR_DIMENSION)
     .addStep("anomaly", new AnomalyDetectionAdapter({ maxValue: 3.0 }))
-    .addStep("whitening", new SoftWhiteningAdapter(VECTOR_DIMENSION, { tau: 0.5 }))
-    .addStep("quantize", new SafeQuantizationAdapter({
-      type: "int8",
-      dim: VECTOR_DIMENSION,
-      dynamic: true,
-      clipThreshold: 127.0
-    }));
+    .addStep(
+      "whitening",
+      new WhiteningAdapter(VECTOR_DIMENSION),
+    )
+    .setFinalStage(
+      "quantize",
+      new SafeQuantizationAdapter({
+        type: "int8",
+        dim: VECTOR_DIMENSION,
+        dynamic: true,
+        clipThreshold: 127.0,
+      }),
+    );
 
   await pipeline.init(); // Initialize WASM
   globalPipeline = pipeline;
@@ -38,13 +47,13 @@ async function getPipeline(): Promise<WarpPipeline> {
 
 /**
  * 非同期ジェネレータを用いたベクトルのストリーム処理
- * 
+ *
  * @param vectorGenerator クライアントから送られてくるベクトルのストリームジェネレータ
  * @param res Expressのレスポンスオブジェクト
  */
 export async function handleStreamingVectors(
   vectorGenerator: AsyncGenerator<number[], void, unknown>,
-  res: any // Express Response
+  res: any, // Express Response
 ) {
   try {
     const pipeline = await getPipeline();
@@ -91,10 +100,11 @@ async function runDemo() {
   // ダミーのレスポンスオブジェクト
   const mockRes = {
     setHeader: () => {},
-    write: (chunk: string) => process.stdout.write(chunk.length > 50 ? "[chunk]" : chunk),
+    write: (chunk: string) =>
+      process.stdout.write(chunk.length > 50 ? "[chunk]" : chunk),
     end: () => console.log("\n[Stream Ended]"),
     status: () => mockRes,
-    json: () => mockRes
+    json: () => mockRes,
   };
 
   console.log("Starting stream processing demo...");

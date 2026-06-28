@@ -1,4 +1,11 @@
-import { WarpPipeline, PipelineState, FinalStageState, InputVector, OutputVector, RunContext } from "@warpvector/core";
+import {
+  WarpPipeline,
+  PipelineState,
+  FinalStageState,
+  InputVector,
+  OutputVector,
+  RunContext,
+} from "@warpvector/core";
 import { WarpWorkerPool } from "./WarpWorkerPool";
 
 export interface WarpWorkerClientOptions {
@@ -25,14 +32,23 @@ export class WarpWorkerClient {
   }
 
   // We actually need to initialize by passing the state in init, wait, we can pass state to broadcast
-  public async initWorkers(pipelineState: { steps: PipelineState[]; finalStage?: FinalStageState }) {
+  public async initWorkers(pipelineState: {
+    steps: PipelineState[];
+    finalStage?: FinalStageState;
+  }) {
     await this.pool.broadcast("init", pipelineState);
   }
 
-  public async runBatch(vectors: InputVector[], context?: RunContext): Promise<OutputVector[]> {
+  public async runBatch(
+    vectors: InputVector[],
+    context?: RunContext,
+  ): Promise<OutputVector[]> {
     // Serialize input vectors properly depending on environment
     // For now we just pass them
-    const result = await this.pool.executeTask("runBatch", { vectors, context });
+    const result = await this.pool.executeTask("runBatch", {
+      vectors,
+      context,
+    });
     return result as OutputVector[];
   }
 

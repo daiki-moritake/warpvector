@@ -6,7 +6,12 @@
  *
  * 実行: bun run examples/auto-intent.ts
  */
-import { IntentAdapter, WarpPipeline, cosineSimilarity, normalize } from "@warpvector/core";
+import {
+  IntentAdapter,
+  WarpPipeline,
+  cosineSimilarity,
+  normalize,
+} from "@warpvector/core";
 import { IntentMatrixFactory } from "@warpvector/train";
 
 // ========================================
@@ -18,7 +23,9 @@ const dim = 64;
 function pseudoEmbed(text: string, seed: number): Float32Array {
   const vec = new Float32Array(dim);
   // テキストのハッシュ値をシードとして使用
-  const textSeed = text.split("").reduce((acc, c) => acc + c.charCodeAt(0), seed);
+  const textSeed = text
+    .split("")
+    .reduce((acc, c) => acc + c.charCodeAt(0), seed);
   for (let i = 0; i < dim; i++) {
     const hash = Math.sin(textSeed * 127.1 + i * 311.7) * 43758.5453;
     vec[i] = (hash - Math.floor(hash)) * 2 - 1;
@@ -34,16 +41,24 @@ function pseudoEmbed(text: string, seed: number): Float32Array {
 // 2. ドキュメントコーパスの定義
 // ========================================
 const documents = [
-  { id: 1, text: "TypeScript の型システムとジェネリクスの活用法",         domain: "tech" },
-  { id: 2, text: "WebAssembly で実現する高速なブラウザ演算",              domain: "tech" },
-  { id: 3, text: "エッジコンピューティングのアーキテクチャ設計",          domain: "tech" },
-  { id: 4, text: "React Server Components の実践パターン",               domain: "tech" },
-  { id: 5, text: "Kubernetes オートスケーリング戦略",                     domain: "tech" },
-  { id: 6, text: "2024年Q4の売上予測と成長率分析",                       domain: "business" },
-  { id: 7, text: "SaaS企業の顧客獲得コスト最適化戦略",                   domain: "business" },
-  { id: 8, text: "競合他社のプライシング分析レポート",                    domain: "business" },
-  { id: 9, text: "IPO に向けた財務デューデリジェンス",                    domain: "business" },
-  { id: 10, text: "サブスクリプションモデルの解約率改善",                 domain: "business" },
+  {
+    id: 1,
+    text: "TypeScript の型システムとジェネリクスの活用法",
+    domain: "tech",
+  },
+  { id: 2, text: "WebAssembly で実現する高速なブラウザ演算", domain: "tech" },
+  {
+    id: 3,
+    text: "エッジコンピューティングのアーキテクチャ設計",
+    domain: "tech",
+  },
+  { id: 4, text: "React Server Components の実践パターン", domain: "tech" },
+  { id: 5, text: "Kubernetes オートスケーリング戦略", domain: "tech" },
+  { id: 6, text: "2024年Q4の売上予測と成長率分析", domain: "business" },
+  { id: 7, text: "SaaS企業の顧客獲得コスト最適化戦略", domain: "business" },
+  { id: 8, text: "競合他社のプライシング分析レポート", domain: "business" },
+  { id: 9, text: "IPO に向けた財務デューデリジェンス", domain: "business" },
+  { id: 10, text: "サブスクリプションモデルの解約率改善", domain: "business" },
 ];
 
 // ドキュメントベクトルの生成
@@ -77,8 +92,12 @@ const intents = await factory.build({
 });
 
 console.log("✅ Intent行列の生成完了");
-console.log(`   tech:     matrix ${(intents.tech.matrix as Float32Array).length} 要素, routingVector あり`);
-console.log(`   business: matrix ${(intents.business.matrix as Float32Array).length} 要素, routingVector あり\n`);
+console.log(
+  `   tech:     matrix ${(intents.tech.matrix as Float32Array).length} 要素, routingVector あり`,
+);
+console.log(
+  `   business: matrix ${(intents.business.matrix as Float32Array).length} 要素, routingVector あり\n`,
+);
 
 // ========================================
 // 4. パイプラインを構築
@@ -109,7 +128,9 @@ vanillaResults.slice(0, 5).forEach((r, i) => {
 
 // --- Intent Warping: tech 意図 ---
 console.log("\n═══ Intent Warping: tech 意図 ═══");
-const techQueryWarped = pipeline.run(queryVector, { intent: "tech" }) as Float32Array;
+const techQueryWarped = (await pipeline.run(queryVector, {
+  intent: "tech",
+})) as Float32Array;
 const techResults = docVectors
   .map((doc) => ({
     ...doc,
@@ -124,7 +145,9 @@ techResults.slice(0, 5).forEach((r, i) => {
 
 // --- Intent Warping: business 意図 ---
 console.log("\n═══ Intent Warping: business 意図 ═══");
-const bizQueryWarped = pipeline.run(queryVector, { intent: "business" }) as Float32Array;
+const bizQueryWarped = (await pipeline.run(queryVector, {
+  intent: "business",
+})) as Float32Array;
 const bizResults = docVectors
   .map((doc) => ({
     ...doc,
@@ -158,8 +181,12 @@ autoResults.slice(0, 5).forEach((r, i) => {
 // ========================================
 // 6. サマリー
 // ========================================
-const vanillaTechCount = vanillaResults.slice(0, 5).filter((r) => r.domain === "tech").length;
-const warpedTechCount = techResults.slice(0, 5).filter((r) => r.domain === "tech").length;
+const vanillaTechCount = vanillaResults
+  .slice(0, 5)
+  .filter((r) => r.domain === "tech").length;
+const warpedTechCount = techResults
+  .slice(0, 5)
+  .filter((r) => r.domain === "tech").length;
 
 console.log("\n════════════════════════════════════════");
 console.log("📊 サマリー");

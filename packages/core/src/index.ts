@@ -3,6 +3,7 @@ export * from "./interfaces/WarpAdapter";
 export * from "./adapters/IntentAdapter";
 export * from "./adapters/LoraIntentAdapter";
 export * from "./adapters/ProjectionAdapter";
+export * from "./adapters/AlignmentAdapter";
 export * from "./pipeline/WarpPipeline";
 export * from "./pipeline/AdapterRegistry";
 export * from "./pipeline/FormatRegistry";

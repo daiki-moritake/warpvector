@@ -106,11 +106,12 @@ export class FederatedAggregator {
     // 各クライアントの差分を重み付き加算
     for (const update of this.updates) {
       const scale = update.interactionCount / totalCount;
-      const { flatMatrix: clientMatrix, bias: clientBias } = getFlatMatrixAndBias(
-        update.weights,
-        dim,
-        "FederatedAggregator.clientUpdate",
-      );
+      const { flatMatrix: clientMatrix, bias: clientBias } =
+        getFlatMatrixAndBias(
+          update.weights,
+          dim,
+          "FederatedAggregator.clientUpdate",
+        );
 
       // resultMatrix += scale * (clientMatrix - baseMatrix)
       for (let i = 0; i < matrixSize; i++) {

@@ -1,4 +1,8 @@
-import { InputVector, OutputVector, computeVectorScore } from "@warpvector/core";
+import {
+  InputVector,
+  OutputVector,
+  computeVectorScore,
+} from "@warpvector/core";
 
 export type VectorType = InputVector | OutputVector;
 
@@ -28,10 +32,10 @@ export function computeSimilarityScore(a: VectorType, b: VectorType): number {
 export function getPositiveRank(
   query: VectorType,
   positive: VectorType,
-  negatives: VectorType[] = []
+  negatives: VectorType[] = [],
 ): number {
   const posScore = computeSimilarityScore(query, positive);
-  
+
   // 順位（自分よりスコアが高い negative の数 + 1）
   let rank = 1;
   for (const neg of negatives) {
@@ -48,13 +52,17 @@ export function getPositiveRank(
  */
 export function calculateMRR(dataset: SearchExample[]): number {
   if (dataset.length === 0) return 0;
-  
+
   let mrrSum = 0;
   for (const example of dataset) {
-    const rank = getPositiveRank(example.query, example.positive, example.negatives);
+    const rank = getPositiveRank(
+      example.query,
+      example.positive,
+      example.negatives,
+    );
     mrrSum += 1.0 / rank;
   }
-  
+
   return mrrSum / dataset.length;
 }
 
@@ -63,14 +71,18 @@ export function calculateMRR(dataset: SearchExample[]): number {
  */
 export function calculateRecall(dataset: SearchExample[], k: number): number {
   if (dataset.length === 0) return 0;
-  
+
   let hits = 0;
   for (const example of dataset) {
-    const rank = getPositiveRank(example.query, example.positive, example.negatives);
+    const rank = getPositiveRank(
+      example.query,
+      example.positive,
+      example.negatives,
+    );
     if (rank <= k) {
       hits++;
     }
   }
-  
+
   return hits / dataset.length;
 }

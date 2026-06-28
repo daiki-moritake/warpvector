@@ -69,12 +69,12 @@ export class IntentTrainer extends BaseTrainer<TrainingExample, IntentWeights> {
   protected calculateLoss(
     matrix: Float32Array,
     bias: Float32Array,
-    example: TrainingExample
+    example: TrainingExample,
   ): number {
     const dim = this.dimension;
     const pred = new Float32Array(dim);
     applyAffine(matrix, bias, example.input, pred, dim, dim);
-    
+
     let loss = 0;
     for (let i = 0; i < dim; i++) {
       const diff = pred[i] - example.target[i];
@@ -93,7 +93,7 @@ export class IntentTrainer extends BaseTrainer<TrainingExample, IntentWeights> {
     example: TrainingExample,
     lr: number,
     reg: number,
-    t: number
+    t: number,
   ): void {
     const dim = this.dimension;
     const pred = new Float32Array(dim);
@@ -115,7 +115,7 @@ export class IntentTrainer extends BaseTrainer<TrainingExample, IntentWeights> {
       outputGradients,
       lr,
       reg,
-      t
+      t,
     );
   }
 

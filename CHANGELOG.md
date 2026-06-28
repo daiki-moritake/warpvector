@@ -4,6 +4,22 @@ All notable changes to WarpVector will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [0.7.0] - 2026-06-28
+
+### Added
+- **AlignmentAdapter**: Introduced `AlignmentAdapter` to `@warpvector/core` to support zero-downtime model migrations and vector space alignment.
+- **Playground Updates**: Completely redesigned the playground with a high-quality UI and added new use-case sample pages.
+- **Migration Guides**: Added comprehensive documentation and guides for zero-downtime model migrations.
+
+### Changed
+- Extensive package updates and code refactoring across the repository.
+- Improved README formatting, readability, and syntax highlights.
+
+### Fixed
+- **TypeScript Types**: Resolved multiple TypeScript compilation errors, including incorrect Promise handling in pipelines, undefined matrix variables in `CrossEncoderTrainer`, and missing adapter exports.
+- **Pipeline Registration**: Fixed an issue where `AlignmentAdapter` was not properly registered in `WarpPipeline`.
+- **Mermaid Diagrams**: Fixed syntax errors in Mermaid dashed links in the documentation.
+
 ## [0.6.1] - 2026-06-27
 
 ### Fixed

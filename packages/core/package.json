@@ -1,6 +1,6 @@
 {
   "name": "@warpvector/core",
-  "version": "0.6.2",
+  "version": "0.7.0",
   "description": "Core vector space transformation engine for Edge inference with WASM/SIMD acceleration",
   "main": "src/index.ts",
   "module": "src/index.ts",

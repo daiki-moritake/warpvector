@@ -1,4 +1,9 @@
-import { allocateWasmMemory, withWasmMemoryStack, writeFloat32ArrayToWasm, readFloat32ArrayFromWasm } from "@warpvector/core";
+import {
+  allocateWasmMemory,
+  withWasmMemoryStack,
+  writeFloat32ArrayToWasm,
+  readFloat32ArrayFromWasm,
+} from "@warpvector/core";
 import { BaseGraphReranker, GraphRerankerResult } from "./BaseGraphReranker";
 
 export interface MultipathScatteringConfig {
@@ -34,7 +39,7 @@ export type MultipathScatteringResult = GraphRerankerResult;
 
 /**
  * MultipathScatteringReranker
- * 
+ *
  * 物理学における「多重経路散乱場理論」のアイデアにインスパイアされたリランカー。
  * ベクトル空間上の候補ドキュメント群を散乱のネットワーク（グラフ）とみなし、
  * 初期スコア（波源からの入射波）が多重反射を繰り返して定常状態に至る過程を、
@@ -57,15 +62,24 @@ export class MultipathScatteringReranker extends BaseGraphReranker {
       throw new Error("MultipathScatteringReranker: alpha must be in [0, 1).");
     }
     if (this.maxIterations < 1) {
-      throw new Error("MultipathScatteringReranker: maxIterations must be at least 1.");
+      throw new Error(
+        "MultipathScatteringReranker: maxIterations must be at least 1.",
+      );
     }
   }
 
   protected hasRequiredWasmExports(exports: any): boolean {
-    return !!(exports.buildMultipathTransitionMatrixWasm && exports.multipathScatteringPowerIterationWasm);
+    return !!(
+      exports.buildMultipathTransitionMatrixWasm &&
+      exports.multipathScatteringPowerIterationWasm
+    );
   }
 
-  protected prepareInitialScores(S0: Float32Array, N: number, initialScores?: number[]): number {
+  protected prepareInitialScores(
+    S0: Float32Array,
+    N: number,
+    initialScores?: number[],
+  ): number {
     let sumS0 = 0;
     if (initialScores && initialScores.length === N) {
       let minScore = Infinity;
@@ -101,7 +115,13 @@ export class MultipathScatteringReranker extends BaseGraphReranker {
     return s0Val * scaleFactor;
   }
 
-  protected executeWasm(flatVectors: Float32Array, S0: Float32Array, N: number, dim: number, exports: any): Float32Array {
+  protected executeWasm(
+    flatVectors: Float32Array,
+    S0: Float32Array,
+    N: number,
+    dim: number,
+    exports: any,
+  ): Float32Array {
     const memory = exports.memory as WebAssembly.Memory;
 
     return withWasmMemoryStack(() => {
@@ -120,7 +140,7 @@ export class MultipathScatteringReranker extends BaseGraphReranker {
         N,
         dim,
         this.threshold,
-        pMatrixPtr
+        pMatrixPtr,
       );
 
       exports.multipathScatteringPowerIterationWasm(
@@ -131,14 +151,18 @@ export class MultipathScatteringReranker extends BaseGraphReranker {
         N,
         this.alpha,
         this.maxIterations,
-        this.tolerance
+        this.tolerance,
       );
 
       return readFloat32ArrayFromWasm(memory, currentSPtr, N);
     });
   }
 
-  protected executeJs(CNorm: Float32Array[], S0: Float32Array, N: number): Float32Array {
+  protected executeJs(
+    CNorm: Float32Array[],
+    S0: Float32Array,
+    N: number,
+  ): Float32Array {
     const W = new Float32Array(N * N);
     const D = new Float32Array(N);
     const dim = CNorm[0].length;
@@ -181,7 +205,7 @@ export class MultipathScatteringReranker extends BaseGraphReranker {
 
     for (let iter = 0; iter < this.maxIterations; iter++) {
       let maxDiff = 0;
-      
+
       for (let i = 0; i < N; i++) {
         let pSum = 0;
         const rowOffset = i * N;
@@ -189,11 +213,11 @@ export class MultipathScatteringReranker extends BaseGraphReranker {
           pSum += P[rowOffset + j] * currentS[j];
         }
         nextS[i] = alpha * pSum + oneMinusAlpha * S0[i];
-        
+
         const diff = Math.abs(nextS[i] - currentS[i]);
         if (diff > maxDiff) maxDiff = diff;
       }
-      
+
       currentS.set(nextS);
       if (maxDiff < this.tolerance) {
         break;
