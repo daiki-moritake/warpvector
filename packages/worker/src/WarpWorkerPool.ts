@@ -103,6 +103,7 @@ export class WarpWorkerPool {
     type: WorkerMessage["type"],
     payload?: any,
   ): Promise<any[]> {
+    this.idleWorkers = [];
     const promises = this.workers.map((worker) => {
       return new Promise((resolve, reject) => {
         const id = this.nextMessageId++;

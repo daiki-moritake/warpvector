@@ -612,6 +612,18 @@ export class WarpPipeline {
       pipeline.steps.push({ type: step.type, adapter });
     }
 
+    // 最初のステップのアダプタから入力次元数を取得して復元
+    if (pipeline.steps.length > 0) {
+      const firstAdapter = pipeline.steps[0].adapter as any;
+      if (typeof firstAdapter.inDimension === "number") {
+        pipeline._inputDim = firstAdapter.inDimension;
+      } else if (typeof firstAdapter.dimension === "number") {
+        pipeline._inputDim = firstAdapter.dimension;
+      } else if (typeof firstAdapter.inDim === "number") {
+        pipeline._inputDim = firstAdapter.inDim;
+      }
+    }
+
     // FinalStage の復元
     if (finalStageState) {
       const importFn = AdapterRegistry.getFinalStage(finalStageState.type);
@@ -674,55 +686,63 @@ export class WarpPipeline {
     await this.ensureInitialized();
     const results: DryRunStepResult[] = [];
 
-    let currentVector: Float32Array =
-      vector instanceof Float32Array ? vector : new Float32Array(vector);
+    const wasmCtx = globalWasmPool.acquire();
+    try {
+      globalWasmPool.setCurrentSyncContext(wasmCtx);
 
-    for (let i = 0; i < this.steps.length; i++) {
-      const step = this.steps[i];
-      const start = performance.now();
-      try {
-        const result = step.adapter.tune(
-          currentVector,
-          context?.intent || "default",
-        );
-        if (!(result instanceof Float32Array)) {
-          throw new Error(
-            `Intermediate adapter ${step.type} must return Float32Array.`,
+      let currentVector: Float32Array =
+        vector instanceof Float32Array ? vector : new Float32Array(vector);
+
+      for (let i = 0; i < this.steps.length; i++) {
+        const step = this.steps[i];
+        const start = performance.now();
+        try {
+          const result = step.adapter.tune(
+            currentVector,
+            context?.intent || "default",
+          );
+          if (!(result instanceof Float32Array)) {
+            throw new Error(
+              `Intermediate adapter ${step.type} must return Float32Array.`,
+            );
+          }
+          currentVector = result;
+          results.push({
+            step: step.type,
+            output: result,
+            durationMs: performance.now() - start,
+          });
+        } catch (e) {
+          throw new WarpPipelineError((e as Error).message, i, step.type, {
+            cause: e,
+          });
+        }
+      }
+
+      if (this.finalStage) {
+        const start = performance.now();
+        try {
+          const result = this.finalStage.adapter.encode(currentVector);
+          results.push({
+            step: this.finalStage.type,
+            output: result,
+            durationMs: performance.now() - start,
+          });
+        } catch (e) {
+          throw new WarpPipelineError(
+            (e as Error).message,
+            this.steps.length,
+            this.finalStage.type,
+            { cause: e },
           );
         }
-        currentVector = result;
-        results.push({
-          step: step.type,
-          output: result,
-          durationMs: performance.now() - start,
-        });
-      } catch (e) {
-        throw new WarpPipelineError((e as Error).message, i, step.type, {
-          cause: e,
-        });
       }
-    }
 
-    if (this.finalStage) {
-      const start = performance.now();
-      try {
-        const result = this.finalStage.adapter.encode(currentVector);
-        results.push({
-          step: this.finalStage.type,
-          output: result,
-          durationMs: performance.now() - start,
-        });
-      } catch (e) {
-        throw new WarpPipelineError(
-          (e as Error).message,
-          this.steps.length,
-          this.finalStage.type,
-          { cause: e },
-        );
-      }
+      return results;
+    } finally {
+      globalWasmPool.clearCurrentSyncContext();
+      globalWasmPool.release(wasmCtx);
     }
-
-    return results;
   }
 
   /**
