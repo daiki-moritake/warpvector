@@ -29,6 +29,26 @@ describe("AnomalyDetectionAdapter", () => {
     );
   });
 
+  test("rejects invalid maxValue values", () => {
+    expect(() => {
+      new AnomalyDetectionAdapter({
+        maxValue: -5.0,
+      });
+    }).toThrow("maxValue");
+
+    expect(() => {
+      new AnomalyDetectionAdapter({
+        maxValue: 0,
+      });
+    }).toThrow("maxValue");
+
+    expect(() => {
+      new AnomalyDetectionAdapter({
+        maxValue: NaN,
+      });
+    }).toThrow("maxValue");
+  });
+
   test("safe mode clips and sanitizes vectors", () => {
     const safeAdapter = new AnomalyDetectionAdapter({
       mode: "safe",

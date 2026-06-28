@@ -47,6 +47,18 @@ export class AnomalyDetectionAdapter implements WarpAdapter {
       );
     }
 
+    if (config.maxValue !== undefined) {
+      if (
+        typeof config.maxValue !== "number" ||
+        config.maxValue <= 0 ||
+        Number.isNaN(config.maxValue)
+      ) {
+        throw new Error(
+          "[WarpVector DX Error] AnomalyDetectionAdapter の 'maxValue' は正の数値でなければなりません。",
+        );
+      }
+    }
+
     this.mode = config.mode || "strict";
     this.maxValue = config.maxValue || 100.0;
   }
