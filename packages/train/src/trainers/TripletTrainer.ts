@@ -138,6 +138,8 @@ export class TripletTrainer extends BaseTrainer<TripletExample, IntentWeights> {
     options: TripletOnlineOptions = {},
   ): Promise<IntentWeights> {
     return wasmMutex.runExclusive(async () => {
+      this.validateHyperparameters(options);
+
       const learningRate = options.learningRate ?? 0.01;
       const margin = options.margin ?? 0.1;
       const regularization = options.regularization ?? 0.001;
@@ -181,5 +183,20 @@ export class TripletTrainer extends BaseTrainer<TripletExample, IntentWeights> {
 
       return this.toWeightsWithRouting(flatMatrix, bias, currentWeights);
     });
+  }
+
+  protected override validateHyperparameters(
+    options: TripletOnlineOptions,
+  ): void {
+    super.validateHyperparameters(options);
+    if (options.margin !== undefined) {
+      if (
+        typeof options.margin !== "number" ||
+        options.margin < 0 ||
+        Number.isNaN(options.margin)
+      ) {
+        throw new Error("TripletTrainer: margin must be a non-negative number.");
+      }
+    }
   }
 }

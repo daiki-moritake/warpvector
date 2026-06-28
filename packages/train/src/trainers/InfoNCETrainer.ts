@@ -159,6 +159,8 @@ export class InfoNCETrainer extends BaseTrainer<InfoNCEExample, IntentWeights> {
     options: InfoNCEOnlineOptions = {},
   ): Promise<IntentWeights> {
     return wasmMutex.runExclusive(async () => {
+      this.validateHyperparameters(options);
+
       const learningRate = options.learningRate ?? 0.01;
       const regularization = options.regularization ?? 0.001;
       const dim = this.dimension;
@@ -195,5 +197,20 @@ export class InfoNCETrainer extends BaseTrainer<InfoNCEExample, IntentWeights> {
 
       return this.toWeightsWithRouting(flatMatrix, bias, currentWeights);
     });
+  }
+
+  protected override validateHyperparameters(
+    options: InfoNCEOnlineOptions,
+  ): void {
+    super.validateHyperparameters(options);
+    if (options.temperature !== undefined) {
+      if (
+        typeof options.temperature !== "number" ||
+        options.temperature <= 0 ||
+        Number.isNaN(options.temperature)
+      ) {
+        throw new Error("InfoNCETrainer: temperature must be a positive number.");
+      }
+    }
   }
 }

@@ -99,4 +99,34 @@ describe("InfoNCETrainer", () => {
       ),
     ).rejects.toThrow();
   });
+
+  test("rejects invalid temperature value", async () => {
+    const trainer = new InfoNCETrainer(3);
+
+    const dummyWeights = {
+      matrix: [
+        [1, 0, 0],
+        [0, 1, 0],
+        [0, 0, 1],
+      ],
+      bias: [0, 0, 0],
+    };
+    const dummyExample = {
+      anchor: [1, 0, 0],
+      positive: [0.8, 0.2, 0.0],
+      negatives: [[0.9, 0.0, 0.1]],
+    };
+
+    await expect(
+      trainer.updateOnline(dummyWeights, dummyExample, { temperature: -0.1 }),
+    ).rejects.toThrow("temperature");
+
+    await expect(
+      trainer.updateOnline(dummyWeights, dummyExample, { temperature: 0 }),
+    ).rejects.toThrow("temperature");
+
+    await expect(
+      trainer.updateOnline(dummyWeights, dummyExample, { temperature: NaN }),
+    ).rejects.toThrow("temperature");
+  });
 });

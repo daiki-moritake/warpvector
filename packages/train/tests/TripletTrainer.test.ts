@@ -103,4 +103,45 @@ describe("TripletTrainer", () => {
       Array.from(weights2.bias as Float32Array),
     );
   });
+
+  test("rejects invalid hyperparameters in train and updateOnline", async () => {
+    const trainer = new TripletTrainer(3);
+    trainer.addExample({
+      anchor: [1, 0, 0],
+      positive: [0.8, 0.2, 0.0],
+      negative: [0.9, 0.0, 0.1],
+    });
+
+    await expect(trainer.train({ learningRate: -0.1 })).rejects.toThrow(
+      "learningRate",
+    );
+    await expect(trainer.train({ regularization: -0.01 })).rejects.toThrow(
+      "regularization",
+    );
+    await expect(trainer.train({ epochs: 1.5 })).rejects.toThrow("epochs");
+    await expect(trainer.train({ margin: -1.0 } as any)).rejects.toThrow(
+      "margin",
+    );
+
+    const dummyWeights = {
+      matrix: [
+        [1, 0, 0],
+        [0, 1, 0],
+        [0, 0, 1],
+      ],
+      bias: [0, 0, 0],
+    };
+    const dummyExample = {
+      anchor: [1, 0, 0],
+      positive: [0.8, 0.2, 0.0],
+      negative: [0.9, 0.0, 0.1],
+    };
+
+    await expect(
+      trainer.updateOnline(dummyWeights, dummyExample, { margin: -0.5 }),
+    ).rejects.toThrow("margin");
+    await expect(
+      trainer.updateOnline(dummyWeights, dummyExample, { learningRate: 0 }),
+    ).rejects.toThrow("learningRate");
+  });
 });
