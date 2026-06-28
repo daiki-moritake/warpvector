@@ -41,7 +41,10 @@ function generateSyntheticVector(
  * カテゴリの「方向」を表す基底ベクトルを生成する。
  * 各カテゴリは異なる方向を持つようにする。
  */
-function generateCategoryDirection(dim: number, categoryIndex: number): Float32Array {
+function generateCategoryDirection(
+  dim: number,
+  categoryIndex: number,
+): Float32Array {
   const dir = new Float32Array(dim);
   // カテゴリごとに異なる次元レンジに強い成分を持つベクトルを生成
   const startDim = Math.floor((categoryIndex * dim) / 4);
@@ -197,7 +200,8 @@ describe("IntentMatrixFactory", () => {
 
       // routingVector は正規化されていること（L2ノルムが≒1.0）
       let normA = 0;
-      for (let i = 0; i < routingA.length; i++) normA += routingA[i] * routingA[i];
+      for (let i = 0; i < routingA.length; i++)
+        normA += routingA[i] * routingA[i];
       expect(Math.abs(Math.sqrt(normA) - 1.0)).toBeLessThan(0.01);
     });
 

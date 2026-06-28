@@ -1,4 +1,10 @@
-import { cosineSimilarity, type WarpAdapter, type InputVector, type TransformOutput, type AdapterState } from "@warpvector/core";
+import {
+  cosineSimilarity,
+  type WarpAdapter,
+  type InputVector,
+  type TransformOutput,
+  type AdapterState,
+} from "@warpvector/core";
 
 export interface ExpertDefinition {
   /** 一意のエキスパートID */
@@ -21,7 +27,6 @@ export interface MoeAdapterConfig {
   customRouter?: (vector: Float32Array) => string;
 }
 
-
 /**
  * Mixture of Experts (MoE) アダプター。
  * 入力ベクトルに応じて、動的に適切なサブアダプタ（エキスパート）にルーティングします。
@@ -40,7 +45,7 @@ export class MoeAdapter implements WarpAdapter {
         this.centroids.set(expert.id, new Float32Array(expert.centroid));
       }
     }
-    
+
     if (this.experts.size === 0) {
       throw new Error("MoeAdapter requires at least one expert.");
     }
@@ -86,14 +91,15 @@ export class MoeAdapter implements WarpAdapter {
   }
 
   tune(vector: InputVector, context?: string): TransformOutput {
-    const vectorArray = vector instanceof Float32Array ? vector : new Float32Array(vector);
-    
+    const vectorArray =
+      vector instanceof Float32Array ? vector : new Float32Array(vector);
+
     // エキスパートの選択 (Gating)
     const expertId = this.route(vectorArray);
     const expert = this.experts.get(expertId);
-    
+
     if (!expert) {
-        throw new Error(`Expert ${expertId} not found`);
+      throw new Error(`Expert ${expertId} not found`);
     }
 
     // 選択されたエキスパートでのみ推論を実行 (疎な処理)
@@ -101,22 +107,24 @@ export class MoeAdapter implements WarpAdapter {
   }
 
   tuneBatch(vectors: InputVector[], context?: string): TransformOutput[] {
-    return vectors.map(v => this.tune(v, context));
+    return vectors.map((v) => this.tune(v, context));
   }
 
   exportState(): AdapterState {
     const state: any = {
-       type: "MoeAdapter",
-       routingStrategy: this.config.routingStrategy,
-       experts: []
+      type: "MoeAdapter",
+      routingStrategy: this.config.routingStrategy,
+      experts: [],
     };
     for (const expert of this.config.experts) {
-       state.experts.push({
-          id: expert.id,
-          centroid: expert.centroid ? Array.from(expert.centroid) : undefined,
-          adapterType: expert.adapter.constructor.name, // Will be needed for importState
-          adapterState: expert.adapter.exportState ? expert.adapter.exportState() : undefined
-       });
+      state.experts.push({
+        id: expert.id,
+        centroid: expert.centroid ? Array.from(expert.centroid) : undefined,
+        adapterType: expert.adapter.constructor.name, // Will be needed for importState
+        adapterState: expert.adapter.exportState
+          ? expert.adapter.exportState()
+          : undefined,
+      });
     }
     return JSON.stringify(state);
   }
@@ -136,18 +144,20 @@ export class MoeAdapter implements WarpAdapter {
     const experts: ExpertDefinition[] = parsed.experts.map((exp: any) => {
       const importFn = AdapterRegistry.get(exp.adapterType);
       if (!importFn) {
-        throw new Error(`Cannot import MoeAdapter: unknown adapter type '${exp.adapterType}' for expert '${exp.id}'. Did you register it?`);
+        throw new Error(
+          `Cannot import MoeAdapter: unknown adapter type '${exp.adapterType}' for expert '${exp.id}'. Did you register it?`,
+        );
       }
       return {
         id: exp.id,
         centroid: exp.centroid,
-        adapter: importFn(exp.adapterState)
+        adapter: importFn(exp.adapterState),
       };
     });
 
     return new MoeAdapter({
       experts,
-      routingStrategy: parsed.routingStrategy
+      routingStrategy: parsed.routingStrategy,
     });
   }
 }

@@ -1,6 +1,10 @@
-import pc from 'picocolors';
-import { writePackageJson, writeTemplateFile, getRunCommand } from '../scaffold';
-import type { TemplateDefinition } from './types';
+import pc from "picocolors";
+import {
+  writePackageJson,
+  writeTemplateFile,
+  getRunCommand,
+} from "../scaffold";
+import type { TemplateDefinition } from "./types";
 
 const WORKER_SRC = `\
 import { IntentAdapter, cosineSimilarity, normalize } from '@warpvector/core';
@@ -38,32 +42,34 @@ compatibility_date = "2024-01-01"`;
 }
 
 export const cloudflareTemplate: TemplateDefinition = {
-  id: 'cloudflare-worker',
-  title: pc.bold('Cloudflare Workers (Edge)') + pc.dim(' — Sub-millisecond inference'),
-  description: 'Deploy to edge in seconds',
+  id: "cloudflare-worker",
+  title:
+    pc.bold("Cloudflare Workers (Edge)") +
+    pc.dim(" — Sub-millisecond inference"),
+  description: "Deploy to edge in seconds",
 
   generate(dir: string, name: string, version: string) {
     writePackageJson(dir, {
       name,
-      version: '0.1.0',
+      version: "0.1.0",
       private: true,
       scripts: {
-        dev: 'wrangler dev',
-        deploy: 'wrangler deploy',
+        dev: "wrangler dev",
+        deploy: "wrangler deploy",
       },
       dependencies: {
-        'warpvector': `^${version}`,
-        '@warpvector/core': `^${version}`,
+        warpvector: `^${version}`,
+        "@warpvector/core": `^${version}`,
       },
       devDependencies: {
-        wrangler: '^3.0.0',
-        typescript: '^5.0.0',
-        '@cloudflare/workers-types': '^4.0.0',
+        wrangler: "^3.0.0",
+        typescript: "^5.0.0",
+        "@cloudflare/workers-types": "^4.0.0",
       },
     });
 
-    writeTemplateFile(dir, 'src/index.ts', WORKER_SRC);
-    writeTemplateFile(dir, 'wrangler.toml', wranglerToml(name));
+    writeTemplateFile(dir, "src/index.ts", WORKER_SRC);
+    writeTemplateFile(dir, "wrangler.toml", wranglerToml(name));
   },
 
   getNextSteps(pm: string) {

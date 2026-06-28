@@ -8,13 +8,12 @@ import {
 import {
   MlpAdapter,
   WhiteningAdapter,
-  SoftWhiteningAdapter,
 } from "@warpvector/ml";
 import {
   QuantizationAdapter,
-  ColbertAdapter,
   VsaAdapter,
 } from "@warpvector/extras";
+import { ColbertAdapter } from "@warpvector/rerank";
 
 /**
  * プロパティベーステスト: Serialization Roundtrip
@@ -179,7 +178,9 @@ describe("プロパティベーステスト: Serialization Roundtrip", () => {
     const original = await pipeline.run(input, { intent: "tech" });
     const roundtripped = await restored.run(input, { intent: "tech" });
 
-    expect(maxAbsDiff(original as Float32Array, roundtripped as Float32Array)).toBeLessThan(epsilon);
+    expect(
+      maxAbsDiff(original as Float32Array, roundtripped as Float32Array),
+    ).toBeLessThan(epsilon);
   });
 
   it("WarpPipeline + FinalStage: exportState → importState で出力が再現される", async () => {
@@ -304,6 +305,8 @@ describe("プロパティベーステスト: Numerical Stability", () => {
     const output1 = await pipeline.run(input, { intent: "test" });
     const output2 = await pipeline.run(input, { intent: "test" });
 
-    expect(maxAbsDiff(output1 as Float32Array, output2 as Float32Array)).toBe(0);
+    expect(maxAbsDiff(output1 as Float32Array, output2 as Float32Array)).toBe(
+      0,
+    );
   });
 });

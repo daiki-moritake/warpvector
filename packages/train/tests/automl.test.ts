@@ -1,6 +1,11 @@
 import { expect, test, describe, beforeAll } from "bun:test";
 import { WarpPipeline, IntentAdapter } from "@warpvector/core";
-import { computeSimilarityScore, getPositiveRank, calculateMRR, calculateRecall } from "../src/automl/metrics";
+import {
+  computeSimilarityScore,
+  getPositiveRank,
+  calculateMRR,
+  calculateRecall,
+} from "../src/automl/metrics";
 import { PipelineAutoTuner } from "../src/automl/PipelineAutoTuner";
 import { SearchExample } from "../src/automl/metrics";
 
@@ -20,7 +25,7 @@ describe("AutoML Metrics", () => {
     const positive = [0.9, 0.1]; // 高い類似度
     const neg1 = [0, 1]; // 低い類似度
     const neg2 = [0.95, 0.05]; // queryにより近い不正解
-    
+
     // posのみの場合、ランクは1
     expect(getPositiveRank(query, positive, [])).toBe(1);
     // neg1よりposの方が似ているのでランクは1
@@ -34,13 +39,16 @@ describe("AutoML Metrics", () => {
       {
         query: [1, 0],
         positive: [0.9, 0.1],
-        negatives: [[0, 1]]
+        negatives: [[0, 1]],
       }, // ランク1 -> RR 1.0
       {
         query: [0, 1],
         positive: [0.1, 0.9],
-        negatives: [[0, 0.95], [1, 0]]
-      } // ランク2 -> RR 0.5
+        negatives: [
+          [0, 0.95],
+          [1, 0],
+        ],
+      }, // ランク2 -> RR 0.5
     ];
 
     const mrr = calculateMRR(dataset);
@@ -59,13 +67,13 @@ describe("PipelineAutoTuner", () => {
       {
         query: [1, 0.1],
         positive: [1, 0],
-        negatives: [[-1, 0]]
+        negatives: [[-1, 0]],
       },
       {
         query: [0.1, 1],
         positive: [0, 1],
-        negatives: [[0, -1]]
-      }
+        negatives: [[0, -1]],
+      },
     ];
 
     const tuner = new PipelineAutoTuner(dataset);
@@ -73,7 +81,7 @@ describe("PipelineAutoTuner", () => {
     const result = await tuner.tuneGrid({
       searchSpace: {
         multiplier: [1, 5, 10], // 探索するパラメータ
-        bias: [0, 1]
+        bias: [0, 1],
       },
       pipelineBuilder: (params) => {
         const pipeline = new WarpPipeline(2);
@@ -82,15 +90,15 @@ describe("PipelineAutoTuner", () => {
           default: {
             matrix: [
               [params.multiplier, 0],
-              [0, params.multiplier]
+              [0, params.multiplier],
             ],
-            bias: [params.bias, params.bias]
-          }
+            bias: [params.bias, params.bias],
+          },
         });
         pipeline.addStep("IntentAdapter", adapter);
         return pipeline;
       },
-      metric: "MRR"
+      metric: "MRR",
     });
 
     // 今回のケースでは、どのmultiplierでもコサイン類似度でのランクは変わらない（線形スケーリングのため）。
@@ -98,7 +106,7 @@ describe("PipelineAutoTuner", () => {
     expect(result.allResults.length).toBe(3 * 2); // 3 * 2 = 6 combinations
     expect(result.bestScore).toBeGreaterThan(0);
     expect(result.bestPipeline).toBeInstanceOf(WarpPipeline);
-    
+
     // プログレスコールバックのテスト
     let progressCalls = 0;
     await tuner.tuneGrid({
@@ -107,7 +115,7 @@ describe("PipelineAutoTuner", () => {
       onProgress: (cur, tot, best) => {
         progressCalls++;
         expect(tot).toBe(2);
-      }
+      },
     });
     expect(progressCalls).toBe(2);
   });

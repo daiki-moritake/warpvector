@@ -19,7 +19,9 @@ describe("FinalStageAdapter pipeline", () => {
       })
       .setFinalStage("QuantizationAdapter", quantizer);
 
-    const result = await pipeline.run([0.5, -0.3, 0.8], { intent: "my_intent" });
+    const result = await pipeline.run([0.5, -0.3, 0.8], {
+      intent: "my_intent",
+    });
 
     // FinalStage 経由なので Int8Array が返る
     expect(result).toBeInstanceOf(Int8Array);

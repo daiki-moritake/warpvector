@@ -1,5 +1,12 @@
 /// <reference types="@webgpu/types" />
-import { WarpAdapter, InputVector, TransformOutput, AdapterState, applyAffine, flattenMatrix } from "@warpvector/core";
+import {
+  WarpAdapter,
+  InputVector,
+  TransformOutput,
+  AdapterState,
+  applyAffine,
+  flattenMatrix,
+} from "@warpvector/core";
 
 export interface IntentWeights {
   matrix: number[][] | number[];
@@ -15,19 +22,24 @@ export class WebGpuIntentAdapter implements WarpAdapter {
   constructor(
     private intents: Record<string, IntentWeights>,
     private inputDim: number,
-    private outputDim: number
+    private outputDim: number,
   ) {
     // どんな環境（非対称行列など）でも確実に推論を継続できるよう独自のJSフォールバックを初期化
     for (const [key, val] of Object.entries(this.intents)) {
-      this.fallbackMatrices[key] = Array.isArray(val.matrix[0]) 
-        ? flattenMatrix(val.matrix as number[][], this.outputDim, this.inputDim, `Intent '${key}'`)
+      this.fallbackMatrices[key] = Array.isArray(val.matrix[0])
+        ? flattenMatrix(
+            val.matrix as number[][],
+            this.outputDim,
+            this.inputDim,
+            `Intent '${key}'`,
+          )
         : new Float32Array(val.matrix as number[]);
       this.fallbackBiases[key] = new Float32Array(val.bias);
     }
   }
 
   public async init(): Promise<void> {
-    if (typeof navigator === 'undefined' || !navigator.gpu) {
+    if (typeof navigator === "undefined" || !navigator.gpu) {
       console.warn("WebGPU is not supported on this device/browser.");
       return;
     }
@@ -82,10 +94,10 @@ export class WebGpuIntentAdapter implements WarpAdapter {
 
     const shaderModule = this.device.createShaderModule({ code: shaderCode });
     this.pipeline = this.device.createComputePipeline({
-      layout: 'auto',
+      layout: "auto",
       compute: {
         module: shaderModule,
-        entryPoint: 'main',
+        entryPoint: "main",
       },
     });
   }
@@ -106,35 +118,42 @@ export class WebGpuIntentAdapter implements WarpAdapter {
     return this.fallbackTune(vector, context || "default");
   }
 
-  public async tuneBatchAsync(vectors: InputVector[], context?: string): Promise<TransformOutput[]> {
+  public async tuneBatchAsync(
+    vectors: InputVector[],
+    context?: string,
+  ): Promise<TransformOutput[]> {
     if (!this.device || !this.pipeline) {
       // デバイスが存在しない（初期化失敗、または未サポート）場合は自動的にJSへフォールバック
-      return vectors.map(v => this.fallbackTune(v, context || "default"));
+      return vectors.map((v) => this.fallbackTune(v, context || "default"));
     }
 
     const intent = context || "default";
     const weights = this.intents[intent];
     if (!weights) {
       // Return original vectors if intent not found
-      return vectors.map(v => v instanceof Float32Array ? v : new Float32Array(v));
+      return vectors.map((v) =>
+        v instanceof Float32Array ? v : new Float32Array(v),
+      );
     }
 
     const batchSize = vectors.length;
-    
+
     // Prepare flattened matrix
     const flatMatrix = new Float32Array(this.inputDim * this.outputDim);
     if (Array.isArray(weights.matrix[0])) {
       for (let i = 0; i < this.outputDim; i++) {
         for (let j = 0; j < this.inputDim; j++) {
-          flatMatrix[i * this.inputDim + j] = (weights.matrix as number[][])[i][j];
+          flatMatrix[i * this.inputDim + j] = (weights.matrix as number[][])[i][
+            j
+          ];
         }
       }
     } else {
       flatMatrix.set(weights.matrix as number[]);
     }
-    
+
     const bias = new Float32Array(weights.bias);
-    
+
     // Prepare input buffer
     const flatInput = new Float32Array(batchSize * this.inputDim);
     for (let i = 0; i < batchSize; i++) {
@@ -146,7 +165,11 @@ export class WebGpuIntentAdapter implements WarpAdapter {
       size: flatInput.byteLength + 4, // +4 for size field
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     });
-    this.device.queue.writeBuffer(inputBuffer, 0, new Float32Array([flatInput.length]));
+    this.device.queue.writeBuffer(
+      inputBuffer,
+      0,
+      new Float32Array([flatInput.length]),
+    );
     this.device.queue.writeBuffer(inputBuffer, 4, flatInput);
 
     // Matrix Buffer
@@ -154,7 +177,11 @@ export class WebGpuIntentAdapter implements WarpAdapter {
       size: flatMatrix.byteLength + 8, // +8 for size.x, size.y
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     });
-    this.device.queue.writeBuffer(matrixBuffer, 0, new Float32Array([this.inputDim, this.outputDim]));
+    this.device.queue.writeBuffer(
+      matrixBuffer,
+      0,
+      new Float32Array([this.inputDim, this.outputDim]),
+    );
     this.device.queue.writeBuffer(matrixBuffer, 8, flatMatrix);
 
     // Bias Buffer
@@ -162,7 +189,11 @@ export class WebGpuIntentAdapter implements WarpAdapter {
       size: bias.byteLength + 4,
       usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     });
-    this.device.queue.writeBuffer(biasBuffer, 0, new Float32Array([bias.length]));
+    this.device.queue.writeBuffer(
+      biasBuffer,
+      0,
+      new Float32Array([bias.length]),
+    );
     this.device.queue.writeBuffer(biasBuffer, 4, bias);
 
     // Output Buffer
@@ -198,7 +229,13 @@ export class WebGpuIntentAdapter implements WarpAdapter {
       usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
     });
 
-    commandEncoder.copyBufferToBuffer(outputBuffer, 0, readBuffer, 0, outputBufferSize);
+    commandEncoder.copyBufferToBuffer(
+      outputBuffer,
+      0,
+      readBuffer,
+      0,
+      outputBufferSize,
+    );
     this.device.queue.submit([commandEncoder.finish()]);
 
     await readBuffer.mapAsync(GPUMapMode.READ);
@@ -215,7 +252,13 @@ export class WebGpuIntentAdapter implements WarpAdapter {
 
     const results: TransformOutput[] = [];
     for (let i = 0; i < batchSize; i++) {
-      results.push(new Float32Array(outputData.buffer, i * this.outputDim * 4, this.outputDim));
+      results.push(
+        new Float32Array(
+          outputData.buffer,
+          i * this.outputDim * 4,
+          this.outputDim,
+        ),
+      );
     }
 
     return results;
@@ -230,6 +273,10 @@ export class WebGpuIntentAdapter implements WarpAdapter {
   }
 
   static importState(state: any): WebGpuIntentAdapter {
-    return new WebGpuIntentAdapter(state.intents, state.inputDim, state.outputDim);
+    return new WebGpuIntentAdapter(
+      state.intents,
+      state.inputDim,
+      state.outputDim,
+    );
   }
 }

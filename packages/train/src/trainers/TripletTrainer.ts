@@ -65,7 +65,7 @@ export class TripletTrainer extends BaseTrainer<TripletExample, IntentWeights> {
     matrix: Float32Array,
     bias: Float32Array,
     example: TripletExample,
-    options?: TripletOnlineOptions
+    options?: TripletOnlineOptions,
   ): number {
     const dim = this.dimension;
     const margin = options?.margin ?? 0.1;
@@ -89,11 +89,11 @@ export class TripletTrainer extends BaseTrainer<TripletExample, IntentWeights> {
     lr: number,
     reg: number,
     t: number,
-    options?: TripletOnlineOptions
+    options?: TripletOnlineOptions,
   ): void {
     const dim = this.dimension;
     const margin = options?.margin ?? 0.1;
-    
+
     const warpedAnchor = new Float32Array(dim);
     applyAffine(matrix, bias, example.anchor, warpedAnchor, dim);
 
@@ -119,7 +119,7 @@ export class TripletTrainer extends BaseTrainer<TripletExample, IntentWeights> {
         outputGradients,
         lr,
         reg,
-        t
+        t,
       );
     }
   }
@@ -176,7 +176,7 @@ export class TripletTrainer extends BaseTrainer<TripletExample, IntentWeights> {
       learningRate,
       regularization,
       this.t,
-      options
+      options,
     );
 
     return this.toWeightsWithRouting(flatMatrix, bias, currentWeights);

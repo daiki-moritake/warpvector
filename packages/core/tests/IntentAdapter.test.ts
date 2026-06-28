@@ -96,9 +96,7 @@ describe("IntentAdapter Core Logic", () => {
 
     expect(() => {
       new IntentAdapter(invalidIntents);
-    }).toThrow(
-      "Dimension mismatch",
-    );
+    }).toThrow("Dimension mismatch");
   });
 
   test("バッチ処理(tuneBatch)が正しく適用されること", () => {
@@ -130,9 +128,7 @@ describe("IntentAdapter Core Logic", () => {
 
     expect(() => {
       new IntentAdapter(invalidIntents);
-    }).toThrow(
-      "Dimension mismatch",
-    );
+    }).toThrow("Dimension mismatch");
   });
 
   test("動的にインテントの追加と削除ができること", () => {

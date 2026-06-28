@@ -23,8 +23,4 @@
 export { ColbertAdapter } from "@warpvector/rerank";
 export { VsaAdapter, type VsaOptions } from "@warpvector/extras";
 export { AnomalyDetectionAdapter } from "@warpvector/extras";
-export {
-  TaskArithmetic,
-  type TaskConfig,
-} from "@warpvector/extras";
-
+export { TaskArithmetic, type TaskConfig } from "@warpvector/extras";

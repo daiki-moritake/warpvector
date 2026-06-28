@@ -23,22 +23,22 @@ export class SafeQuantizationAdapter implements FinalStageAdapter {
     if (arguments.length > 1) {
       throw new Error(
         "[WarpVector DX Error] SafeQuantizationAdapter のコンストラクタ引数が変更されました。\n" +
-        "次元数 (dim) などを第1引数に渡す必要はありません。すべての設定は1つのオブジェクトで渡してください。\n" +
-        "例: new SafeQuantizationAdapter({ type: 'int8', dim: 1536, dynamic: true })"
+          "次元数 (dim) などを第1引数に渡す必要はありません。すべての設定は1つのオブジェクトで渡してください。\n" +
+          "例: new SafeQuantizationAdapter({ type: 'int8', dim: 1536, dynamic: true })",
       );
     }
-    
+
     // 古いプロパティ名への警告
-    if (options && 'levels' in options) {
+    if (options && "levels" in options) {
       throw new Error(
         "[WarpVector DX Error] SafeQuantizationAdapter のプロパティ 'levels' は廃止されました。\n" +
-        "'type': 'int8' または 'binary' を使用してください。"
+          "'type': 'int8' または 'binary' を使用してください。",
       );
     }
-    if (options && 'adaptiveRange' in options) {
+    if (options && "adaptiveRange" in options) {
       throw new Error(
         "[WarpVector DX Error] SafeQuantizationAdapter のプロパティ 'adaptiveRange' は 'dynamic' に変更されました。\n" +
-        "例: new SafeQuantizationAdapter({ type: 'int8', dim: 1536, dynamic: true })"
+          "例: new SafeQuantizationAdapter({ type: 'int8', dim: 1536, dynamic: true })",
       );
     }
 
@@ -50,10 +50,15 @@ export class SafeQuantizationAdapter implements FinalStageAdapter {
     // QuantizationAdapter は初期化不要
   }
 
+  public tune(vector: Float32Array): Float32Array {
+    // No-op for quantization
+    return vector;
+  }
+
   public encode(vector: Float32Array): OutputVector {
     const len = vector.length;
     const safeVector = new Float32Array(len);
-    
+
     // safe threshold for specific quantization types
     let defaultClip = 100.0;
     if (this.options.type === "int8") {
@@ -70,14 +75,14 @@ export class SafeQuantizationAdapter implements FinalStageAdapter {
       if (Number.isNaN(val) || !Number.isFinite(val)) {
         val = 0.0;
       }
-      
+
       // Clipping
       if (val > clipThreshold) {
         val = clipThreshold;
       } else if (val < -clipThreshold) {
         val = -clipThreshold;
       }
-      
+
       safeVector[i] = val;
     }
 
@@ -88,7 +93,7 @@ export class SafeQuantizationAdapter implements FinalStageAdapter {
   public exportState(): string {
     return JSON.stringify({
       __version: "1.0",
-      ...this.options
+      ...this.options,
     });
   }
 

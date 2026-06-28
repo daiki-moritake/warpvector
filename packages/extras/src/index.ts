@@ -49,4 +49,3 @@ WarpPipeline.registerFinalStage("QuantizationAdapter", (state) =>
 WarpPipeline.registerFinalStage("SafeQuantizationAdapter", (state) =>
   SafeQuantizationAdapter.importState(state as string),
 );
-

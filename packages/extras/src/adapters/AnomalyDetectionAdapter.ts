@@ -1,14 +1,18 @@
-import { type WarpAdapter, type InputVector, type TransformOutput } from "@warpvector/core";
+import {
+  type WarpAdapter,
+  type InputVector,
+  type TransformOutput,
+} from "@warpvector/core";
 
 export interface AnomalyDetectionConfig {
-  /** 
+  /**
    * 動作モード。
    * 'strict': 異常を検知した場合にエラーをスローする。
    * 'safe': 異常を検知した場合、クリッピングやゼロ埋めを行って安全なベクトルとして通す。
    * デフォルトは 'strict'
    */
   mode?: "strict" | "safe";
-  
+
   /**
    * ベクトルの要素の絶対値の許容最大値。
    * これを超える値は異常とみなされます。デフォルトは 100.0。
@@ -28,16 +32,16 @@ export class AnomalyDetectionAdapter implements WarpAdapter {
     if (arguments.length > 1) {
       throw new Error(
         "[WarpVector DX Error] AnomalyDetectionAdapter のコンストラクタ引数が変更されました。\n" +
-        "次元数 (dim) などを第1引数に渡す必要はありません。すべての設定は1つのオブジェクトで渡してください。\n" +
-        "例: new AnomalyDetectionAdapter({ mode: 'safe', maxValue: 3.0 })"
+          "次元数 (dim) などを第1引数に渡す必要はありません。すべての設定は1つのオブジェクトで渡してください。\n" +
+          "例: new AnomalyDetectionAdapter({ mode: 'safe', maxValue: 3.0 })",
       );
     }
-    
+
     // threshold のような古いプロパティ名への警告
-    if (config && 'threshold' in config) {
+    if (config && "threshold" in config) {
       throw new Error(
         "[WarpVector DX Error] AnomalyDetectionAdapter のプロパティ 'threshold' は 'maxValue' に変更されました。\n" +
-        "例: new AnomalyDetectionAdapter({ maxValue: 3.0 })"
+          "例: new AnomalyDetectionAdapter({ maxValue: 3.0 })",
       );
     }
 
@@ -77,7 +81,9 @@ export class AnomalyDetectionAdapter implements WarpAdapter {
     }
 
     if (this.mode === "strict") {
-      throw new Error(`AnomalyDetectionAdapter [STRICT MODE]: ${anomalyReason}`);
+      throw new Error(
+        `AnomalyDetectionAdapter [STRICT MODE]: ${anomalyReason}`,
+      );
     }
 
     // safe mode: クリップ処理とNaN/Infinityのゼロ埋め
@@ -98,10 +104,10 @@ export class AnomalyDetectionAdapter implements WarpAdapter {
   }
 
   public exportState(): string {
-    return JSON.stringify({ 
+    return JSON.stringify({
       __version: "1.0",
-      mode: this.mode, 
-      maxValue: this.maxValue 
+      mode: this.mode,
+      maxValue: this.maxValue,
     });
   }
 

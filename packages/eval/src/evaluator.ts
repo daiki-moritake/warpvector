@@ -14,9 +14,11 @@ export interface EvalConfig {
   corpus: CorpusItem[];
   dataset: EvalQuery[];
   kList: number[];
-  pipeline?: {
-    run: (vector: any, options?: any) => any;
-  } | ((vector: any) => any);
+  pipeline?:
+    | {
+        run: (vector: any, options?: any) => any;
+      }
+    | ((vector: any) => any);
   intentName?: string;
 }
 
@@ -32,12 +34,14 @@ export interface EvalReport {
   warped: MetricSummary;
 }
 
-
-
 /**
  * Recall@K を計算します。
  */
-export function calculateRecall(retrievedIds: string[], expectedIds: string[], k: number): number {
+export function calculateRecall(
+  retrievedIds: string[],
+  expectedIds: string[],
+  k: number,
+): number {
   if (expectedIds.length === 0) return 0;
   const topK = retrievedIds.slice(0, k);
   const expectedSet = new Set(expectedIds);
@@ -53,7 +57,10 @@ export function calculateRecall(retrievedIds: string[], expectedIds: string[], k
 /**
  * MRR (Mean Reciprocal Rank) を計算します。
  */
-export function calculateMRR(retrievedIds: string[], expectedIds: string[]): number {
+export function calculateMRR(
+  retrievedIds: string[],
+  expectedIds: string[],
+): number {
   if (expectedIds.length === 0) return 0;
   const expectedSet = new Set(expectedIds);
   for (let i = 0; i < retrievedIds.length; i++) {
@@ -67,11 +74,15 @@ export function calculateMRR(retrievedIds: string[], expectedIds: string[]): num
 /**
  * NDCG@K を計算します。
  */
-export function calculateNDCG(retrievedIds: string[], expectedIds: string[], k: number): number {
+export function calculateNDCG(
+  retrievedIds: string[],
+  expectedIds: string[],
+  k: number,
+): number {
   if (expectedIds.length === 0) return 0;
   const topK = retrievedIds.slice(0, k);
   const expectedSet = new Set(expectedIds);
-  
+
   let dcg = 0;
   for (let i = 0; i < topK.length; i++) {
     if (expectedSet.has(topK[i])) {
@@ -94,9 +105,12 @@ export function calculateNDCG(retrievedIds: string[], expectedIds: string[], k: 
  */
 export function searchInMemory(
   queryVec: number[] | Float32Array | Int8Array | Uint8Array,
-  corpus: { id: string; vector: number[] | Float32Array | Int8Array | Uint8Array }[]
+  corpus: {
+    id: string;
+    vector: number[] | Float32Array | Int8Array | Uint8Array;
+  }[],
 ): { id: string; score: number }[] {
-  const results = corpus.map(item => {
+  const results = corpus.map((item) => {
     const score = computeVectorScore(queryVec, item.vector);
     return { id: item.id, score };
   });
@@ -107,21 +121,23 @@ export function searchInMemory(
 /**
  * Warpvector を適用した場合と適用しない場合の RAG 検索精度を評価・比較します。
  */
-export async function evaluatePipeline(config: EvalConfig): Promise<EvalReport> {
+export async function evaluatePipeline(
+  config: EvalConfig,
+): Promise<EvalReport> {
   const kList = config.kList.length > 0 ? config.kList : [1, 3, 5, 10];
   const maxK = Math.max(...kList);
 
   // 1. バニラ（オリジナル）コーパスの作成
-  const vanillaCorpus = config.corpus.map(item => ({
+  const vanillaCorpus = config.corpus.map((item) => ({
     id: item.id,
-    vector: item.vector
+    vector: item.vector,
   }));
 
   // 2. パイプラインを適用したワープ済みのコーパスの作成
   let warpedCorpus = vanillaCorpus;
   const pipeline = config.pipeline;
   if (pipeline) {
-    warpedCorpus = config.corpus.map(item => {
+    warpedCorpus = config.corpus.map((item) => {
       let warpedVec;
       if (typeof pipeline === "function") {
         warpedVec = pipeline(item.vector);
@@ -130,7 +146,7 @@ export async function evaluatePipeline(config: EvalConfig): Promise<EvalReport> 
       }
       return {
         id: item.id,
-        vector: warpedVec
+        vector: warpedVec,
       };
     });
   }
@@ -140,14 +156,14 @@ export async function evaluatePipeline(config: EvalConfig): Promise<EvalReport> 
     recall: {} as Record<number, number>,
     ndcg: {} as Record<number, number>,
     mrr: 0,
-    avgLatencyMs: 0
+    avgLatencyMs: 0,
   };
 
   const warpedMetrics = {
     recall: {} as Record<number, number>,
     ndcg: {} as Record<number, number>,
     mrr: 0,
-    avgLatencyMs: 0
+    avgLatencyMs: 0,
   };
 
   for (const k of kList) {
@@ -168,13 +184,21 @@ export async function evaluatePipeline(config: EvalConfig): Promise<EvalReport> 
     const t0 = performance.now();
     const vanillaResults = searchInMemory(vanillaQuery, vanillaCorpus);
     const t1 = performance.now();
-    totalVanillaLatency += (t1 - t0);
+    totalVanillaLatency += t1 - t0;
 
-    const vanillaIds = vanillaResults.map(r => r.id);
+    const vanillaIds = vanillaResults.map((r) => r.id);
     vanillaMetrics.mrr += calculateMRR(vanillaIds, item.expectedDocIds);
     for (const k of kList) {
-      vanillaMetrics.recall[k] += calculateRecall(vanillaIds, item.expectedDocIds, k);
-      vanillaMetrics.ndcg[k] += calculateNDCG(vanillaIds, item.expectedDocIds, k);
+      vanillaMetrics.recall[k] += calculateRecall(
+        vanillaIds,
+        item.expectedDocIds,
+        k,
+      );
+      vanillaMetrics.ndcg[k] += calculateNDCG(
+        vanillaIds,
+        item.expectedDocIds,
+        k,
+      );
     }
 
     // --- Warped 評価 ---
@@ -189,12 +213,16 @@ export async function evaluatePipeline(config: EvalConfig): Promise<EvalReport> 
     }
     const warpedResults = searchInMemory(warpedQuery, warpedCorpus);
     const tWarp1 = performance.now();
-    totalWarpedLatency += (tWarp1 - tWarp0);
+    totalWarpedLatency += tWarp1 - tWarp0;
 
-    const warpedIds = warpedResults.map(r => r.id);
+    const warpedIds = warpedResults.map((r) => r.id);
     warpedMetrics.mrr += calculateMRR(warpedIds, item.expectedDocIds);
     for (const k of kList) {
-      warpedMetrics.recall[k] += calculateRecall(warpedIds, item.expectedDocIds, k);
+      warpedMetrics.recall[k] += calculateRecall(
+        warpedIds,
+        item.expectedDocIds,
+        k,
+      );
       warpedMetrics.ndcg[k] += calculateNDCG(warpedIds, item.expectedDocIds, k);
     }
   }
@@ -216,6 +244,6 @@ export async function evaluatePipeline(config: EvalConfig): Promise<EvalReport> 
 
   return {
     vanilla: vanillaMetrics,
-    warped: warpedMetrics
+    warped: warpedMetrics,
   };
 }

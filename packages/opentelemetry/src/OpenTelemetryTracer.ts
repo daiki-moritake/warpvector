@@ -1,4 +1,9 @@
-import { trace, context, Tracer as OTelTracer, SpanStatusCode } from "@opentelemetry/api";
+import {
+  trace,
+  context,
+  Tracer as OTelTracer,
+  SpanStatusCode,
+} from "@opentelemetry/api";
 import { WarpTracer, SpanAttributes, WarpMetrics } from "@warpvector/core";
 
 export interface OpenTelemetryTracerOptions {
@@ -17,14 +22,10 @@ export class OpenTelemetryTracer extends WarpTracer {
   /**
    * Overrides the trace method to create an OpenTelemetry span.
    */
-  trace<T>(
-    operationName: string,
-    attributes: SpanAttributes,
-    fn: () => T,
-  ): T {
+  trace<T>(operationName: string, attributes: SpanAttributes, fn: () => T): T {
     return this.tracer.startActiveSpan(operationName, (span) => {
       span.setAttributes(attributes);
-      
+
       try {
         const result = super.trace(operationName, attributes, fn);
         span.setStatus({ code: SpanStatusCode.OK });
@@ -52,7 +53,7 @@ export class OpenTelemetryTracer extends WarpTracer {
   ): Promise<T> {
     return this.tracer.startActiveSpan(operationName, async (span) => {
       span.setAttributes(attributes);
-      
+
       try {
         const result = await super.traceAsync(operationName, attributes, fn);
         span.setStatus({ code: SpanStatusCode.OK });

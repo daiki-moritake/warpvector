@@ -11,7 +11,7 @@ export interface IsomorphicWorker {
  */
 export function createWorker(scriptPath: string | URL): IsomorphicWorker {
   // Check for Web Worker environment (Browser)
-  if (typeof Worker !== 'undefined') {
+  if (typeof Worker !== "undefined") {
     const worker = new Worker(scriptPath);
     return {
       postMessage: (msg, transfer) => worker.postMessage(msg, transfer || []),
@@ -21,25 +21,31 @@ export function createWorker(scriptPath: string | URL): IsomorphicWorker {
       onError: (cb) => {
         worker.onerror = (e) => cb(new Error(e.message));
       },
-      terminate: () => worker.terminate()
+      terminate: () => worker.terminate(),
     };
   }
 
   // Check for Node.js environment
-  if (typeof process !== 'undefined' && process.versions && process.versions.node) {
+  if (
+    typeof process !== "undefined" &&
+    process.versions &&
+    process.versions.node
+  ) {
     // Dynamically require worker_threads to avoid breaking browser builds
-     
-    const { Worker: NodeWorker } = require('worker_threads');
+
+    const { Worker: NodeWorker } = require("worker_threads");
     const worker = new NodeWorker(scriptPath);
     return {
       postMessage: (msg, transfer) => worker.postMessage(msg, transfer),
-      onMessage: (cb) => worker.on('message', cb),
-      onError: (cb) => worker.on('error', cb),
+      onMessage: (cb) => worker.on("message", cb),
+      onError: (cb) => worker.on("error", cb),
       terminate: async () => {
         await worker.terminate();
-      }
+      },
     };
   }
 
-  throw new Error("Unsupported environment: Neither Web Worker nor Node.js worker_threads are available.");
+  throw new Error(
+    "Unsupported environment: Neither Web Worker nor Node.js worker_threads are available.",
+  );
 }

@@ -9,17 +9,21 @@ export class WarpWorkerHandler {
    * Connects the worker to the parent.
    */
   public listen() {
-    if (typeof process !== 'undefined' && process.versions && process.versions.node) {
+    if (
+      typeof process !== "undefined" &&
+      process.versions &&
+      process.versions.node
+    ) {
       // Node.js worker
-       
-      const { parentPort } = require('worker_threads');
+
+      const { parentPort } = require("worker_threads");
       if (parentPort) {
-        parentPort.on('message', async (msg: WorkerMessage) => {
+        parentPort.on("message", async (msg: WorkerMessage) => {
           const response = await this.handleMessage(msg);
           parentPort.postMessage(response);
         });
       }
-    } else if (typeof self !== 'undefined') {
+    } else if (typeof self !== "undefined") {
       // Web Worker
       self.onmessage = async (e: MessageEvent) => {
         const msg = e.data as WorkerMessage;

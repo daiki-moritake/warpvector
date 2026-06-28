@@ -12,41 +12,43 @@ describe("CrossEncoderTrainer", () => {
     trainer.addExample({
       query: [1, 0],
       document: [1, 0],
-      score: 1.0
+      score: 1.0,
     });
     trainer.addExample({
       query: [0, 1],
       document: [0, 1],
-      score: 1.0
+      score: 1.0,
     });
     trainer.addExample({
       query: [1, 0],
       document: [-1, 0],
-      score: 0.0
+      score: 0.0,
     });
     trainer.addExample({
       query: [0, 1],
       document: [0, -1],
-      score: 0.0
+      score: 0.0,
     });
 
     const weights = await trainer.train({
       epochs: 500, // 十分な学習回数
       learningRate: 0.05,
-      regularization: 0.0
+      regularization: 0.0,
     });
 
     expect(weights.matrix).toBeDefined();
-    expect(weights.matrix.length).toBe(4); // (queryDim + docDim) * targetDim = (2 + 2) * 1 = 4
+    const matrix = weights.matrix as Float32Array;
+    expect(matrix.length).toBe(4); // (queryDim + docDim) * targetDim = (2 + 2) * 1 = 4
     expect(weights.bias).toBeDefined();
-    expect(weights.bias.length).toBe(1);
+    const bias = weights.bias as Float32Array;
+    expect(bias.length).toBe(1);
 
     // テスト：学習した重みを使って予測
     const predict = (q: number[], d: number[]) => {
       const input = [...q, ...d];
-      let score = weights.bias[0];
+      let score = bias[0];
       for (let i = 0; i < input.length; i++) {
-        score += input[i] * weights.matrix[i];
+        score += input[i] * matrix[i];
       }
       return score;
     };

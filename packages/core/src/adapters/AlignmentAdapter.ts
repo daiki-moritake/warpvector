@@ -73,10 +73,12 @@ export class AlignmentAdapter extends ProjectionAdapter {
         proj.matrix,
         `projections.${name}.matrix`,
       );
-      
+
       const weights: ProjectionWeights = { matrix: new Float32Array(matrix) };
       if (proj.bias) {
-        weights.bias = new Float32Array(assertNumberArray(proj.bias, `projections.${name}.bias`));
+        weights.bias = new Float32Array(
+          assertNumberArray(proj.bias, `projections.${name}.bias`),
+        );
       }
       adapter.addAlignment(name, weights);
     }

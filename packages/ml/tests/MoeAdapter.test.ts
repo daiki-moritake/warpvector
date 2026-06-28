@@ -107,7 +107,7 @@ describe("MoeAdapter", () => {
     expect(parsed.experts[0].id).toBe("expert1");
 
     const restoredMoe = MoeAdapter.importState(state);
-    
+
     // 復元後も同じように動作するか
     const out = restoredMoe.tune([5], "test");
     expect(out[0]).toBeCloseTo(10, 5);
@@ -118,9 +118,7 @@ describe("MoeAdapter", () => {
       test: { matrix: [[2]], bias: [0] },
     });
     const moe = new MoeAdapter({
-      experts: [
-        { id: "e1", adapter: expert1 }
-      ]
+      experts: [{ id: "e1", adapter: expert1 }],
     });
 
     const out = moe.tuneBatch([[1], [2], [3]], "test");

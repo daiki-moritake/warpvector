@@ -8,7 +8,7 @@ import { evaluatePipeline, CorpusItem, EvalQuery } from "./evaluator";
 
 // 評価に必要なアダプタを事前に登録
 WarpPipeline.registerFinalStage("QuantizationAdapter", (state) =>
-  QuantizationAdapter.importState(state as any)
+  QuantizationAdapter.importState(state as any),
 );
 
 interface ConfigFile {
@@ -42,19 +42,29 @@ function formatDiff(value: number): string {
 }
 
 function parseCSV(csvContent: string): any[] {
-  const lines = csvContent.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+  const lines = csvContent
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
   if (lines.length === 0) return [];
-  const headers = lines[0].split(',').map(h => h.trim());
+  const headers = lines[0].split(",").map((h) => h.trim());
   const result = [];
   for (let i = 1; i < lines.length; i++) {
-    const values = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(v => v.replace(/^"|"$/g, '').trim());
+    const values = lines[i]
+      .split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/)
+      .map((v) => v.replace(/^"|"$/g, "").trim());
     const obj: any = {};
     headers.forEach((header, index) => {
       let val: any = values[index];
-      if (val && val.startsWith('[') && val.endsWith(']')) {
-        try { val = JSON.parse(val); } catch (e) {}
-      } else if (header === 'expectedIds' && typeof val === 'string') {
-        val = val.split(';').map(s => s.trim()).filter(s => s.length > 0);
+      if (val && val.startsWith("[") && val.endsWith("]")) {
+        try {
+          val = JSON.parse(val);
+        } catch (e) {}
+      } else if (header === "expectedIds" && typeof val === "string") {
+        val = val
+          .split(";")
+          .map((s) => s.trim())
+          .filter((s) => s.length > 0);
       }
       obj[header] = val;
     });
@@ -67,13 +77,14 @@ function loadDataFile(filePath: string): any {
   const content = fs.readFileSync(filePath, "utf-8");
   const ext = path.extname(filePath).toLowerCase();
 
-  if (ext === '.csv') {
+  if (ext === ".csv") {
     return parseCSV(content);
-  } else if (ext === '.jsonl') {
-    return content.split('\n')
-      .map(line => line.trim())
-      .filter(line => line.length > 0)
-      .map(line => JSON.parse(line));
+  } else if (ext === ".jsonl") {
+    return content
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0)
+      .map((line) => JSON.parse(line));
   } else {
     return JSON.parse(content);
   }
@@ -96,25 +107,31 @@ async function main() {
   const resolvedConfigPath = path.resolve(process.cwd(), configPath);
 
   if (!fs.existsSync(resolvedConfigPath)) {
-    console.error(`Error: Configuration file not found at ${resolvedConfigPath}`);
+    console.error(
+      `Error: Configuration file not found at ${resolvedConfigPath}`,
+    );
     process.exit(1);
   }
 
   console.log(`Loading configuration from: ${resolvedConfigPath}`);
   const configDir = path.dirname(resolvedConfigPath);
-  
+
   let config: ConfigFile;
   try {
     const rawConfig = fs.readFileSync(resolvedConfigPath, "utf-8");
     config = JSON.parse(rawConfig);
   } catch (err) {
-    console.error(`Error parsing configuration file: ${(err as Error).message}`);
+    console.error(
+      `Error parsing configuration file: ${(err as Error).message}`,
+    );
     process.exit(1);
   }
 
   // 必須ファイルの検証
   if (!config.corpusPath || !config.datasetPath) {
-    console.error("Error: 'corpusPath' and 'datasetPath' are required in the configuration file.");
+    console.error(
+      "Error: 'corpusPath' and 'datasetPath' are required in the configuration file.",
+    );
     process.exit(1);
   }
 
@@ -147,18 +164,27 @@ async function main() {
 
   let pipeline: WarpPipeline | undefined;
   if (config.pipelineStatePath) {
-    const resolvedPipelineStatePath = path.resolve(configDir, config.pipelineStatePath);
+    const resolvedPipelineStatePath = path.resolve(
+      configDir,
+      config.pipelineStatePath,
+    );
     if (!fs.existsSync(resolvedPipelineStatePath)) {
-      console.error(`Error: Pipeline state file not found at ${resolvedPipelineStatePath}`);
+      console.error(
+        `Error: Pipeline state file not found at ${resolvedPipelineStatePath}`,
+      );
       process.exit(1);
     }
     try {
-      const pipelineJson = JSON.parse(fs.readFileSync(resolvedPipelineStatePath, "utf-8"));
+      const pipelineJson = JSON.parse(
+        fs.readFileSync(resolvedPipelineStatePath, "utf-8"),
+      );
       pipeline = WarpPipeline.importState(pipelineJson);
       await pipeline.init();
       console.log("Pipeline restored and initialized successfully.");
     } catch (err) {
-      console.error(`Error restoring pipeline state: ${(err as Error).message}`);
+      console.error(
+        `Error restoring pipeline state: ${(err as Error).message}`,
+      );
       process.exit(1);
     }
   }
@@ -172,7 +198,7 @@ async function main() {
     dataset,
     kList,
     pipeline,
-    intentName
+    intentName,
   });
 
   // 結果の表示
@@ -186,27 +212,38 @@ async function main() {
   }
   if (pipeline) {
     console.log(` Pipeline Steps:`);
-    console.log(pipeline.inspect().split("\n").map(l => "   " + l).join("\n"));
+    console.log(
+      pipeline
+        .inspect()
+        .split("\n")
+        .map((l) => "   " + l)
+        .join("\n"),
+    );
   } else {
     console.log(" Pipeline     : None (Vanilla search comparison only)");
   }
   console.log("=".repeat(70));
   console.log(
     " " +
-    "Metric".padEnd(12) +
-    " | " +
-    "Vanilla".padEnd(10) +
-    " | " +
-    "Warped".padEnd(10) +
-    " | " +
-    "Improvement (Diff)"
+      "Metric".padEnd(12) +
+      " | " +
+      "Vanilla".padEnd(10) +
+      " | " +
+      "Warped".padEnd(10) +
+      " | " +
+      "Improvement (Diff)",
   );
   console.log("-".repeat(70));
 
-  const showMetricRow = (label: string, vanVal: number, warpVal: number, isLatency = false) => {
+  const showMetricRow = (
+    label: string,
+    vanVal: number,
+    warpVal: number,
+    isLatency = false,
+  ) => {
     const diff = warpVal - vanVal;
     const impPct = vanVal !== 0 ? (diff / vanVal) * 100 : 0;
-    
+
     // 遅延の場合は低い方が良いので、符号や計算が逆になるが、単純な増減率として表示し
     // 括弧内でミリ秒を表示する
     let impStr = "";
@@ -224,18 +261,22 @@ async function main() {
 
     console.log(
       " " +
-      label.padEnd(12) +
-      " | " +
-      vanStr.padEnd(10) +
-      " | " +
-      warpStr.padEnd(10) +
-      " | " +
-      impStr
+        label.padEnd(12) +
+        " | " +
+        vanStr.padEnd(10) +
+        " | " +
+        warpStr.padEnd(10) +
+        " | " +
+        impStr,
     );
   };
 
   for (const k of kList) {
-    showMetricRow(`Recall@${k}`, report.vanilla.recall[k], report.warped.recall[k]);
+    showMetricRow(
+      `Recall@${k}`,
+      report.vanilla.recall[k],
+      report.warped.recall[k],
+    );
   }
   console.log("-".repeat(70));
   for (const k of kList) {
@@ -244,11 +285,16 @@ async function main() {
   console.log("-".repeat(70));
   showMetricRow("MRR", report.vanilla.mrr, report.warped.mrr);
   console.log("-".repeat(70));
-  showMetricRow("Avg Latency", report.vanilla.avgLatencyMs, report.warped.avgLatencyMs, true);
+  showMetricRow(
+    "Avg Latency",
+    report.vanilla.avgLatencyMs,
+    report.warped.avgLatencyMs,
+    true,
+  );
   console.log("=".repeat(70) + "\n");
 }
 
-main().catch(err => {
+main().catch((err) => {
   console.error("Evaluation failed with error:", err);
   process.exit(1);
 });

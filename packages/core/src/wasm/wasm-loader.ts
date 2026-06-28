@@ -132,7 +132,7 @@ export const wasmMutex = new WasmMutex();
 export function withWasmMemoryStack<T>(fn: () => T): T {
   const ctx = globalWasmPool.getCurrentSyncContext();
   if (!ctx) return fn();
-  
+
   const initialOffset = ctx.offset;
   try {
     return fn();

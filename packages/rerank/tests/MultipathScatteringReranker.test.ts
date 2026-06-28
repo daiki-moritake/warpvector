@@ -1,9 +1,12 @@
-import { expect, test, describe } from "vitest";
+import { expect, test, describe } from "bun:test";
 import { MultipathScatteringReranker } from "../src/rerankers/MultipathScatteringReranker";
 
 describe("MultipathScatteringReranker", () => {
   test("should initialize correctly", () => {
-    const reranker = new MultipathScatteringReranker({ alpha: 0.8, threshold: 0.1 });
+    const reranker = new MultipathScatteringReranker({
+      alpha: 0.8,
+      threshold: 0.1,
+    });
     expect(reranker.alpha).toBe(0.8);
     expect(reranker.threshold).toBe(0.1);
     expect(reranker.maxIterations).toBe(20);
@@ -12,18 +15,20 @@ describe("MultipathScatteringReranker", () => {
   test("should throw on invalid parameters", () => {
     expect(() => new MultipathScatteringReranker({ alpha: 1.5 })).toThrow();
     expect(() => new MultipathScatteringReranker({ alpha: -0.1 })).toThrow();
-    expect(() => new MultipathScatteringReranker({ maxIterations: 0 })).toThrow();
+    expect(
+      () => new MultipathScatteringReranker({ maxIterations: 0 }),
+    ).toThrow();
   });
 
   test("should amplify true hub source based on multipath scattering", () => {
     const reranker = new MultipathScatteringReranker({
       alpha: 0.8,
-      threshold: 0.0
+      threshold: 0.0,
     });
 
     // A hub document (idx: 1) is similar to both idx: 2 and idx: 3.
     // idx: 0 is an isolated document, but happens to have a high initial score.
-    
+
     // vectors representing the relationships
     const candidates = [
       new Float32Array([1, 0, 0, 0]), // isolated (doc 0)
@@ -40,8 +45,8 @@ describe("MultipathScatteringReranker", () => {
 
     // Because of multipath scattering, doc 1 (hub) should gather scores from doc 2 and doc 3
     // and potentially surpass doc 0.
-    const doc0Result = results.find(r => r.originalIndex === 0)!;
-    const doc1Result = results.find(r => r.originalIndex === 1)!;
+    const doc0Result = results.find((r) => r.originalIndex === 0)!;
+    const doc1Result = results.find((r) => r.originalIndex === 1)!;
 
     // The score represents the steady-state probability.
     expect(doc1Result.score).toBeGreaterThan(doc0Result.score);
@@ -50,20 +55,17 @@ describe("MultipathScatteringReranker", () => {
   test("should handle graph with isolated nodes gracefully", () => {
     const reranker = new MultipathScatteringReranker({
       alpha: 0.9,
-      threshold: 0.5
+      threshold: 0.5,
     });
 
-    const candidates = [
-      new Float32Array([1, 0]),
-      new Float32Array([0, 1]),
-    ];
+    const candidates = [new Float32Array([1, 0]), new Float32Array([0, 1])];
     // They are completely orthogonal, so threshold=0.5 makes them isolated.
 
     const initialScores = [0.6, 0.4];
     const results = reranker.rerank(null, candidates, initialScores);
 
-    const doc0Result = results.find(r => r.originalIndex === 0)!;
-    const doc1Result = results.find(r => r.originalIndex === 1)!;
+    const doc0Result = results.find((r) => r.originalIndex === 0)!;
+    const doc1Result = results.find((r) => r.originalIndex === 1)!;
 
     // Relative order should remain the same
     expect(doc0Result.score).toBeGreaterThan(doc1Result.score);

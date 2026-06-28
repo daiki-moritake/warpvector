@@ -1,6 +1,10 @@
-import pc from 'picocolors';
-import { writePackageJson, writeTemplateFile, getRunCommand } from '../scaffold';
-import type { TemplateDefinition } from './types';
+import pc from "picocolors";
+import {
+  writePackageJson,
+  writeTemplateFile,
+  getRunCommand,
+} from "../scaffold";
+import type { TemplateDefinition } from "./types";
 
 const PAGE_TSX = `\
 import { WarpPipeline } from 'warpvector';
@@ -33,43 +37,44 @@ model Document {
 const ENV_EXAMPLE = `DATABASE_URL="postgresql://user:password@localhost:5432/warpvector?schema=public"`;
 
 export const nextPrismaTemplate: TemplateDefinition = {
-  id: 'next-prisma-pgvector',
-  title: pc.bold('Next.js + Prisma + pgvector') + pc.dim(' — Full-stack RAG app'),
-  description: 'Production-ready with PostgreSQL',
+  id: "next-prisma-pgvector",
+  title:
+    pc.bold("Next.js + Prisma + pgvector") + pc.dim(" — Full-stack RAG app"),
+  description: "Production-ready with PostgreSQL",
 
   generate(dir: string, name: string, version: string) {
     writePackageJson(dir, {
       name,
-      version: '0.1.0',
+      version: "0.1.0",
       private: true,
       scripts: {
-        dev: 'next dev',
-        build: 'next build',
-        start: 'next start',
+        dev: "next dev",
+        build: "next build",
+        start: "next start",
       },
       dependencies: {
-        next: '14.2.0',
-        react: '^18',
-        'react-dom': '^18',
-        'warpvector': `^${version}`,
-        '@warpvector/core': `^${version}`,
-        '@warpvector/ml': `^${version}`,
-        '@warpvector/train': `^${version}`,
-        '@prisma/client': '^5.0.0',
-        'sql-template-tag': '^5.2.1',
+        next: "14.2.0",
+        react: "^18",
+        "react-dom": "^18",
+        warpvector: `^${version}`,
+        "@warpvector/core": `^${version}`,
+        "@warpvector/ml": `^${version}`,
+        "@warpvector/train": `^${version}`,
+        "@prisma/client": "^5.0.0",
+        "sql-template-tag": "^5.2.1",
       },
       devDependencies: {
-        typescript: '^5',
-        '@types/node': '^20',
-        '@types/react': '^18',
-        '@types/react-dom': '^18',
-        prisma: '^5.0.0',
+        typescript: "^5",
+        "@types/node": "^20",
+        "@types/react": "^18",
+        "@types/react-dom": "^18",
+        prisma: "^5.0.0",
       },
     });
 
-    writeTemplateFile(dir, 'src/app/page.tsx', PAGE_TSX);
-    writeTemplateFile(dir, 'prisma/schema.prisma', PRISMA_SCHEMA);
-    writeTemplateFile(dir, '.env.example', ENV_EXAMPLE);
+    writeTemplateFile(dir, "src/app/page.tsx", PAGE_TSX);
+    writeTemplateFile(dir, "prisma/schema.prisma", PRISMA_SCHEMA);
+    writeTemplateFile(dir, ".env.example", ENV_EXAMPLE);
   },
 
   getNextSteps(pm: string) {

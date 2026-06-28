@@ -1,7 +1,12 @@
 import { WarpWorkerHandler } from "../src/WarpWorkerHandler";
 
 // Mock adapter registration to simulate global registry
-import { WarpPipeline, InputVector, TransformOutput, WarpAdapter } from "@warpvector/core";
+import {
+  WarpPipeline,
+  InputVector,
+  TransformOutput,
+  WarpAdapter,
+} from "@warpvector/core";
 
 // We need a dummy adapter to test with
 class DummyAdapter implements WarpAdapter {
@@ -21,7 +26,9 @@ class DummyAdapter implements WarpAdapter {
   }
 }
 
-WarpPipeline.registerAdapter("DummyAdapter", (state) => DummyAdapter.importState(state));
+WarpPipeline.registerAdapter("DummyAdapter", (state) =>
+  DummyAdapter.importState(state),
+);
 
 const handler = new WarpWorkerHandler();
 handler.listen();

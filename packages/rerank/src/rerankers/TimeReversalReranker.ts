@@ -1,4 +1,9 @@
-import { allocateWasmMemory, withWasmMemoryStack, writeFloat32ArrayToWasm, readFloat32ArrayFromWasm } from "@warpvector/core";
+import {
+  allocateWasmMemory,
+  withWasmMemoryStack,
+  writeFloat32ArrayToWasm,
+  readFloat32ArrayFromWasm,
+} from "@warpvector/core";
 import { BaseGraphReranker, GraphRerankerResult } from "./BaseGraphReranker";
 
 export interface TimeReversalConfig {
@@ -35,7 +40,7 @@ export type RerankerResult = GraphRerankerResult;
 
 /**
  * TimeReversalReranker
- * 
+ *
  * 複数の候補ドキュメント間の相互類似度ネットワーク（グラフ）を媒質とし、
  * クエリから各ドキュメントへの初期類似度を「観測された散乱波」とみなして、
  * グラフラプラシアンによる時間反転（逆拡散）を適用することで真のドキュメントに焦点を結ばせるリランカー。
@@ -60,10 +65,16 @@ export class TimeReversalReranker extends BaseGraphReranker {
   }
 
   protected hasRequiredWasmExports(exports: any): boolean {
-    return !!(exports.buildTimeReversalGraphWasm && exports.timeReversalIterationWasm);
+    return !!(
+      exports.buildTimeReversalGraphWasm && exports.timeReversalIterationWasm
+    );
   }
 
-  protected prepareInitialScores(S0: Float32Array, N: number, initialScores?: number[]): number {
+  protected prepareInitialScores(
+    S0: Float32Array,
+    N: number,
+    initialScores?: number[],
+  ): number {
     // TimeReversalReranker では初期スコアの正規化を行わない
     return 1.0;
   }
@@ -72,7 +83,13 @@ export class TimeReversalReranker extends BaseGraphReranker {
     return s0Val;
   }
 
-  protected executeWasm(flatVectors: Float32Array, S0: Float32Array, N: number, dim: number, exports: any): Float32Array {
+  protected executeWasm(
+    flatVectors: Float32Array,
+    S0: Float32Array,
+    N: number,
+    dim: number,
+    exports: any,
+  ): Float32Array {
     const memory = exports.memory as WebAssembly.Memory;
 
     return withWasmMemoryStack(() => {
@@ -91,7 +108,7 @@ export class TimeReversalReranker extends BaseGraphReranker {
         dim,
         this.threshold,
         wMatrixPtr,
-        dArrayPtr
+        dArrayPtr,
       );
 
       exports.timeReversalIterationWasm(
@@ -102,14 +119,18 @@ export class TimeReversalReranker extends BaseGraphReranker {
         N,
         this.tau,
         this.iterations,
-        this.normalizeGraph
+        this.normalizeGraph,
       );
 
       return readFloat32ArrayFromWasm(memory, currentSPtr, N);
     });
   }
 
-  protected executeJs(CNorm: Float32Array[], S0: Float32Array, N: number): Float32Array {
+  protected executeJs(
+    CNorm: Float32Array[],
+    S0: Float32Array,
+    N: number,
+  ): Float32Array {
     const W = new Float32Array(N * N);
     const D = new Float32Array(N);
     const dim = CNorm[0].length;
@@ -142,7 +163,7 @@ export class TimeReversalReranker extends BaseGraphReranker {
       for (let i = 0; i < N; i++) {
         let diffSum = 0;
         const rowOffset = i * N;
-        
+
         for (let j = 0; j < N; j++) {
           if (i === j) continue;
           const w = W[rowOffset + j];
@@ -150,13 +171,13 @@ export class TimeReversalReranker extends BaseGraphReranker {
             diffSum += w * (currentS[i] - currentS[j]);
           }
         }
-        
+
         if (this.normalizeGraph && D[i] > 0) {
           diffSum /= D[i];
         }
         nextS[i] = Math.max(0, currentS[i] + tau * diffSum);
       }
-      
+
       currentS.set(nextS);
     }
 

@@ -64,7 +64,7 @@ export class InfoNCETrainer extends BaseTrainer<InfoNCEExample, IntentWeights> {
     matrix: Float32Array,
     bias: Float32Array,
     example: InfoNCEExample,
-    options?: InfoNCEOnlineOptions
+    options?: InfoNCEOnlineOptions,
   ): number {
     const dim = this.dimension;
     const temperature = options?.temperature ?? 0.1;
@@ -84,7 +84,7 @@ export class InfoNCETrainer extends BaseTrainer<InfoNCEExample, IntentWeights> {
 
     const probs = softmax(allScores);
     const pPos = probs[0];
-    
+
     // Cross entropy loss for the positive class
     return -Math.log(Math.max(pPos, 1e-9));
   }
@@ -100,7 +100,7 @@ export class InfoNCETrainer extends BaseTrainer<InfoNCEExample, IntentWeights> {
     lr: number,
     reg: number,
     t: number,
-    options?: InfoNCEOnlineOptions
+    options?: InfoNCEOnlineOptions,
   ): void {
     const dim = this.dimension;
     const temperature = options?.temperature ?? 0.1;
@@ -141,7 +141,7 @@ export class InfoNCETrainer extends BaseTrainer<InfoNCEExample, IntentWeights> {
       outputGradients,
       lr,
       reg,
-      t
+      t,
     );
   }
 
@@ -190,7 +190,7 @@ export class InfoNCETrainer extends BaseTrainer<InfoNCEExample, IntentWeights> {
       learningRate,
       regularization,
       this.t,
-      options
+      options,
     );
 
     return this.toWeightsWithRouting(flatMatrix, bias, currentWeights);

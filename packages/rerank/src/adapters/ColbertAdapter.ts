@@ -124,10 +124,12 @@ export class ColbertAdapter {
     const exports = this.getWasmExports();
     if (!exports) {
       // JS Fallback
-      return documentTokensArray.map((doc, index) => ({
-        index,
-        score: this.scoreFallback(queryTokens, doc, dim),
-      })).sort((a, b) => b.score - a.score);
+      return documentTokensArray
+        .map((doc, index) => ({
+          index,
+          score: this.scoreFallback(queryTokens, doc, dim),
+        }))
+        .sort((a, b) => b.score - a.score);
     }
     const { memory, colbertMaxSimWasm } = exports;
 

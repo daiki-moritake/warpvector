@@ -38,8 +38,16 @@ describe("FeedbackCollector", () => {
     });
 
     // doc0 をクリック、doc2 をスキップ
-    collector.recordFeedback({ impressionId: impId, resultIndex: 0, type: "click" });
-    collector.recordFeedback({ impressionId: impId, resultIndex: 2, type: "skip" });
+    collector.recordFeedback({
+      impressionId: impId,
+      resultIndex: 0,
+      type: "click",
+    });
+    collector.recordFeedback({
+      impressionId: impId,
+      resultIndex: 2,
+      type: "skip",
+    });
 
     const examples = collector.toTripletExamples();
 
@@ -60,7 +68,11 @@ describe("FeedbackCollector", () => {
       timestamp: Date.now(),
     });
 
-    collector.recordFeedback({ impressionId: impId, resultIndex: 0, type: "click" });
+    collector.recordFeedback({
+      impressionId: impId,
+      resultIndex: 0,
+      type: "click",
+    });
 
     const examples = collector.toInfoNCEExamples();
     expect(examples.length).toBe(1);
@@ -109,8 +121,16 @@ describe("FeedbackCollector", () => {
     });
 
     // skip のみ → positive がないので学習データなし
-    collector.recordFeedback({ impressionId: impId, resultIndex: 0, type: "skip" });
-    collector.recordFeedback({ impressionId: impId, resultIndex: 1, type: "skip" });
+    collector.recordFeedback({
+      impressionId: impId,
+      resultIndex: 0,
+      type: "skip",
+    });
+    collector.recordFeedback({
+      impressionId: impId,
+      resultIndex: 1,
+      type: "skip",
+    });
 
     expect(collector.toTripletExamples().length).toBe(0);
   });

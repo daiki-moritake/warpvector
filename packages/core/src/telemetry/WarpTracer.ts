@@ -41,8 +41,6 @@ export interface WarpMetrics {
   operationLatencies: Record<string, number>;
 }
 
-
-
 /**
  * OpenTelemetry トレーサーのラッパー
  *
@@ -83,11 +81,7 @@ export class WarpTracer {
    * });
    * ```
    */
-  trace<T>(
-    operationName: string,
-    attributes: SpanAttributes,
-    fn: () => T,
-  ): T {
+  trace<T>(operationName: string, attributes: SpanAttributes, fn: () => T): T {
     const t0 = performance.now();
     try {
       const result = fn();
@@ -142,8 +136,7 @@ export class WarpTracer {
           ? this._metrics.totalMs / this._metrics.calls
           : 0,
       maxLatencyMs: this._metrics.maxMs,
-      minLatencyMs:
-        this._metrics.minMs === Infinity ? 0 : this._metrics.minMs,
+      minLatencyMs: this._metrics.minMs === Infinity ? 0 : this._metrics.minMs,
       operationCounts,
       operationLatencies,
     };
@@ -179,11 +172,7 @@ export class WarpTracer {
     this._metrics.ops[op].totalMs += durationMs;
   }
 
-  private _recordError(
-    op: string,
-    durationMs: number,
-    _error: unknown,
-  ): void {
+  private _recordError(op: string, durationMs: number, _error: unknown): void {
     // エラー時もレイテンシは記録する
     this._recordSuccess(op, durationMs, {});
   }

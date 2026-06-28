@@ -99,7 +99,7 @@ describe("ColbertAdapter (Late Interaction)", () => {
 
     const jsScore1 = adapter.score(queryTokens, docTokens1, dim);
     const tsScore1 = tsColbertMaxSim(queryTokens, docTokens1, dim);
-    
+
     expect(jsScore1).toBeCloseTo(tsScore1, 5);
 
     const results = adapter.rank(queryTokens, [docTokens1, docTokens2], dim);
