@@ -52,6 +52,16 @@ describe("Vector Symbolic Architecture (VSA) Adapter", () => {
     expect(unbound[2]).toBeCloseTo(100000);
   });
 
+  test("unbind preserves sign for negative zero", () => {
+    const bound = [1, 1, 1];
+    const key = [-0.0, 1, -1e-6];
+
+    const unbound = VsaAdapter.unbind(bound, key, { shouldNormalize: false });
+    expect(unbound[0]).toBeCloseTo(-100000); // 1 / -1e-5
+    expect(unbound[1]).toBeCloseTo(1);
+    expect(unbound[2]).toBeCloseTo(-100000); // 1 / -1e-5
+  });
+
   test("bundle throws error if array is empty", () => {
     expect(() => VsaAdapter.bundle([])).toThrow();
   });

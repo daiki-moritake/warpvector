@@ -105,7 +105,8 @@ export class VsaAdapter {
     for (let i = 0; i < dim; i++) {
       let val = keyVec[i];
       if (Math.abs(val) < EPSILON) {
-        val = val >= 0 ? EPSILON : -EPSILON;
+        const isNegative = val < 0 || Object.is(val, -0.0);
+        val = isNegative ? -EPSILON : EPSILON;
       }
       result[i] = boundVec[i] / val;
     }
