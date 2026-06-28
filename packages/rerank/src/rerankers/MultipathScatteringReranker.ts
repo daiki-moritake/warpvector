@@ -58,12 +58,31 @@ export class MultipathScatteringReranker extends BaseGraphReranker {
     this.maxIterations = config.maxIterations ?? 20;
     this.tolerance = config.tolerance ?? 1e-6;
 
-    if (this.alpha < 0 || this.alpha >= 1) {
+    if (
+      typeof this.alpha !== "number" ||
+      Number.isNaN(this.alpha) ||
+      this.alpha < 0 ||
+      this.alpha >= 1
+    ) {
       throw new Error("MultipathScatteringReranker: alpha must be in [0, 1).");
     }
-    if (this.maxIterations < 1) {
+    if (
+      typeof this.maxIterations !== "number" ||
+      Number.isNaN(this.maxIterations) ||
+      this.maxIterations < 1 ||
+      !Number.isInteger(this.maxIterations)
+    ) {
       throw new Error(
-        "MultipathScatteringReranker: maxIterations must be at least 1.",
+        "MultipathScatteringReranker: maxIterations must be a positive integer.",
+      );
+    }
+    if (
+      typeof this.tolerance !== "number" ||
+      Number.isNaN(this.tolerance) ||
+      this.tolerance <= 0
+    ) {
+      throw new Error(
+        "MultipathScatteringReranker: tolerance must be a positive number.",
       );
     }
   }

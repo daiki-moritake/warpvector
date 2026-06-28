@@ -15,6 +15,9 @@ export abstract class BaseGraphReranker {
   public threshold: number;
 
   constructor(threshold: number = 0.0) {
+    if (typeof threshold !== "number" || Number.isNaN(threshold)) {
+      throw new Error("BaseGraphReranker: threshold must be a valid number.");
+    }
     this.threshold = threshold;
   }
 

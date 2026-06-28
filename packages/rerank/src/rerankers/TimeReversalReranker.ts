@@ -56,11 +56,22 @@ export class TimeReversalReranker extends BaseGraphReranker {
     this.normalizeGraph = config.normalizeGraph ?? true;
     this.iterations = config.iterations ?? 1;
 
-    if (this.tau < 0) {
+    if (
+      typeof this.tau !== "number" ||
+      Number.isNaN(this.tau) ||
+      this.tau < 0
+    ) {
       throw new Error("TimeReversalReranker: tau must be non-negative.");
     }
-    if (this.iterations < 1) {
-      throw new Error("TimeReversalReranker: iterations must be at least 1.");
+    if (
+      typeof this.iterations !== "number" ||
+      Number.isNaN(this.iterations) ||
+      this.iterations < 1 ||
+      !Number.isInteger(this.iterations)
+    ) {
+      throw new Error(
+        "TimeReversalReranker: iterations must be a positive integer.",
+      );
     }
   }
 

@@ -15,8 +15,27 @@ describe("MultipathScatteringReranker", () => {
   test("should throw on invalid parameters", () => {
     expect(() => new MultipathScatteringReranker({ alpha: 1.5 })).toThrow();
     expect(() => new MultipathScatteringReranker({ alpha: -0.1 })).toThrow();
+    expect(() => new MultipathScatteringReranker({ alpha: NaN })).toThrow();
     expect(
       () => new MultipathScatteringReranker({ maxIterations: 0 }),
+    ).toThrow();
+    expect(
+      () => new MultipathScatteringReranker({ maxIterations: 1.5 }),
+    ).toThrow();
+    expect(
+      () => new MultipathScatteringReranker({ maxIterations: NaN }),
+    ).toThrow();
+    expect(
+      () => new MultipathScatteringReranker({ tolerance: 0 }),
+    ).toThrow();
+    expect(
+      () => new MultipathScatteringReranker({ tolerance: -1e-5 }),
+    ).toThrow();
+    expect(
+      () => new MultipathScatteringReranker({ tolerance: NaN }),
+    ).toThrow();
+    expect(
+      () => new MultipathScatteringReranker({ threshold: NaN }),
     ).toThrow();
   });
 

@@ -17,12 +17,12 @@ describe("TimeReversalReranker", () => {
   });
 
   test("should throw on invalid parameters", () => {
-    expect(() => new TimeReversalReranker({ tau: -1.0 })).toThrow(
-      "non-negative",
-    );
-    expect(() => new TimeReversalReranker({ iterations: 0 })).toThrow(
-      "at least 1",
-    );
+    expect(() => new TimeReversalReranker({ tau: -1.0 })).toThrow();
+    expect(() => new TimeReversalReranker({ tau: NaN })).toThrow();
+    expect(() => new TimeReversalReranker({ iterations: 0 })).toThrow();
+    expect(() => new TimeReversalReranker({ iterations: 1.5 })).toThrow();
+    expect(() => new TimeReversalReranker({ iterations: NaN })).toThrow();
+    expect(() => new TimeReversalReranker({ threshold: NaN })).toThrow();
   });
 
   test("should amplify true source and suppress diffused neighbors", () => {
