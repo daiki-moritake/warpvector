@@ -49,4 +49,41 @@ describe("VectorDBAdapter", () => {
     expect(floatView[1]).toBe(2.0);
     expect(floatView[2]).toBe(3.0);
   });
+
+  test("rejects invalid vectors with NaN, Infinity, or incorrect types", () => {
+    const nanVector = [1.0, NaN, 3.0];
+    const infVector = [1.0, Infinity, 3.0];
+    const invalidType = { values: [1.0, 2.0] } as any;
+
+    // toPgvector
+    expect(() => VectorDBAdapter.toPgvector(nanVector)).toThrow("NaN");
+    expect(() => VectorDBAdapter.toPgvector(infVector)).toThrow("Infinity");
+    expect(() => VectorDBAdapter.toPgvector(invalidType)).toThrow(
+      "Invalid vector type",
+    );
+
+    // toPineconeQuery
+    expect(() => VectorDBAdapter.toPineconeQuery(nanVector)).toThrow("NaN");
+    expect(() => VectorDBAdapter.toPineconeQuery(infVector)).toThrow(
+      "Infinity",
+    );
+
+    // toRedis
+    expect(() => VectorDBAdapter.toRedis(nanVector)).toThrow("NaN");
+    expect(() => VectorDBAdapter.toRedis(infVector)).toThrow("Infinity");
+
+    // toVectorizeQuery
+    expect(() => VectorDBAdapter.toVectorizeQuery(nanVector)).toThrow("NaN");
+    expect(() => VectorDBAdapter.toVectorizeQuery(infVector)).toThrow(
+      "Infinity",
+    );
+
+    // toVectorizeRecord
+    expect(() =>
+      VectorDBAdapter.toVectorizeRecord("doc-1", nanVector),
+    ).toThrow("NaN");
+    expect(() =>
+      VectorDBAdapter.toVectorizeRecord("doc-1", infVector),
+    ).toThrow("Infinity");
+  });
 });
