@@ -1,4 +1,11 @@
-import { type FinalStageAdapter, type OutputVector } from "@warpvector/core";
+import {
+  type FinalStageAdapter,
+  type OutputVector,
+  safeJsonParse,
+  assertObject,
+  assertPositiveInt,
+  assertType,
+} from "@warpvector/core";
 import { QuantizationAdapter, QuantizationConfig } from "./QuantizationAdapter";
 
 export interface SafeQuantizationOptions extends QuantizationConfig {
@@ -97,9 +104,20 @@ export class SafeQuantizationAdapter implements FinalStageAdapter {
     });
   }
 
-  public static importState(state: string): SafeQuantizationAdapter {
-    const options = JSON.parse(state);
-    // 将来 __version を使ったマイグレーション処理をここに追加できます
+  public static importState(stateJson: string): SafeQuantizationAdapter {
+    const data = assertObject(
+      safeJsonParse(stateJson, "SafeQuantizationAdapter"),
+      "root",
+    );
+    assertType(data.type, "string", "type");
+    assertPositiveInt(data.dim, "dim");
+
+    const options: SafeQuantizationOptions = {
+      type: data.type as any,
+      dim: data.dim as number,
+      dynamic: typeof data.dynamic === "boolean" ? data.dynamic : false,
+      clipThreshold: typeof data.clipThreshold === "number" ? data.clipThreshold : undefined,
+    };
     return new SafeQuantizationAdapter(options);
   }
 }
