@@ -120,6 +120,9 @@ export class WarpWorkerPool {
   }
 
   public async terminate() {
+    for (const queued of this.jobQueue) {
+      queued.job.reject(new Error("Worker pool terminated."));
+    }
     this.jobQueue = [];
     for (const [id, job] of this.activeJobs.entries()) {
       job.reject(new Error("Worker pool terminated."));

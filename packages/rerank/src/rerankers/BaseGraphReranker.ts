@@ -13,11 +13,13 @@ export interface GraphRerankerResult {
 
 export abstract class BaseGraphReranker {
   public threshold: number;
-  protected wasm: WebAssembly.Instance | null;
 
   constructor(threshold: number = 0.0) {
     this.threshold = threshold;
-    this.wasm = getWasmInstance();
+  }
+
+  protected getWasm(): WebAssembly.Instance | null {
+    return getWasmInstance();
   }
 
   /**
@@ -69,8 +71,9 @@ export abstract class BaseGraphReranker {
     const rawS0 = new Float32Array(S0);
     const scaleFactor = this.prepareInitialScores(S0, N, initialScores);
 
-    if (this.wasm) {
-      const exports = this.wasm.exports as any;
+    const wasm = this.getWasm();
+    if (wasm) {
+      const exports = wasm.exports as any;
       if (this.hasRequiredWasmExports(exports)) {
         const dim = CNorm[0].length;
         const flatVectors = new Float32Array(N * dim);
@@ -163,8 +166,9 @@ export abstract class BaseGraphReranker {
     const rawS0 = new Float32Array(S0);
     const scaleFactor = this.prepareInitialScores(S0, N, initialScores);
 
-    if (this.wasm) {
-      const exports = this.wasm.exports as any;
+    const wasm = this.getWasm();
+    if (wasm) {
+      const exports = wasm.exports as any;
       if (this.hasRequiredWasmExports(exports)) {
         const currentS = this.executeWasm(flatCandidates, S0, N, dim, exports);
         return this.formatResults(

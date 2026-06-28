@@ -33,3 +33,4 @@ export {
   withWasmMemoryStack,
 } from "./wasm/wasm-loader";
 export type { WasmMemoryStats } from "./wasm/wasm-loader";
+export { globalWasmPool } from "./wasm/WasmPool";

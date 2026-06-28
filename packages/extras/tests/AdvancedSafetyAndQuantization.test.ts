@@ -6,6 +6,7 @@ import {
   VectorDBAdapter,
   getWasmAllocatorOffset,
   int8DotProduct,
+  globalWasmPool,
 } from "@warpvector/core";
 import { QuantizationAdapter } from "../src/adapters/QuantizationAdapter";
 import { withWarpVector } from "@warpvector/prisma";
@@ -240,5 +241,66 @@ describe("Advanced Safety, Memory allocation, and Quantization Tests", () => {
     expect(w1).toBeDefined();
     expect(w2).toBeDefined();
     expect(wOnline).toBeDefined();
+  });
+
+  test("MlpAdapter inference across different WASM contexts works correctly", async () => {
+    const dim = 16;
+    const w = new Float32Array(dim * dim);
+    w.fill(0.01);
+    const b = new Float32Array(dim);
+    b.fill(0.1);
+
+    const mlp = new MlpAdapter([{ matrix: w, bias: b, activation: "linear" }]);
+    await mlp.init();
+
+    const runInContext = (val: number) => {
+      const wasmCtx = globalWasmPool.acquire();
+      try {
+        globalWasmPool.setCurrentSyncContext(wasmCtx);
+        const input = new Float32Array(dim);
+        input.fill(val);
+        const output = mlp.tune(input);
+        const expected = val * 0.16 + 0.1;
+        expect(output[0]).toBeCloseTo(expected, 4);
+      } finally {
+        globalWasmPool.clearCurrentSyncContext();
+        globalWasmPool.release(wasmCtx);
+      }
+    };
+
+    // 順次、異なるコンテキストで実行
+    runInContext(1.0);
+    runInContext(2.0);
+    runInContext(3.0);
+  });
+
+  test("MlpAdapter handles advanced WASM memory offset in active context safely without crash", async () => {
+    const dim = 16;
+    const w = new Float32Array(dim * dim);
+    w.fill(0.01);
+    const b = new Float32Array(dim);
+    b.fill(0.1);
+
+    const mlp = new MlpAdapter([{ matrix: w, bias: b, activation: "linear" }]);
+    await mlp.init();
+
+    const wasmCtx = globalWasmPool.acquire();
+    try {
+      globalWasmPool.setCurrentSyncContext(wasmCtx);
+
+      // 他のアダプターの実行などを模倣して、アクティブなコンテキストのメモリを大きく進める (10MB)
+      wasmCtx.allocate(10000000); // 10MB 確保
+
+      const input = new Float32Array(dim);
+      input.fill(1.0);
+
+      // 修正後は、メモリが適切に拡張されたインスタンス上で実行されるため、
+      // クラッシュせずに正常に推論結果（expected = 1.0 * 0.16 + 0.1 = 0.26）が得られる
+      const output = mlp.tune(input);
+      expect(output[0]).toBeCloseTo(0.26, 4);
+    } finally {
+      globalWasmPool.clearCurrentSyncContext();
+      globalWasmPool.release(wasmCtx);
+    }
   });
 });
