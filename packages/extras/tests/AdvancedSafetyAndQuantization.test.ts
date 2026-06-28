@@ -1,6 +1,6 @@
 import { expect, test, describe } from "bun:test";
 import { MlpAdapter, WhiteningAdapter } from "@warpvector/ml";
-import { BaseTrainer } from "@warpvector/train";
+import { BaseTrainer, IntentTrainer } from "@warpvector/train";
 import {
   WarpPipeline,
   VectorDBAdapter,
@@ -220,12 +220,25 @@ describe("Advanced Safety, Memory allocation, and Quantization Tests", () => {
     trainer2.addExample({ source: [2, 3], target: [4, 6] });
     trainer2.addExample({ source: [4, 5], target: [8, 10] });
 
-    const [w1, w2] = await Promise.all([
+    // IntentTrainer のインスタンスを用意
+    const intentTrainer = new IntentTrainer(2);
+    const initialWeights = {
+      matrix: new Float32Array([1, 0, 0, 1]),
+      bias: new Float32Array([0, 0]),
+    };
+
+    // train と並行して updateOnline を呼び出し、WASM メモリ衝突でクラッシュしないことを確認
+    const [w1, w2, wOnline] = await Promise.all([
       trainer1.train({ epochs: 10 }),
       trainer2.train({ epochs: 10 }),
+      intentTrainer.updateOnline(initialWeights, {
+        input: [1, 2],
+        target: [2, 4],
+      }),
     ]);
 
     expect(w1).toBeDefined();
     expect(w2).toBeDefined();
+    expect(wOnline).toBeDefined();
   });
 });

@@ -1,4 +1,4 @@
-import { IntentWeights } from "@warpvector/core";
+import { IntentWeights, initWasm, wasmMutex } from "@warpvector/core";
 import {
   assertDimension,
   getFlatMatrixAndBias,
@@ -6,7 +6,6 @@ import {
   innerProduct,
 } from "@warpvector/core";
 import { BaseTrainer } from "../trainers/BaseTrainer";
-import { initWasm } from "@warpvector/core";
 
 /**
  * 学習データのペア（Anchor, Positive, Negative）
@@ -138,47 +137,49 @@ export class TripletTrainer extends BaseTrainer<TripletExample, IntentWeights> {
     example: TripletExample,
     options: TripletOnlineOptions = {},
   ): Promise<IntentWeights> {
-    const learningRate = options.learningRate ?? 0.01;
-    const margin = options.margin ?? 0.1;
-    const regularization = options.regularization ?? 0.001;
-    assertDimension(
-      example.anchor,
-      this.dimension,
-      "TripletTrainer.train anchor",
-    );
-    assertDimension(
-      example.positive,
-      this.dimension,
-      "TripletTrainer.train positive",
-    );
-    assertDimension(
-      example.negative,
-      this.dimension,
-      "TripletTrainer.train negative",
-    );
+    return wasmMutex.runExclusive(async () => {
+      const learningRate = options.learningRate ?? 0.01;
+      const margin = options.margin ?? 0.1;
+      const regularization = options.regularization ?? 0.001;
+      assertDimension(
+        example.anchor,
+        this.dimension,
+        "TripletTrainer.train anchor",
+      );
+      assertDimension(
+        example.positive,
+        this.dimension,
+        "TripletTrainer.train positive",
+      );
+      assertDimension(
+        example.negative,
+        this.dimension,
+        "TripletTrainer.train negative",
+      );
 
-    const dim = this.dimension;
-    const { flatMatrix, bias } = getFlatMatrixAndBias(
-      currentWeights,
-      dim,
-      "updateOnline Matrix",
-    );
+      const dim = this.dimension;
+      const { flatMatrix, bias } = getFlatMatrixAndBias(
+        currentWeights,
+        dim,
+        "updateOnline Matrix",
+      );
 
-    this.t += 1;
-    this.adamStep(
-      flatMatrix,
-      bias,
-      this.mW,
-      this.vW,
-      this.mb,
-      this.vb,
-      example,
-      learningRate,
-      regularization,
-      this.t,
-      options,
-    );
+      this.t += 1;
+      this.adamStep(
+        flatMatrix,
+        bias,
+        this.mW,
+        this.vW,
+        this.mb,
+        this.vb,
+        example,
+        learningRate,
+        regularization,
+        this.t,
+        options,
+      );
 
-    return this.toWeightsWithRouting(flatMatrix, bias, currentWeights);
+      return this.toWeightsWithRouting(flatMatrix, bias, currentWeights);
+    });
   }
 }

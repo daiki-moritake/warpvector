@@ -1,4 +1,4 @@
-import { IntentWeights } from "@warpvector/core";
+import { IntentWeights, initWasm, wasmMutex } from "@warpvector/core";
 import {
   assertDimension,
   getFlatMatrixAndBias,
@@ -7,7 +7,6 @@ import {
   softmax,
 } from "@warpvector/core";
 import { BaseTrainer } from "../trainers/BaseTrainer";
-import { initWasm } from "@warpvector/core";
 
 /**
  * 学習データのペア（Anchor, Positive, 複数のNegatives）
@@ -159,40 +158,42 @@ export class InfoNCETrainer extends BaseTrainer<InfoNCEExample, IntentWeights> {
     example: InfoNCEExample,
     options: InfoNCEOnlineOptions = {},
   ): Promise<IntentWeights> {
-    const learningRate = options.learningRate ?? 0.01;
-    const regularization = options.regularization ?? 0.001;
-    const dim = this.dimension;
+    return wasmMutex.runExclusive(async () => {
+      const learningRate = options.learningRate ?? 0.01;
+      const regularization = options.regularization ?? 0.001;
+      const dim = this.dimension;
 
-    assertDimension(example.anchor, dim, "InfoNCETrainer.train anchor");
-    assertDimension(example.positive, dim, "InfoNCETrainer.train positive");
-    if (example.negatives.length === 0) {
-      throw new Error("InfoNCETrainer requires at least one negative example.");
-    }
-    for (const neg of example.negatives) {
-      assertDimension(neg, dim, "InfoNCETrainer.train negative");
-    }
+      assertDimension(example.anchor, dim, "InfoNCETrainer.train anchor");
+      assertDimension(example.positive, dim, "InfoNCETrainer.train positive");
+      if (example.negatives.length === 0) {
+        throw new Error("InfoNCETrainer requires at least one negative example.");
+      }
+      for (const neg of example.negatives) {
+        assertDimension(neg, dim, "InfoNCETrainer.train negative");
+      }
 
-    const { flatMatrix, bias } = getFlatMatrixAndBias(
-      currentWeights,
-      dim,
-      "updateOnline Matrix",
-    );
+      const { flatMatrix, bias } = getFlatMatrixAndBias(
+        currentWeights,
+        dim,
+        "updateOnline Matrix",
+      );
 
-    this.t += 1;
-    this.adamStep(
-      flatMatrix,
-      bias,
-      this.mW,
-      this.vW,
-      this.mb,
-      this.vb,
-      example,
-      learningRate,
-      regularization,
-      this.t,
-      options,
-    );
+      this.t += 1;
+      this.adamStep(
+        flatMatrix,
+        bias,
+        this.mW,
+        this.vW,
+        this.mb,
+        this.vb,
+        example,
+        learningRate,
+        regularization,
+        this.t,
+        options,
+      );
 
-    return this.toWeightsWithRouting(flatMatrix, bias, currentWeights);
+      return this.toWeightsWithRouting(flatMatrix, bias, currentWeights);
+    });
   }
 }
