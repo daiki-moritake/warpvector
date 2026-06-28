@@ -52,6 +52,29 @@ describe("MultipathScatteringReranker", () => {
     expect(doc1Result.score).toBeGreaterThan(doc0Result.score);
   });
 
+  test("should preserve original cosine similarities in initialScore when query is provided", () => {
+    const reranker = new MultipathScatteringReranker({
+      alpha: 0.8,
+      threshold: 0.0,
+    });
+
+    const query = new Float32Array([1, 0, 0, 0]);
+    const candidates = [
+      new Float32Array([1, 0, 0, 0]),
+      new Float32Array([-1, 0, 0, 0]),
+    ];
+
+    const results = reranker.rerank(query, candidates);
+
+    const doc0Result = results.find((r) => r.originalIndex === 0)!;
+    const doc1Result = results.find((r) => r.originalIndex === 1)!;
+
+    // query と doc0 の内積は 1.0
+    expect(doc0Result.initialScore).toBeCloseTo(1.0, 5);
+    // query と doc1 の内積は -1.0
+    expect(doc1Result.initialScore).toBeCloseTo(-1.0, 5);
+  });
+
   test("should handle graph with isolated nodes gracefully", () => {
     const reranker = new MultipathScatteringReranker({
       alpha: 0.9,

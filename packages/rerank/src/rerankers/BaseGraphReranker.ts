@@ -66,6 +66,7 @@ export abstract class BaseGraphReranker {
       ];
     }
 
+    const rawS0 = new Float32Array(S0);
     const scaleFactor = this.prepareInitialScores(S0, N, initialScores);
 
     if (this.wasm) {
@@ -87,6 +88,7 @@ export abstract class BaseGraphReranker {
           dim,
           initialScores,
           scaleFactor,
+          rawS0,
         );
       }
     }
@@ -101,6 +103,7 @@ export abstract class BaseGraphReranker {
       CNorm[0].length,
       initialScores,
       scaleFactor,
+      rawS0,
     );
   }
 
@@ -157,6 +160,7 @@ export abstract class BaseGraphReranker {
       ];
     }
 
+    const rawS0 = new Float32Array(S0);
     const scaleFactor = this.prepareInitialScores(S0, N, initialScores);
 
     if (this.wasm) {
@@ -172,6 +176,7 @@ export abstract class BaseGraphReranker {
           dim,
           initialScores,
           scaleFactor,
+          rawS0,
         );
       }
     }
@@ -190,6 +195,7 @@ export abstract class BaseGraphReranker {
       dim,
       initialScores,
       scaleFactor,
+      rawS0,
     );
   }
 
@@ -202,6 +208,7 @@ export abstract class BaseGraphReranker {
     dim: number,
     initialScores: number[] | undefined,
     scaleFactor: number,
+    rawS0?: Float32Array,
   ): GraphRerankerResult[] {
     const results: GraphRerankerResult[] = [];
     for (let i = 0; i < N; i++) {
@@ -211,7 +218,9 @@ export abstract class BaseGraphReranker {
         initialScore:
           initialScores && initialScores.length === N
             ? initialScores[i]
-            : this.restoreInitialScore(S0[i], scaleFactor),
+            : rawS0
+              ? rawS0[i]
+              : this.restoreInitialScore(S0[i], scaleFactor),
         vector: CNorm
           ? CNorm[i]
           : flatCandidates!.slice(i * dim, (i + 1) * dim),
