@@ -89,6 +89,33 @@ describe("WarpPipeline", () => {
     expect(() => WarpPipeline.importState([])).toThrow();
   });
 
+  test("throws error when importing state with unregistered final stage", () => {
+    const state = {
+      steps: [
+        {
+          type: "IntentAdapter",
+          state: JSON.stringify({
+            dimension: 2,
+            intents: {
+              test: {
+                matrix: [1, 0, 0, 1],
+                bias: [0, 0],
+              },
+            },
+          }),
+        },
+      ],
+      finalStage: {
+        type: "NonExistentFinalStage",
+        state: "{}",
+      },
+    };
+
+    expect(() => WarpPipeline.importState(state)).toThrow(
+      "Unknown final stage adapter type: NonExistentFinalStage",
+    );
+  });
+
   test("runBatch processes multiple vectors correctly", async () => {
     const pipeline = new WarpPipeline(3).addIntent({
       my_intent: {

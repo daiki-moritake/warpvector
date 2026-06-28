@@ -627,10 +627,13 @@ export class WarpPipeline {
     // FinalStage の復元
     if (finalStageState) {
       const importFn = AdapterRegistry.getFinalStage(finalStageState.type);
-      if (importFn) {
-        const adapter = importFn(finalStageState.state as AdapterState);
-        pipeline.finalStage = { type: finalStageState.type, adapter };
+      if (!importFn) {
+        throw new Error(
+          `Unknown final stage adapter type: ${finalStageState.type}. Did you forget to register it via WarpPipeline.registerFinalStage?`,
+        );
       }
+      const adapter = importFn(finalStageState.state as AdapterState);
+      pipeline.finalStage = { type: finalStageState.type, adapter };
     }
 
     return pipeline;
