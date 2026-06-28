@@ -116,6 +116,24 @@ describe("Advanced Safety, Memory allocation, and Quantization Tests", () => {
 
     // 近似された内積が実数空間の内積に近いはず
     expect(approxDot).toBeCloseTo(expectedDot, 4);
+
+    // 絶対値の最大値が 1200.0 と 1000.0 を超える大きなベクトル
+    const largeVector1 = [1000.0, -1200.0, 500.0, 300.0, -100.0, 400.0, 0.0, 100.0];
+    const largeVector2 = [200.0, 100.0, -400.0, 100.0, 200.0, -300.0, 100.0, 200.0];
+
+    const qLarge1 = adapter.encode(new Float32Array(largeVector1)) as Int8Array;
+    const qLarge2 = adapter.encode(new Float32Array(largeVector2)) as Int8Array;
+
+    const expectedLargeDot = largeVector1.reduce(
+      (sum, v, i) => sum + v * largeVector2[i],
+      0,
+    );
+    const approxLargeDot = int8DotProduct(qLarge1, qLarge2);
+
+    // 最大値が 1000.0 を超えても、正しく dynamic 量子化と判定され、
+    // ドット積がスケールを考慮して近似復元されること (誤差 2% 未満)
+    const relativeError = Math.abs(approxLargeDot - expectedLargeDot) / Math.abs(expectedLargeDot);
+    expect(relativeError).toBeLessThan(0.02);
   });
 
   test("Prisma integration blocks potential SQL injection and invalid parameters", async () => {

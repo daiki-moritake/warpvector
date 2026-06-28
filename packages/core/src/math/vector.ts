@@ -292,9 +292,9 @@ export function int8DotProduct(a: Int8Array, b: Int8Array): number {
       Number.isFinite(maxA) &&
       Number.isFinite(maxB) &&
       maxA > 0 &&
-      maxA < 1000.0 &&
+      maxA < 1e30 &&
       maxB > 0 &&
-      maxB < 1000.0
+      maxB < 1e30
     ) {
       isDynamic = true;
     }
@@ -336,9 +336,9 @@ export function int8CosineSimilarity(a: Int8Array, b: Int8Array): number {
       Number.isFinite(maxA) &&
       Number.isFinite(maxB) &&
       maxA > 0 &&
-      maxA < 1000.0 &&
+      maxA < 1e30 &&
       maxB > 0 &&
-      maxB < 1000.0
+      maxB < 1e30
     ) {
       isDynamic = true;
     }
