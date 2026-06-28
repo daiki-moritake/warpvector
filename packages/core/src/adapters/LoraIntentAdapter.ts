@@ -23,21 +23,21 @@ import {
 export interface LoraIntentWeights {
   /**
    * 行列A: 次元数を rank から dimension に拡張する行列
-   * @type {number[][]}
+   * @type {number[][] | number[] | Float32Array}
    */
-  matrixA: number[][]; // [dim][rank]
+  matrixA: number[][] | number[] | Float32Array; // [dim][rank]
 
   /**
    * 行列B: 次元数を dimension から rank に圧縮する行列
-   * @type {number[][]}
+   * @type {number[][] | number[] | Float32Array}
    */
-  matrixB: number[][]; // [rank][dim]
+  matrixB: number[][] | number[] | Float32Array; // [rank][dim]
 
   /**
    * バイアスベクトル
-   * @type {number[]}
+   * @type {number[] | Float32Array}
    */
-  bias: number[]; // [dim]
+  bias: number[] | Float32Array; // [dim]
 }
 
 /**
@@ -95,18 +95,35 @@ export class LoraIntentAdapter implements WarpAdapter {
 
     assertDimension(bias, this.dimension, `Intent '${intentName}' Bias`);
 
-    const flatA = flattenMatrix(
-      matrixA,
-      this.dimension,
-      this.rank,
-      `Intent '${intentName}' Matrix A`,
-    );
-    const flatB = flattenMatrix(
-      matrixB,
-      this.rank,
-      this.dimension,
-      `Intent '${intentName}' Matrix B`,
-    );
+    let flatA: Float32Array;
+    if (matrixA instanceof Float32Array) {
+      flatA = new Float32Array(matrixA);
+    } else if (Array.isArray(matrixA) && !Array.isArray(matrixA[0])) {
+      assertDimension(matrixA as number[], this.dimension * this.rank, `Intent '${intentName}' Matrix A (1D)`);
+      flatA = new Float32Array(matrixA as number[]);
+    } else {
+      flatA = flattenMatrix(
+        matrixA as number[][],
+        this.dimension,
+        this.rank,
+        `Intent '${intentName}' Matrix A`,
+      );
+    }
+
+    let flatB: Float32Array;
+    if (matrixB instanceof Float32Array) {
+      flatB = new Float32Array(matrixB);
+    } else if (Array.isArray(matrixB) && !Array.isArray(matrixB[0])) {
+      assertDimension(matrixB as number[], this.rank * this.dimension, `Intent '${intentName}' Matrix B (1D)`);
+      flatB = new Float32Array(matrixB as number[]);
+    } else {
+      flatB = flattenMatrix(
+        matrixB as number[][],
+        this.rank,
+        this.dimension,
+        `Intent '${intentName}' Matrix B`,
+      );
+    }
 
     this.matricesA.set(intentName, flatA);
     this.matricesB.set(intentName, flatB);
