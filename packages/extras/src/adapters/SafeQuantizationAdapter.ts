@@ -49,6 +49,18 @@ export class SafeQuantizationAdapter implements FinalStageAdapter {
       );
     }
 
+    if (options && options.clipThreshold !== undefined) {
+      if (
+        typeof options.clipThreshold !== "number" ||
+        options.clipThreshold <= 0 ||
+        Number.isNaN(options.clipThreshold)
+      ) {
+        throw new Error(
+          "[WarpVector DX Error] SafeQuantizationAdapter の 'clipThreshold' は正の数値でなければなりません。",
+        );
+      }
+    }
+
     this.options = options;
     this.baseAdapter = new QuantizationAdapter(options);
   }

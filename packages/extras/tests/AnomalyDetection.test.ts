@@ -1,6 +1,7 @@
 import { expect, test, describe } from "bun:test";
 import { AnomalyDetectionAdapter } from "../src/adapters/AnomalyDetectionAdapter";
 import { SafeQuantizationAdapter } from "../src/adapters/SafeQuantizationAdapter";
+import "../src/index";
 
 describe("AnomalyDetectionAdapter", () => {
   test("strict mode throws error on NaN, Infinity, and OutOfBounds", () => {
@@ -104,5 +105,31 @@ describe("SafeQuantizationAdapter", () => {
     expect(output[0]).toBe(13);
     expect(output[1]).toBe(127);
     expect(output[2]).toBe(-127);
+  });
+
+  test("rejects invalid clipThreshold values", () => {
+    expect(() => {
+      new SafeQuantizationAdapter({
+        type: "int8",
+        dim: 3,
+        clipThreshold: -1.0,
+      });
+    }).toThrow("clipThreshold");
+
+    expect(() => {
+      new SafeQuantizationAdapter({
+        type: "int8",
+        dim: 3,
+        clipThreshold: 0,
+      });
+    }).toThrow("clipThreshold");
+
+    expect(() => {
+      new SafeQuantizationAdapter({
+        type: "int8",
+        dim: 3,
+        clipThreshold: NaN,
+      });
+    }).toThrow("clipThreshold");
   });
 });

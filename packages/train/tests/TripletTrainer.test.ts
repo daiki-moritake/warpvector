@@ -84,4 +84,23 @@ describe("TripletTrainer", () => {
       ),
     ).rejects.toThrow();
   });
+
+  test("resets Adam state completely on multiple batch training runs", async () => {
+    const trainer = new TripletTrainer(3);
+    trainer.addExample({
+      anchor: [1, 0, 0],
+      positive: [0.8, 0.2, 0.0],
+      negative: [0.9, 0.0, 0.1],
+    });
+
+    const weights1 = await trainer.train({ epochs: 10 });
+    const weights2 = await trainer.train({ epochs: 10 });
+
+    expect(Array.from(weights1.matrix as Float32Array)).toEqual(
+      Array.from(weights2.matrix as Float32Array),
+    );
+    expect(Array.from(weights1.bias as Float32Array)).toEqual(
+      Array.from(weights2.bias as Float32Array),
+    );
+  });
 });
