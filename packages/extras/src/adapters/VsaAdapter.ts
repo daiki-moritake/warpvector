@@ -105,7 +105,8 @@ export class VsaAdapter {
     for (let i = 0; i < dim; i++) {
       let val = keyVec[i];
       if (Math.abs(val) < EPSILON) {
-        val = val >= 0 ? EPSILON : -EPSILON;
+        const isNegative = val < 0 || Object.is(val, -0.0);
+        val = isNegative ? -EPSILON : EPSILON;
       }
       result[i] = boundVec[i] / val;
     }
@@ -180,6 +181,15 @@ export class VsaAdapter {
     const len = bins[0].length;
     const result = new Uint8Array(len);
 
+    // 事前にすべてのベクトルの長さを一括検証してループ内のオーバーヘッドを避ける
+    for (let v = 0; v < numVectors; v++) {
+      if (bins[v].length !== len) {
+        throw new Error(
+          `Binary vector at index ${v} has mismatched length.`,
+        );
+      }
+    }
+
     for (let i = 0; i < len; i++) {
       let resultByte = 0;
       // 各バイトの 8 つのビット(0~7)について多数決をとる
@@ -188,11 +198,6 @@ export class VsaAdapter {
         const mask = 1 << bit;
 
         for (let v = 0; v < numVectors; v++) {
-          if (bins[v].length !== len) {
-            throw new Error(
-              `Binary vector at index ${v} has mismatched length.`,
-            );
-          }
           if ((bins[v][i] & mask) !== 0) {
             onesCount++;
           }

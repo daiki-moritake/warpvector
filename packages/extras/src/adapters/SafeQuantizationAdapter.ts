@@ -1,4 +1,11 @@
-import { type FinalStageAdapter, type OutputVector } from "@warpvector/core";
+import {
+  type FinalStageAdapter,
+  type OutputVector,
+  safeJsonParse,
+  assertObject,
+  assertPositiveInt,
+  assertType,
+} from "@warpvector/core";
 import { QuantizationAdapter, QuantizationConfig } from "./QuantizationAdapter";
 
 export interface SafeQuantizationOptions extends QuantizationConfig {
@@ -40,6 +47,18 @@ export class SafeQuantizationAdapter implements FinalStageAdapter {
         "[WarpVector DX Error] SafeQuantizationAdapter のプロパティ 'adaptiveRange' は 'dynamic' に変更されました。\n" +
           "例: new SafeQuantizationAdapter({ type: 'int8', dim: 1536, dynamic: true })",
       );
+    }
+
+    if (options && options.clipThreshold !== undefined) {
+      if (
+        typeof options.clipThreshold !== "number" ||
+        options.clipThreshold <= 0 ||
+        Number.isNaN(options.clipThreshold)
+      ) {
+        throw new Error(
+          "[WarpVector DX Error] SafeQuantizationAdapter の 'clipThreshold' は正の数値でなければなりません。",
+        );
+      }
     }
 
     this.options = options;
@@ -97,9 +116,20 @@ export class SafeQuantizationAdapter implements FinalStageAdapter {
     });
   }
 
-  public static importState(state: string): SafeQuantizationAdapter {
-    const options = JSON.parse(state);
-    // 将来 __version を使ったマイグレーション処理をここに追加できます
+  public static importState(stateJson: string): SafeQuantizationAdapter {
+    const data = assertObject(
+      safeJsonParse(stateJson, "SafeQuantizationAdapter"),
+      "root",
+    );
+    assertType(data.type, "string", "type");
+    assertPositiveInt(data.dim, "dim");
+
+    const options: SafeQuantizationOptions = {
+      type: data.type as any,
+      dim: data.dim as number,
+      dynamic: typeof data.dynamic === "boolean" ? data.dynamic : false,
+      clipThreshold: typeof data.clipThreshold === "number" ? data.clipThreshold : undefined,
+    };
     return new SafeQuantizationAdapter(options);
   }
 }

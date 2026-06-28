@@ -13,11 +13,16 @@ export interface GraphRerankerResult {
 
 export abstract class BaseGraphReranker {
   public threshold: number;
-  protected wasm: WebAssembly.Instance | null;
 
   constructor(threshold: number = 0.0) {
+    if (typeof threshold !== "number" || Number.isNaN(threshold)) {
+      throw new Error("BaseGraphReranker: threshold must be a valid number.");
+    }
     this.threshold = threshold;
-    this.wasm = getWasmInstance();
+  }
+
+  protected getWasm(): WebAssembly.Instance | null {
+    return getWasmInstance();
   }
 
   /**
@@ -66,10 +71,12 @@ export abstract class BaseGraphReranker {
       ];
     }
 
+    const rawS0 = new Float32Array(S0);
     const scaleFactor = this.prepareInitialScores(S0, N, initialScores);
 
-    if (this.wasm) {
-      const exports = this.wasm.exports as any;
+    const wasm = this.getWasm();
+    if (wasm) {
+      const exports = wasm.exports as any;
       if (this.hasRequiredWasmExports(exports)) {
         const dim = CNorm[0].length;
         const flatVectors = new Float32Array(N * dim);
@@ -87,6 +94,7 @@ export abstract class BaseGraphReranker {
           dim,
           initialScores,
           scaleFactor,
+          rawS0,
         );
       }
     }
@@ -101,6 +109,7 @@ export abstract class BaseGraphReranker {
       CNorm[0].length,
       initialScores,
       scaleFactor,
+      rawS0,
     );
   }
 
@@ -157,10 +166,12 @@ export abstract class BaseGraphReranker {
       ];
     }
 
+    const rawS0 = new Float32Array(S0);
     const scaleFactor = this.prepareInitialScores(S0, N, initialScores);
 
-    if (this.wasm) {
-      const exports = this.wasm.exports as any;
+    const wasm = this.getWasm();
+    if (wasm) {
+      const exports = wasm.exports as any;
       if (this.hasRequiredWasmExports(exports)) {
         const currentS = this.executeWasm(flatCandidates, S0, N, dim, exports);
         return this.formatResults(
@@ -172,6 +183,7 @@ export abstract class BaseGraphReranker {
           dim,
           initialScores,
           scaleFactor,
+          rawS0,
         );
       }
     }
@@ -190,6 +202,7 @@ export abstract class BaseGraphReranker {
       dim,
       initialScores,
       scaleFactor,
+      rawS0,
     );
   }
 
@@ -202,6 +215,7 @@ export abstract class BaseGraphReranker {
     dim: number,
     initialScores: number[] | undefined,
     scaleFactor: number,
+    rawS0?: Float32Array,
   ): GraphRerankerResult[] {
     const results: GraphRerankerResult[] = [];
     for (let i = 0; i < N; i++) {
@@ -211,7 +225,9 @@ export abstract class BaseGraphReranker {
         initialScore:
           initialScores && initialScores.length === N
             ? initialScores[i]
-            : this.restoreInitialScore(S0[i], scaleFactor),
+            : rawS0
+              ? rawS0[i]
+              : this.restoreInitialScore(S0[i], scaleFactor),
         vector: CNorm
           ? CNorm[i]
           : flatCandidates!.slice(i * dim, (i + 1) * dim),

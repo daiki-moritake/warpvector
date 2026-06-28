@@ -19,8 +19,13 @@ export abstract class AbstractAdamTrainer<
       this.vW = new Float32Array(sDim * tDim);
       this.mb = new Float32Array(tDim);
       this.vb = new Float32Array(tDim);
-      this.t = 0;
+    } else {
+      this.mW.fill(0);
+      this.vW.fill(0);
+      this.mb.fill(0);
+      this.vb.fill(0);
     }
+    this.t = 0;
     assertDimension(this.mW, sDim * tDim, "AdamState mW");
   }
 

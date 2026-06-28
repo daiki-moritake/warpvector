@@ -40,13 +40,11 @@ export class QuantizationAdapter implements FinalStageAdapter {
   private type: QuantizationType;
   private dim: number;
   private dynamic: boolean;
-  private wasm: WebAssembly.Instance | null;
 
   constructor(config: QuantizationConfig) {
     this.type = config.type;
     this.dim = config.dim;
     this.dynamic = config.dynamic ?? false;
-    this.wasm = getWasmInstance();
 
     if (this.type === "binary" && this.dim % 8 !== 0) {
       throw new Error(
@@ -58,8 +56,9 @@ export class QuantizationAdapter implements FinalStageAdapter {
   public encode(vector: Float32Array): OutputVector {
     assertDimension(vector, this.dim, "QuantizationAdapter.tune");
 
-    if (this.wasm) {
-      const exports = this.wasm.exports as any;
+    const wasm = getWasmInstance();
+    if (wasm) {
+      const exports = wasm.exports as any;
       if (exports.quantizeToInt8Wasm && exports.quantizeToBinaryWasm) {
         return this.tuneWasm(vector, exports);
       }

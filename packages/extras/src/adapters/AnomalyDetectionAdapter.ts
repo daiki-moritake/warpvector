@@ -2,6 +2,8 @@ import {
   type WarpAdapter,
   type InputVector,
   type TransformOutput,
+  safeJsonParse,
+  assertObject,
 } from "@warpvector/core";
 
 export interface AnomalyDetectionConfig {
@@ -43,6 +45,18 @@ export class AnomalyDetectionAdapter implements WarpAdapter {
         "[WarpVector DX Error] AnomalyDetectionAdapter のプロパティ 'threshold' は 'maxValue' に変更されました。\n" +
           "例: new AnomalyDetectionAdapter({ maxValue: 3.0 })",
       );
+    }
+
+    if (config.maxValue !== undefined) {
+      if (
+        typeof config.maxValue !== "number" ||
+        config.maxValue <= 0 ||
+        Number.isNaN(config.maxValue)
+      ) {
+        throw new Error(
+          "[WarpVector DX Error] AnomalyDetectionAdapter の 'maxValue' は正の数値でなければなりません。",
+        );
+      }
     }
 
     this.mode = config.mode || "strict";
@@ -111,9 +125,15 @@ export class AnomalyDetectionAdapter implements WarpAdapter {
     });
   }
 
-  public static importState(state: string): AnomalyDetectionAdapter {
-    const config = JSON.parse(state);
-    // 将来 __version を使ったマイグレーション処理をここに追加できます
-    return new AnomalyDetectionAdapter(config);
+  public static importState(stateJson: string): AnomalyDetectionAdapter {
+    const data = assertObject(
+      safeJsonParse(stateJson, "AnomalyDetectionAdapter"),
+      "root",
+    );
+    const mode =
+      data.mode === "strict" || data.mode === "safe" ? data.mode : "strict";
+    const maxValue =
+      typeof data.maxValue === "number" ? data.maxValue : 100.0;
+    return new AnomalyDetectionAdapter({ mode, maxValue });
   }
 }

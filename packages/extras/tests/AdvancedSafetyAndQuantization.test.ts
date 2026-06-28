@@ -1,11 +1,12 @@
 import { expect, test, describe } from "bun:test";
 import { MlpAdapter, WhiteningAdapter } from "@warpvector/ml";
-import { BaseTrainer } from "@warpvector/train";
+import { BaseTrainer, IntentTrainer } from "@warpvector/train";
 import {
   WarpPipeline,
   VectorDBAdapter,
   getWasmAllocatorOffset,
   int8DotProduct,
+  globalWasmPool,
 } from "@warpvector/core";
 import { QuantizationAdapter } from "../src/adapters/QuantizationAdapter";
 import { withWarpVector } from "@warpvector/prisma";
@@ -115,6 +116,24 @@ describe("Advanced Safety, Memory allocation, and Quantization Tests", () => {
 
     // 近似された内積が実数空間の内積に近いはず
     expect(approxDot).toBeCloseTo(expectedDot, 4);
+
+    // 絶対値の最大値が 1200.0 と 1000.0 を超える大きなベクトル
+    const largeVector1 = [1000.0, -1200.0, 500.0, 300.0, -100.0, 400.0, 0.0, 100.0];
+    const largeVector2 = [200.0, 100.0, -400.0, 100.0, 200.0, -300.0, 100.0, 200.0];
+
+    const qLarge1 = adapter.encode(new Float32Array(largeVector1)) as Int8Array;
+    const qLarge2 = adapter.encode(new Float32Array(largeVector2)) as Int8Array;
+
+    const expectedLargeDot = largeVector1.reduce(
+      (sum, v, i) => sum + v * largeVector2[i],
+      0,
+    );
+    const approxLargeDot = int8DotProduct(qLarge1, qLarge2);
+
+    // 最大値が 1000.0 を超えても、正しく dynamic 量子化と判定され、
+    // ドット積がスケールを考慮して近似復元されること (誤差 2% 未満)
+    const relativeError = Math.abs(approxLargeDot - expectedLargeDot) / Math.abs(expectedLargeDot);
+    expect(relativeError).toBeLessThan(0.02);
   });
 
   test("Prisma integration blocks potential SQL injection and invalid parameters", async () => {
@@ -220,12 +239,86 @@ describe("Advanced Safety, Memory allocation, and Quantization Tests", () => {
     trainer2.addExample({ source: [2, 3], target: [4, 6] });
     trainer2.addExample({ source: [4, 5], target: [8, 10] });
 
-    const [w1, w2] = await Promise.all([
+    // IntentTrainer のインスタンスを用意
+    const intentTrainer = new IntentTrainer(2);
+    const initialWeights = {
+      matrix: new Float32Array([1, 0, 0, 1]),
+      bias: new Float32Array([0, 0]),
+    };
+
+    // train と並行して updateOnline を呼び出し、WASM メモリ衝突でクラッシュしないことを確認
+    const [w1, w2, wOnline] = await Promise.all([
       trainer1.train({ epochs: 10 }),
       trainer2.train({ epochs: 10 }),
+      intentTrainer.updateOnline(initialWeights, {
+        input: [1, 2],
+        target: [2, 4],
+      }),
     ]);
 
     expect(w1).toBeDefined();
     expect(w2).toBeDefined();
+    expect(wOnline).toBeDefined();
+  });
+
+  test("MlpAdapter inference across different WASM contexts works correctly", async () => {
+    const dim = 16;
+    const w = new Float32Array(dim * dim);
+    w.fill(0.01);
+    const b = new Float32Array(dim);
+    b.fill(0.1);
+
+    const mlp = new MlpAdapter([{ matrix: w, bias: b, activation: "linear" }]);
+    await mlp.init();
+
+    const runInContext = (val: number) => {
+      const wasmCtx = globalWasmPool.acquire();
+      try {
+        globalWasmPool.setCurrentSyncContext(wasmCtx);
+        const input = new Float32Array(dim);
+        input.fill(val);
+        const output = mlp.tune(input);
+        const expected = val * 0.16 + 0.1;
+        expect(output[0]).toBeCloseTo(expected, 4);
+      } finally {
+        globalWasmPool.clearCurrentSyncContext();
+        globalWasmPool.release(wasmCtx);
+      }
+    };
+
+    // 順次、異なるコンテキストで実行
+    runInContext(1.0);
+    runInContext(2.0);
+    runInContext(3.0);
+  });
+
+  test("MlpAdapter handles advanced WASM memory offset in active context safely without crash", async () => {
+    const dim = 16;
+    const w = new Float32Array(dim * dim);
+    w.fill(0.01);
+    const b = new Float32Array(dim);
+    b.fill(0.1);
+
+    const mlp = new MlpAdapter([{ matrix: w, bias: b, activation: "linear" }]);
+    await mlp.init();
+
+    const wasmCtx = globalWasmPool.acquire();
+    try {
+      globalWasmPool.setCurrentSyncContext(wasmCtx);
+
+      // 他のアダプターの実行などを模倣して、アクティブなコンテキストのメモリを大きく進める (10MB)
+      wasmCtx.allocate(10000000); // 10MB 確保
+
+      const input = new Float32Array(dim);
+      input.fill(1.0);
+
+      // 修正後は、メモリが適切に拡張されたインスタンス上で実行されるため、
+      // クラッシュせずに正常に推論結果（expected = 1.0 * 0.16 + 0.1 = 0.26）が得られる
+      const output = mlp.tune(input);
+      expect(output[0]).toBeCloseTo(0.26, 4);
+    } finally {
+      globalWasmPool.clearCurrentSyncContext();
+      globalWasmPool.release(wasmCtx);
+    }
   });
 });

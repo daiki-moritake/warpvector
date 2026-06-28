@@ -4,6 +4,7 @@ import {
   type InputVector,
   type TransformOutput,
   type AdapterState,
+  AdapterRegistry,
 } from "@warpvector/core";
 
 export interface ExpertDefinition {
@@ -139,7 +140,6 @@ export class MoeAdapter implements WarpAdapter {
       throw new Error(`Invalid state type for MoeAdapter: ${parsed.type}`);
     }
 
-    const { AdapterRegistry } = require("@warpvector/core"); // 遅延インポート（依存関係ループ回避のため）
 
     const experts: ExpertDefinition[] = parsed.experts.map((exp: any) => {
       const importFn = AdapterRegistry.get(exp.adapterType);

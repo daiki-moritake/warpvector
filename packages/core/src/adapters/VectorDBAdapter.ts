@@ -16,6 +16,7 @@ export class VectorDBAdapter {
   public static toPgvector(
     vector: number[] | Float32Array | Int8Array | Uint8Array,
   ): string {
+    VectorDBAdapter.validateVector(vector, "toPgvector");
     if (vector instanceof Uint8Array) {
       let bitString = "";
       for (let i = 0; i < vector.length; i++) {
@@ -44,6 +45,7 @@ export class VectorDBAdapter {
     topK: number = 10,
     filter?: Record<string, unknown>,
   ): Record<string, unknown> {
+    VectorDBAdapter.validateVector(vector, "toPineconeQuery");
     return {
       vector: Array.from(vector),
       topK,
@@ -66,6 +68,7 @@ export class VectorDBAdapter {
   public static toRedis(
     vector: number[] | Float32Array | Int8Array | Uint8Array,
   ): Uint8Array {
+    VectorDBAdapter.validateVector(vector, "toRedis");
     if (vector instanceof Int8Array) {
       return new Uint8Array(
         vector.buffer.slice(
@@ -126,6 +129,7 @@ export class VectorDBAdapter {
       filter?: Record<string, unknown>;
     };
   } {
+    VectorDBAdapter.validateVector(vector, "toVectorizeQuery");
     return {
       vector: Array.from(vector),
       options: {
@@ -159,10 +163,43 @@ export class VectorDBAdapter {
     values: number[];
     metadata?: Record<string, unknown>;
   } {
+    VectorDBAdapter.validateVector(vector, "toVectorizeRecord");
     return {
       id,
       values: Array.from(vector),
       ...(metadata ? { metadata } : {}),
     };
+  }
+
+  private static validateVector(
+    vector: number[] | Float32Array | Int8Array | Uint8Array,
+    context: string,
+  ): void {
+    if (!vector) {
+      throw new Error(
+        `VectorDBAdapter.${context}: Vector must not be null or undefined.`,
+      );
+    }
+    if (
+      !(vector instanceof Float32Array) &&
+      !(vector instanceof Int8Array) &&
+      !(vector instanceof Uint8Array) &&
+      !Array.isArray(vector)
+    ) {
+      throw new Error(
+        `VectorDBAdapter.${context}: Invalid vector type. Must be Float32Array, Int8Array, Uint8Array, or number[].`,
+      );
+    }
+
+    if (Array.isArray(vector) || vector instanceof Float32Array) {
+      for (let i = 0; i < vector.length; i++) {
+        const val = vector[i];
+        if (typeof val !== "number" || !Number.isFinite(val)) {
+          throw new Error(
+            `VectorDBAdapter.${context}: Vector contains invalid value (NaN or Infinity) at index ${i}.`,
+          );
+        }
+      }
+    }
   }
 }

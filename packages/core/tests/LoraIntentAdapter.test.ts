@@ -66,4 +66,25 @@ describe("LoraIntentAdapter Core Logic", () => {
       adapter.tune([5, 5, 5], "dynamic");
     }).toThrow("Intent 'dynamic' not found.");
   });
+
+  test("exportState and importState work correctly and states can be fed back into constructor", () => {
+    const adapter = new LoraIntentAdapter(3, 1, dummyIntents);
+    const state = adapter.exportState();
+    expect(typeof state).toBe("string");
+
+    // 1. importState で復元
+    const restored = LoraIntentAdapter.importState(state);
+    const result1 = restored.tune([1, 2, 3], "scaleAndShift");
+    expect(result1[0]).toBeCloseTo(8, 5);
+
+    // 2. 復元した adapter.exportState() で得た intents から新規に adapter を構築できるか検証
+    const parsed = JSON.parse(state);
+    expect(() => {
+      new LoraIntentAdapter(parsed.dimension, parsed.rank, parsed.intents);
+    }).not.toThrow();
+
+    const reconstructed = new LoraIntentAdapter(parsed.dimension, parsed.rank, parsed.intents);
+    const result2 = reconstructed.tune([1, 2, 3], "scaleAndShift");
+    expect(result2[0]).toBeCloseTo(8, 5);
+  });
 });

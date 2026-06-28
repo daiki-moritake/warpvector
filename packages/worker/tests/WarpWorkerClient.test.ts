@@ -35,6 +35,24 @@ describe("WarpWorkerClient", () => {
     expect(Array.from(results[1])).toEqual([8, 10, 12]);
   });
 
+  it("should broadcast safely without duplicating idle workers", async () => {
+    const pool = client["pool"];
+    // idleWorkers の初期数は 2
+    expect(pool["idleWorkers"]).toHaveLength(2);
+
+    // ブロードキャストを送信
+    await pool.broadcast("init", {
+      steps: [{ type: "DummyAdapter", state: { factor: 2 } }],
+    });
+
+    // 完了後、idleWorkers の数は依然として 2 のはず (重複して増えない)
+    expect(pool["idleWorkers"]).toHaveLength(2);
+
+    // 重複したインスタンスが存在しないことの確認
+    const uniqueWorkers = new Set(pool["idleWorkers"]);
+    expect(uniqueWorkers.size).toBe(pool["idleWorkers"].length);
+  });
+
   afterAll(async () => {
     if (client) {
       await client.terminate();

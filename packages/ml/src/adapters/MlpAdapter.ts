@@ -3,6 +3,8 @@ import {
   type Activation,
   assertDimension,
   initWasm,
+  getWasmInstance,
+  globalWasmPool,
   writeFloat32ArrayToWasm,
   allocateWasmMemory,
   withWasmMemoryStack,
@@ -64,10 +66,11 @@ export class MlpAdapter implements WarpAdapter {
   private totalWeights = 0;
   private maxDim = 0;
 
-  // init() 時に永続化されるWASMメモリのポインタ
-  private persistentWeightsPtr = 0;
-  private persistentLayerDimsPtr = 0;
-  private persistentActivationsPtr = 0;
+  // 各 WebAssembly インスタンスにおける永続メモリ領域ポインタのキャッシュ
+  private instancePointers = new Map<
+    WebAssembly.Instance,
+    { weightsPtr: number; dimsPtr: number; activationsPtr: number }
+  >();
 
   constructor(layers: MlpLayer[]) {
     if (layers.length === 0) {
@@ -80,10 +83,6 @@ export class MlpAdapter implements WarpAdapter {
   /**
    * WASMの初期化と、MLP構造をWASMメモリに書き込む準備を行います。
    * インスタンス作成後に必ず呼び出してください。
-   *
-   * 重み・layerDims・activations はこのメソッド内で WASM メモリの永続領域に
-   * 一度だけ書き込まれます。tune() の呼び出しでは入出力バッファのみが
-   * スタック管理され、重みの再転送は行われません。
    */
   public async init(): Promise<void> {
     this.wasmInstance = await initWasm();
@@ -133,36 +132,67 @@ export class MlpAdapter implements WarpAdapter {
     this.inputDim = this.layerDims[0];
     this.outputDim = this.layerDims[this.layerDims.length - 1];
 
-    // --- 重みを WASM メモリの永続領域に書き込む ---
-    this.persistentWeightsPtr = allocateWasmMemory(this.totalWeights * 4);
-    this.persistentLayerDimsPtr = allocateWasmMemory((this.numLayers + 1) * 4);
-    this.persistentActivationsPtr = allocateWasmMemory(this.numLayers * 4);
+    this.instancePointers.clear();
 
-    this.writeWeightsToWasm();
+    const wasmInstance = getWasmInstance();
+    const wasmCtx = globalWasmPool.getCurrentSyncContext();
+    if (wasmInstance && wasmCtx) {
+      this.ensureWeightsAllocated(wasmInstance, wasmCtx);
+    }
 
     this.isWasmReady = true;
   }
 
   /**
-   * 現在の layers 配列の重み・layerDims・activations を永続化済みの
-   * WASM メモリ領域に書き込みます。init() および setLayerWeights() で使用します。
+   * 指定した WebAssembly インスタンスに重み領域を割り当てます。
    */
-  private writeWeightsToWasm(): void {
-    const memory = this.wasmInstance!.exports.memory as WebAssembly.Memory;
+  private ensureWeightsAllocated(
+    wasmInstance: WebAssembly.Instance,
+    wasmCtx: any,
+  ): {
+    weightsPtr: number;
+    dimsPtr: number;
+    activationsPtr: number;
+  } {
+    let ptrs = this.instancePointers.get(wasmInstance);
+    // キャッシュが存在し、かつアロケータが巻き戻されていない（weightsPtr が offset より小さい）場合はキャッシュを流用
+    if (ptrs && ptrs.weightsPtr < wasmCtx.offset) {
+      return ptrs;
+    }
+
+    const weightsPtr = allocateWasmMemory(this.totalWeights * 4);
+    const dimsPtr = allocateWasmMemory((this.numLayers + 1) * 4);
+    const activationsPtr = allocateWasmMemory(this.numLayers * 4);
+
+    ptrs = { weightsPtr, dimsPtr, activationsPtr };
+    this.instancePointers.set(wasmInstance, ptrs);
+    this.writeWeightsToInstance(wasmInstance, ptrs);
+
+    return ptrs;
+  }
+
+  /**
+   * 現在の layers 配列の重み・layerDims・activations を指定した WebAssembly メモリ領域に書き込みます。
+   */
+  private writeWeightsToInstance(
+    instance: WebAssembly.Instance,
+    ptrs: { weightsPtr: number; dimsPtr: number; activationsPtr: number },
+  ): void {
+    const memory = instance.exports.memory as WebAssembly.Memory;
     const memoryBuffer = memory.buffer;
     const f32 = new Float32Array(memoryBuffer);
     const i32 = new Int32Array(memoryBuffer);
 
     // layerDims
     for (let i = 0; i < this.layerDims.length; i++) {
-      i32[this.persistentLayerDimsPtr / 4 + i] = this.layerDims[i];
+      i32[ptrs.dimsPtr / 4 + i] = this.layerDims[i];
     }
     // activations
     for (let i = 0; i < this.activations.length; i++) {
-      i32[this.persistentActivationsPtr / 4 + i] = this.activations[i];
+      i32[ptrs.activationsPtr / 4 + i] = this.activations[i];
     }
     // weights & bias (interleaved: row weights then row bias for each row)
-    let wIdx = this.persistentWeightsPtr / 4;
+    let wIdx = ptrs.weightsPtr / 4;
     for (let i = 0; i < this.numLayers; i++) {
       const layer = this.layers[i];
       let rows, cols;
@@ -190,7 +220,7 @@ export class MlpAdapter implements WarpAdapter {
 
   /**
    * 特定のレイヤーの重みを実行時に更新します。
-   * WASM メモリの永続領域も同期的に再書き込みされます。
+   * すべてのキャッシュされたインスタンスのメモリ領域が同期的に更新されます。
    *
    * @param layerIndex 更新するレイヤーのインデックス
    * @param layer 新しいレイヤーデータ
@@ -203,9 +233,10 @@ export class MlpAdapter implements WarpAdapter {
     }
     this.layers[layerIndex] = layer;
 
-    // WASM が初期化済みなら永続領域を再書き込み
     if (this.isWasmReady) {
-      this.writeWeightsToWasm();
+      for (const [instance, ptrs] of this.instancePointers.entries()) {
+        this.writeWeightsToInstance(instance, ptrs);
+      }
     }
   }
 
@@ -213,21 +244,28 @@ export class MlpAdapter implements WarpAdapter {
    * ニューラルネットワークの順伝播を実行し、結果を返します。
    * (WarpAdapter の実装として、predict の代わりに tune を提供します)
    *
-   * 重み・layerDims・activations は init() 時に永続化された WASM メモリを
+   * 重み・layerDims・activations は現在の WASM インスタンスに対応するメモリ領域を
    * 直接参照します。入出力バッファと中間バッファのみがスタック管理されます。
    *
    * @param input 入力ベクトル
    * @returns 推論結果ベクトル
    */
   public tune(input: number[] | Float32Array): Float32Array {
-    if (!this.isWasmReady || !this.wasmInstance) {
+    if (!this.isWasmReady) {
       throw new Error(
         "MlpAdapter is not initialized. Call await init() first.",
       );
     }
+    const wasmInstance = getWasmInstance();
+    const wasmCtx = globalWasmPool.getCurrentSyncContext();
+    if (!wasmInstance || !wasmCtx) {
+      throw new Error("WASM instance or context not found.");
+    }
     assertDimension(input, this.inputDim, "MlpAdapter.tune");
 
-    const memory = this.wasmInstance.exports.memory as WebAssembly.Memory;
+    const ptrs = this.ensureWeightsAllocated(wasmInstance, wasmCtx);
+    const memory = wasmInstance.exports.memory as WebAssembly.Memory;
+
     return withWasmMemoryStack(() => {
       // 入出力と中間バッファのみをスタック上に確保
       const inputPtr = allocateWasmMemory(this.inputDim * 4);
@@ -238,15 +276,15 @@ export class MlpAdapter implements WarpAdapter {
       // 入力ベクトルの書き込み
       writeFloat32ArrayToWasm(memory, input, inputPtr);
 
-      // WASMの呼び出し（重みは永続化済みのポインタを使用）
-      const mlpInferenceWasm = this.wasmInstance!.exports
+      // WASMの呼び出し
+      const mlpInferenceWasm = wasmInstance.exports
         .mlpInferenceWasm as CallableFunction;
       mlpInferenceWasm(
         inputPtr,
         outputPtr,
-        this.persistentWeightsPtr,
-        this.persistentLayerDimsPtr,
-        this.persistentActivationsPtr,
+        ptrs.weightsPtr,
+        ptrs.dimsPtr,
+        ptrs.activationsPtr,
         this.numLayers,
         bufferPtr,
         bufBPtr,
@@ -270,7 +308,7 @@ export class MlpAdapter implements WarpAdapter {
     inputs: (number[] | Float32Array)[],
     _intent?: string,
   ): Float32Array[] {
-    if (!this.isWasmReady || !this.wasmInstance) {
+    if (!this.isWasmReady) {
       throw new Error(
         "MlpAdapter is not initialized. Call await init() first.",
       );
@@ -278,7 +316,14 @@ export class MlpAdapter implements WarpAdapter {
     const batchSize = inputs.length;
     if (batchSize === 0) return [];
 
-    const memory = this.wasmInstance.exports.memory as WebAssembly.Memory;
+    const wasmInstance = getWasmInstance();
+    const wasmCtx = globalWasmPool.getCurrentSyncContext();
+    if (!wasmInstance || !wasmCtx) {
+      throw new Error("WASM instance or context not found.");
+    }
+    const ptrs = this.ensureWeightsAllocated(wasmInstance, wasmCtx);
+    const memory = wasmInstance.exports.memory as WebAssembly.Memory;
+
     return withWasmMemoryStack(() => {
       // バッチ処理用にバッファをスタック上に1回だけ確保
       const inputPtr = allocateWasmMemory(this.inputDim * 4);
@@ -286,7 +331,7 @@ export class MlpAdapter implements WarpAdapter {
       const bufferPtr = allocateWasmMemory(this.maxDim * 4);
       const bufBPtr = allocateWasmMemory(this.maxDim * 4);
 
-      const mlpInferenceWasm = this.wasmInstance!.exports
+      const mlpInferenceWasm = wasmInstance.exports
         .mlpInferenceWasm as CallableFunction;
 
       const results = new Array<Float32Array>(batchSize);
@@ -315,9 +360,9 @@ export class MlpAdapter implements WarpAdapter {
         mlpInferenceWasm(
           inputPtr,
           outputPtr,
-          this.persistentWeightsPtr,
-          this.persistentLayerDimsPtr,
-          this.persistentActivationsPtr,
+          ptrs.weightsPtr,
+          ptrs.dimsPtr,
+          ptrs.activationsPtr,
           this.numLayers,
           bufferPtr,
           bufBPtr,

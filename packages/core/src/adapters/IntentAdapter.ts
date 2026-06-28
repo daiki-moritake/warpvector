@@ -488,20 +488,22 @@ export class IntentAdapter implements WarpAdapter {
 
     let offset = 8;
     const matrix = new Float32Array(dim * dim);
-    matrix.set(
-      new Float32Array(binary.buffer, binary.byteOffset + offset, dim * dim),
+    new Uint8Array(matrix.buffer).set(
+      binary.subarray(offset, offset + dim * dim * 4),
     );
     offset += dim * dim * 4;
 
     const bias = new Float32Array(dim);
-    bias.set(new Float32Array(binary.buffer, binary.byteOffset + offset, dim));
+    new Uint8Array(bias.buffer).set(
+      binary.subarray(offset, offset + dim * 4),
+    );
     offset += dim * 4;
 
     let routingVector: Float32Array | undefined = undefined;
     if (hasRouting) {
       routingVector = new Float32Array(dim);
-      routingVector.set(
-        new Float32Array(binary.buffer, binary.byteOffset + offset, dim),
+      new Uint8Array(routingVector.buffer).set(
+        binary.subarray(offset, offset + dim * 4),
       );
     }
 

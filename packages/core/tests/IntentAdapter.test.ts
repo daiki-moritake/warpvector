@@ -226,4 +226,34 @@ describe("Advanced Math Utils", () => {
     expect(result[1]).toBeCloseTo(1, 5);
     expect(result[2]).toBeCloseTo(0, 5);
   });
+
+  test("importIntentBinary handles unaligned Uint8Array safely", () => {
+    const adapter = new IntentAdapter(2);
+    adapter.addIntent("test", {
+      matrix: [[1, 2], [3, 4]],
+      bias: [0.1, 0.2],
+      routingVector: [0.3, 0.4]
+    });
+
+    const binary = adapter.exportIntentBinary("test");
+    
+    // アライメントを崩すために、前に1バイト余計なデータを配置したバッファを作成
+    const unalignedBuffer = new ArrayBuffer(binary.length + 1);
+    const unalignedView = new Uint8Array(unalignedBuffer);
+    unalignedView[0] = 99; // ダミー値
+    unalignedView.set(binary, 1);
+
+    // オフセット 1 (4の倍数ではない) からのスライスを渡す
+    const unalignedBinary = unalignedView.subarray(1);
+
+    const restoredAdapter = new IntentAdapter(2);
+    // これがクラッシュせずに実行できるか検証
+    expect(() => {
+      restoredAdapter.importIntentBinary("test_restored", unalignedBinary);
+    }).not.toThrow();
+
+    const result = restoredAdapter.tune([1, 1], "test_restored");
+    expect(result[0]).toBeCloseTo(3.1, 4); // 1*1 + 2*1 + 0.1
+    expect(result[1]).toBeCloseTo(7.2, 4); // 3*1 + 4*1 + 0.2
+  });
 });

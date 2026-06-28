@@ -1,6 +1,5 @@
-import { IntentWeights } from "@warpvector/core";
+import { IntentWeights, initWasm, wasmMutex } from "@warpvector/core";
 import { BaseTrainer } from "../trainers/BaseTrainer";
-import { initWasm } from "@warpvector/core";
 import {
   assertDimension,
   getFlatMatrixAndBias,
@@ -133,54 +132,56 @@ export class IntentTrainer extends BaseTrainer<TrainingExample, IntentWeights> {
     example: TrainingExample,
     options: IntentOnlineOptions = {},
   ): Promise<IntentWeights> {
-    const learningRate = options.learningRate ?? 0.01;
-    const regularization = options.regularization ?? 0.001;
-    await initWasm();
+    return wasmMutex.runExclusive(async () => {
+      const learningRate = options.learningRate ?? 0.01;
+      const regularization = options.regularization ?? 0.001;
+      await initWasm();
 
-    assertDimension(
-      example.input,
-      this.dimension,
-      "IntentTrainer.addExample input",
-    );
-    assertDimension(
-      example.target,
-      this.dimension,
-      "IntentTrainer.addExample target",
-    );
+      assertDimension(
+        example.input,
+        this.dimension,
+        "IntentTrainer.addExample input",
+      );
+      assertDimension(
+        example.target,
+        this.dimension,
+        "IntentTrainer.addExample target",
+      );
 
-    const dim = this.dimension;
-    const { flatMatrix, bias } = getFlatMatrixAndBias(
-      currentWeights,
-      dim,
-      "updateOnline Matrix",
-    );
+      const dim = this.dimension;
+      const { flatMatrix, bias } = getFlatMatrixAndBias(
+        currentWeights,
+        dim,
+        "updateOnline Matrix",
+      );
 
-    // 1. Forward pass (アフィン変換のみ。活性化関数は適用前)
-    const warpedInput = new Float32Array(dim);
-    applyAffine(flatMatrix, bias, example.input, warpedInput, dim);
+      // 1. Forward pass (アフィン変換のみ。活性化関数は適用前)
+      const warpedInput = new Float32Array(dim);
+      applyAffine(flatMatrix, bias, example.input, warpedInput, dim);
 
-    // 誤差の計算 (dL/dY = Y - T)
-    const outputGradients = new Float32Array(dim);
-    for (let i = 0; i < dim; i++) {
-      outputGradients[i] = warpedInput[i] - example.target[i];
-    }
+      // 誤差の計算 (dL/dY = Y - T)
+      const outputGradients = new Float32Array(dim);
+      for (let i = 0; i < dim; i++) {
+        outputGradients[i] = warpedInput[i] - example.target[i];
+      }
 
-    // オンライン更新では内部の Adam ステートを使用する
-    this.t++;
-    this.applyAdamToAffine(
-      flatMatrix,
-      bias,
-      this.mW,
-      this.vW,
-      this.mb,
-      this.vb,
-      example.input,
-      outputGradients,
-      learningRate,
-      regularization,
-      this.t,
-    );
+      // オンライン更新では内部の Adam ステートを使用する
+      this.t++;
+      this.applyAdamToAffine(
+        flatMatrix,
+        bias,
+        this.mW,
+        this.vW,
+        this.mb,
+        this.vb,
+        example.input,
+        outputGradients,
+        learningRate,
+        regularization,
+        this.t,
+      );
 
-    return this.toWeightsWithRouting(flatMatrix, bias, currentWeights);
+      return this.toWeightsWithRouting(flatMatrix, bias, currentWeights);
+    });
   }
 }

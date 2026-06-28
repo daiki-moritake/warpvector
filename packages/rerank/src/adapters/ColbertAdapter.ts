@@ -6,20 +6,17 @@ import {
 } from "@warpvector/core";
 
 export class ColbertAdapter {
-  private wasm: WebAssembly.Instance | null;
-
-  constructor() {
-    this.wasm = getWasmInstance();
-  }
+  constructor() {}
 
   private getWasmExports(): {
     memory: WebAssembly.Memory;
     colbertMaxSimWasm: CallableFunction;
   } | null {
-    if (!this.wasm) {
+    const wasm = getWasmInstance();
+    if (!wasm) {
       return null;
     }
-    return this.wasm.exports as {
+    return wasm.exports as {
       memory: WebAssembly.Memory;
       colbertMaxSimWasm: CallableFunction;
     };
@@ -149,9 +146,6 @@ export class ColbertAdapter {
       // クエリは一度だけ書き込む
       writeFloat32ArrayToWasm(memory, queryTokens, queryPtr);
 
-      const f32 = new Float32Array(memory.buffer);
-      const docFloatOffset = docPtr / 4;
-
       const results = documentTokensArray.map((doc, index) => {
         const numDocTokens = doc.length / dim;
         if (numDocTokens % 1 !== 0) {
@@ -159,7 +153,7 @@ export class ColbertAdapter {
         }
 
         // ドキュメントをメモリにコピー
-        f32.set(doc, docFloatOffset);
+        writeFloat32ArrayToWasm(memory, doc, docPtr);
 
         // MaxSimを計算 (WASM)
         const score = colbertMaxSimWasm(

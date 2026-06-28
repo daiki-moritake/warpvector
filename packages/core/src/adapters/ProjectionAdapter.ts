@@ -239,11 +239,14 @@ export class ProjectionAdapter implements WarpAdapter {
         proj.matrix,
         `projections.${name}.matrix`,
       );
-      adapter.matrices.set(name, new Float32Array(matrix));
+      const weights: ProjectionWeights = {
+        matrix: new Float32Array(matrix),
+      };
       if (proj.bias) {
         const bias = assertNumberArray(proj.bias, `projections.${name}.bias`);
-        adapter.biases.set(name, new Float32Array(bias));
+        weights.bias = new Float32Array(bias);
       }
+      adapter.addProjection(name, weights);
     }
     return adapter;
   }

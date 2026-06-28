@@ -103,6 +103,7 @@ export class WarpWorkerPool {
     type: WorkerMessage["type"],
     payload?: any,
   ): Promise<any[]> {
+    this.idleWorkers = [];
     const promises = this.workers.map((worker) => {
       return new Promise((resolve, reject) => {
         const id = this.nextMessageId++;
@@ -119,6 +120,9 @@ export class WarpWorkerPool {
   }
 
   public async terminate() {
+    for (const queued of this.jobQueue) {
+      queued.job.reject(new Error("Worker pool terminated."));
+    }
     this.jobQueue = [];
     for (const [id, job] of this.activeJobs.entries()) {
       job.reject(new Error("Worker pool terminated."));

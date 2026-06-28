@@ -15,8 +15,27 @@ describe("MultipathScatteringReranker", () => {
   test("should throw on invalid parameters", () => {
     expect(() => new MultipathScatteringReranker({ alpha: 1.5 })).toThrow();
     expect(() => new MultipathScatteringReranker({ alpha: -0.1 })).toThrow();
+    expect(() => new MultipathScatteringReranker({ alpha: NaN })).toThrow();
     expect(
       () => new MultipathScatteringReranker({ maxIterations: 0 }),
+    ).toThrow();
+    expect(
+      () => new MultipathScatteringReranker({ maxIterations: 1.5 }),
+    ).toThrow();
+    expect(
+      () => new MultipathScatteringReranker({ maxIterations: NaN }),
+    ).toThrow();
+    expect(
+      () => new MultipathScatteringReranker({ tolerance: 0 }),
+    ).toThrow();
+    expect(
+      () => new MultipathScatteringReranker({ tolerance: -1e-5 }),
+    ).toThrow();
+    expect(
+      () => new MultipathScatteringReranker({ tolerance: NaN }),
+    ).toThrow();
+    expect(
+      () => new MultipathScatteringReranker({ threshold: NaN }),
     ).toThrow();
   });
 
@@ -50,6 +69,29 @@ describe("MultipathScatteringReranker", () => {
 
     // The score represents the steady-state probability.
     expect(doc1Result.score).toBeGreaterThan(doc0Result.score);
+  });
+
+  test("should preserve original cosine similarities in initialScore when query is provided", () => {
+    const reranker = new MultipathScatteringReranker({
+      alpha: 0.8,
+      threshold: 0.0,
+    });
+
+    const query = new Float32Array([1, 0, 0, 0]);
+    const candidates = [
+      new Float32Array([1, 0, 0, 0]),
+      new Float32Array([-1, 0, 0, 0]),
+    ];
+
+    const results = reranker.rerank(query, candidates);
+
+    const doc0Result = results.find((r) => r.originalIndex === 0)!;
+    const doc1Result = results.find((r) => r.originalIndex === 1)!;
+
+    // query と doc0 の内積は 1.0
+    expect(doc0Result.initialScore).toBeCloseTo(1.0, 5);
+    // query と doc1 の内積は -1.0
+    expect(doc1Result.initialScore).toBeCloseTo(-1.0, 5);
   });
 
   test("should handle graph with isolated nodes gracefully", () => {

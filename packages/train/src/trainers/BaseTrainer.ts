@@ -51,6 +51,8 @@ export abstract class BaseTrainer<
         throw new Error("No training examples provided.");
       }
 
+      this.validateHyperparameters(options);
+
       if (options.autoTune) {
         options.learningRate = this.findBestLearningRate(options);
         options.autoTune = false;
@@ -138,6 +140,8 @@ export abstract class BaseTrainer<
   ): Promise<TResult> {
     return wasmMutex.runExclusive(async () => {
       await initWasm();
+
+      this.validateHyperparameters(options);
 
       const lr = options.learningRate ?? 0.01;
       const epochs = options.epochs ?? 100;
@@ -320,4 +324,36 @@ export abstract class BaseTrainer<
     t: number,
     options?: BaseTrainingOptions,
   ): void;
+
+  protected validateHyperparameters(options: BaseTrainingOptions): void {
+    if (options.learningRate !== undefined) {
+      if (
+        typeof options.learningRate !== "number" ||
+        options.learningRate <= 0 ||
+        Number.isNaN(options.learningRate)
+      ) {
+        throw new Error("BaseTrainer: learningRate must be a positive number.");
+      }
+    }
+    if (options.regularization !== undefined) {
+      if (
+        typeof options.regularization !== "number" ||
+        options.regularization < 0 ||
+        Number.isNaN(options.regularization)
+      ) {
+        throw new Error(
+          "BaseTrainer: regularization must be a non-negative number.",
+        );
+      }
+    }
+    if (options.epochs !== undefined) {
+      if (
+        typeof options.epochs !== "number" ||
+        options.epochs <= 0 ||
+        !Number.isInteger(options.epochs)
+      ) {
+        throw new Error("BaseTrainer: epochs must be a positive integer.");
+      }
+    }
+  }
 }
