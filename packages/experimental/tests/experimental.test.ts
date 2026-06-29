@@ -45,11 +45,16 @@ describe("@warpvector/experimental", () => {
       mode: "safe",
       maxValue: 1.0,
     });
-    // NaN を含むベクトル → safe mode でゼロ埋め
-    const input = new Float32Array([0.5, NaN, 0.3, 999]);
+    // safe mode では外れ値が全体スケーリングされる
+    const input = new Float32Array([0.5, 0.2, 0.3, 2.0]);
     const result = detector.tune(input);
     expect(result).toBeInstanceOf(Float32Array);
-    expect(result[1]).toBe(0); // NaN がゼロになる
-    expect(result[3]).toBe(1.0); // maxValue にクリップ
+    // maxValue = 1.0, maxAbs = 2.0 -> scale = 0.5
+    expect(result[3]).toBe(1.0); 
+    expect(result[0]).toBe(0.25); 
+    
+    // NaN は safe mode でもエラーになる
+    const nanInput = new Float32Array([0.5, NaN, 0.3, 999]);
+    expect(() => detector.tune(nanInput)).toThrow(/Invalid value \(NaN\)/);
   });
 });
