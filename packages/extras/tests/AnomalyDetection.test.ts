@@ -49,21 +49,31 @@ describe("AnomalyDetectionAdapter", () => {
     }).toThrow("maxValue");
   });
 
-  test("safe mode clips and sanitizes vectors", () => {
+  test("safe mode scales vector uniformly to preserve direction", () => {
     const safeAdapter = new AnomalyDetectionAdapter({
       mode: "safe",
       maxValue: 50.0,
     });
 
-    const input = [1, NaN, Infinity, 100, -60, 25];
+    // maxAbs is |-100| = 100
+    // scale = 50.0 / 100 = 0.5
+    const input = [10, 100, -60, 25];
     const output = safeAdapter.tune(input);
 
-    expect(output[0]).toBe(1);
-    expect(output[1]).toBe(0); // NaN -> 0
-    expect(output[2]).toBe(0); // Infinity -> 0
-    expect(output[3]).toBe(50); // 100 -> 50 (clipped)
-    expect(output[4]).toBe(-50); // -60 -> -50 (clipped)
-    expect(output[5]).toBe(25);
+    expect(output[0]).toBe(5);   // 10 * 0.5
+    expect(output[1]).toBe(50);  // 100 * 0.5
+    expect(output[2]).toBe(-30); // -60 * 0.5
+    expect(output[3]).toBe(12.5);// 25 * 0.5
+  });
+
+  test("safe mode throws error on NaN and Infinity", () => {
+    const safeAdapter = new AnomalyDetectionAdapter({
+      mode: "safe",
+      maxValue: 50.0,
+    });
+
+    expect(() => safeAdapter.tune([1, NaN, 3])).toThrow("Invalid value (NaN) detected");
+    expect(() => safeAdapter.tune([1, Infinity, 3])).toThrow("Invalid value (Infinity) detected");
   });
 });
 
