@@ -88,21 +88,28 @@ export class SafeQuantizationAdapter implements FinalStageAdapter {
 
     const clipThreshold = this.options.clipThreshold ?? defaultClip;
 
+    // 1st pass: NaN/Infinity check and find max absolute value
+    let maxAbs = 0.0;
     for (let i = 0; i < len; i++) {
-      let val = vector[i];
-      // NaN / Infinity check
+      const val = vector[i];
       if (Number.isNaN(val) || !Number.isFinite(val)) {
-        val = 0.0;
+        throw new Error(
+          `[WarpVector Error] SafeQuantizationAdapter encountered an invalid value (${val}) at index ${i}. ` +
+          "Quantization aborted to prevent data corruption."
+        );
       }
-
-      // Clipping
-      if (val > clipThreshold) {
-        val = clipThreshold;
-      } else if (val < -clipThreshold) {
-        val = -clipThreshold;
+      const absVal = Math.abs(val);
+      if (absVal > maxAbs) {
+        maxAbs = absVal;
       }
+    }
 
-      safeVector[i] = val;
+    // Determine scale factor to preserve vector direction
+    const scale = maxAbs > clipThreshold ? clipThreshold / maxAbs : 1.0;
+
+    // 2nd pass: apply scaling and copy
+    for (let i = 0; i < len; i++) {
+      safeVector[i] = vector[i] * scale;
     }
 
     // サニタイズされた安全なベクトルを本家のQuantizationAdapterに渡す
