@@ -46,7 +46,7 @@
     <div class="hero-content">
       <a href="https://github.com/daiki-moritake/warpvector/releases" target="_blank" class="hero-badge">
         <span class="hero-badge-tag">NEW</span>
-        <span class="hero-badge-text">v0.5.0 リリース: 非同期化・評価キット搭載 →</span>
+        <span class="hero-badge-text">v0.7.2 リリース: 自動学習と連合学習機能の追加 →</span>
       </a>
       <h1 class="hero-title">
         Warp Embeddings<br>
@@ -348,15 +348,28 @@ const result = baseVector;</code></pre>
           <div class="card__header">
             <div class="card__title">
               <span class="card__title-icon" style="background:rgba(139,92,246,0.15);color:var(--accent-purple);">🤖</span>
-              インテント自動学習
+              継続的学習 & 連合学習
             </div>
-            <span class="dim-badge">IntentMatrixFactory</span>
+            <span class="dim-badge">FederatedAggregator</span>
           </div>
           <div class="card__body">
             <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;line-height:1.6;">
-              <code>@warpvector/train</code> の <code style="color:var(--accent-purple);">IntentMatrixFactory</code> を用いて、ドキュメントのカテゴリから <strong style="color:var(--text-primary);">InfoNCE 対照学習</strong>で最適なIntent行列を自動生成します。
+              検索結果に対して <strong>👍/👎 フィードバック</strong> を行うと、ブラウザ内でローカル学習が走ります。
+              学習済みの重みは、<code style="color:var(--accent-purple);">FederatedAggregator</code> によって生データを送信することなく安全に統合されます。
             </p>
-            <button class="bench-btn" id="autoLearnBtn" style="background:linear-gradient(135deg, rgba(139,92,246,0.2), rgba(59,130,246,0.2));border-color:rgba(139,92,246,0.3);">🧠 ドキュメントから自動学習</button>
+            
+            <div id="fedEdgeList" class="fed-edge-list">
+              <!-- Edge list will be dynamically rendered here -->
+            </div>
+
+            <button class="fed-aggregator-btn" id="fedAggregatorBtn" disabled>
+              🌐 統合を実行 (Waiting...)
+            </button>
+            
+            <p style="font-size:12px;color:var(--text-secondary);margin-top:16px;line-height:1.6; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 12px;">
+              * <code>IntentMatrixFactory</code> を用いた、ドキュメント群からの<strong style="color:var(--text-primary);">自動学習</strong>もサポートしています。
+            </p>
+            <button class="bench-btn" id="autoLearnBtn" style="background:linear-gradient(135deg, rgba(139,92,246,0.2), rgba(59,130,246,0.2));border-color:rgba(139,92,246,0.3); margin-top:8px;">🧠 ドキュメントから自動学習</button>
             <div id="autoLearnResult" style="margin-top:12px;"></div>
           </div>
         </div>
@@ -395,7 +408,7 @@ console.log(result.vector); <span class="token-comment">// 超圧縮されたInt
   </section>
 
   <footer class="footer">
-    <p>Powered by <a href="https://github.com/daiki-moritake/warpvector" target="_blank">WarpVector</a> v0.5.0</p>
+    <p>Powered by <a href="https://github.com/daiki-moritake/warpvector" target="_blank">WarpVector</a> v0.7.2</p>
     <div class="footer-links">
       <a href="https://github.com/daiki-moritake/warpvector" target="_blank">GitHub</a>
       <a href="https://www.npmjs.com/package/warpvector" target="_blank">npm</a>
@@ -403,9 +416,14 @@ console.log(result.vector); <span class="token-comment">// 超圧縮されたInt
     </div>
   </footer>
 
-  <script type="module">
+    <script type="module">
     import { initPlayground } from './src/main.ts';
     initPlayground('ja');
+
+    // Trigger initial render of Federated UI
+    setTimeout(() => {
+      if (window.renderFedEdgesUI) window.renderFedEdgesUI();
+    }, 1000);
 
     // Scroll reveal animation
     const observer = new IntersectionObserver((entries) => {

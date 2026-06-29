@@ -5,13 +5,38 @@
  * intent-based vector transformations.
  * Enhanced with Real LLM Embeddings, PCA Projection, Whitening, and Quantization.
  */
-import { IntentAdapter, initWasm, cosineSimilarity } from '@warpvector/core';
+import { IntentAdapter, initWasm, cosineSimilarity, type IntentWeights } from '@warpvector/core';
 import { WhiteningAdapter } from '@warpvector/ml';
 import { QuantizationAdapter, type QuantizationType, TaskArithmetic } from '@warpvector/extras';
 import { calculateNDCG, calculateRecall } from '@warpvector/eval';
+import { FeedbackCollector, AdaptiveScheduler, FederatedAggregator } from '@warpvector/train';
 
 // all-MiniLM-L6-v2 uses 384 dimensions
 export const DIM = 384;
+
+function getIdentityWeights(dim: number): IntentWeights {
+  return {
+    matrix: new Float32Array(dim * dim).map((_, i) => (i % (dim + 1) === 0 ? 1 : 0)),
+    bias: new Float32Array(dim)
+  };
+}
+
+// --- Federated Learning / Local Learning State ---
+export const demoFeedbackCollector = new FeedbackCollector();
+export const demoFederatedAggregator = new FederatedAggregator(getIdentityWeights(DIM), DIM);
+
+export interface FedEdgeStatus {
+  id: string;
+  name: string;
+  collectedFeedback: number;
+  hasLocalUpdate: boolean;
+}
+
+export const fedEdges: FedEdgeStatus[] = [
+  { id: 'local', name: 'You (Local)', collectedFeedback: 0, hasLocalUpdate: false },
+  { id: 'edge-tokyo', name: 'Edge (Tokyo)', collectedFeedback: 12, hasLocalUpdate: true },
+  { id: 'edge-ny', name: 'Edge (New York)', collectedFeedback: 25, hasLocalUpdate: true }
+];
 
 // Worker instance
 let worker: Worker | null = null;
@@ -127,7 +152,7 @@ export function computeDynamicBasis(vectors: Float32Array[], dim: number, iters:
   }
 
   const powerIteration = (data: Float32Array[], excludeBasis?: Float32Array) => {
-    let b = new Float32Array(dim);
+    const b = new Float32Array(dim);
     for (let d = 0; d < dim; d++) b[d] = Math.random() - 0.5;
     
     for (let iter = 0; iter < iters; iter++) {
@@ -500,7 +525,7 @@ function applyPipeline(state: DemoState, baseVector: Float32Array, applyIntent: 
   // 3. Quantization (Compression)
   if (state.quantMode !== 'none') {
     const quantizer = new QuantizationAdapter({ type: state.quantMode, dim: DIM });
-    const quantized = quantizer.tune(v);
+    const quantized = quantizer.encode(v);
     if (state.quantMode === 'int8' && quantized instanceof Int8Array) {
       v = decodeInt8(quantized, DIM);
     } else if (state.quantMode === 'binary' && quantized instanceof Uint8Array) {
@@ -712,7 +737,7 @@ export async function autoLearnIntents(
   state: DemoState,
 ): Promise<AutoLearnResult> {
   // Dynamic import to keep the initial bundle lean
-  const { IntentMatrixFactory } = await import('@warpvector/ml');
+  const { IntentMatrixFactory } = await import('@warpvector/train');
 
   const t0 = performance.now();
   const factory = new IntentMatrixFactory(DIM);
@@ -772,5 +797,68 @@ export async function autoLearnIntents(
     trainingTimeMs,
     improved: learnedCategories.length > 0,
   };
+}
+
+// --- Federated Learning / Local Learning Actions ---
+
+export async function handleFeedbackAction(state: DemoState, docId: string, isGood: boolean) {
+  const queryVec = state.query.baseVector;
+  const targetDoc = state.docs.find(d => String(d.id) === docId);
+  if (!targetDoc) return;
+  
+  // addInteraction(anchor, positive, negative)
+  // 簡易デモのため、Goodならpositiveに、Badならnegativeにセットし、片方はゼロベクトルで埋める
+  const zeroVec = new Float32Array(DIM);
+  const impressionId = demoFeedbackCollector.recordImpression({
+    queryVector: queryVec,
+    resultVectors: isGood ? [targetDoc.baseVector, zeroVec] : [zeroVec, targetDoc.baseVector],
+    timestamp: Date.now(),
+  });
+  demoFeedbackCollector.recordFeedback({
+    impressionId,
+    resultIndex: 0,
+    type: "click",
+  });
+  
+  const localEdge = fedEdges.find(e => e.id === 'local');
+  if (localEdge) {
+    localEdge.collectedFeedback++;
+    if (localEdge.collectedFeedback >= 3) {
+      localEdge.hasLocalUpdate = true;
+    }
+  }
+}
+
+export async function runFederatedAggregation(state: DemoState) {
+  // モック: 各エッジの学習済み行列を統合
+  for (const edge of fedEdges) {
+    if (edge.hasLocalUpdate) {
+      // 擬似的な学習済み行列(恒等行列ベースの微小変化)を追加
+      const mat = new Float32Array(DIM * DIM);
+      for(let i=0; i<DIM; i++) mat[i*DIM + i] = 1.0 + (Math.random() * 0.1 - 0.05);
+      demoFederatedAggregator.submitUpdate({
+        weights: { matrix: mat, bias: new Float32Array(DIM) },
+        interactionCount: edge.collectedFeedback
+      });
+      
+      // 送信後はリセット
+      edge.hasLocalUpdate = false;
+      edge.collectedFeedback = 0;
+    }
+  }
+  
+  const globalMatrix = demoFederatedAggregator.aggregate();
+  
+  // グローバル行列を `federated` インテントとして登録
+  state.intentsList.push({
+    key: 'federated',
+    name: 'Federated Global',
+    desc: 'Aggregated from all edges',
+    icon: '🌐',
+    color: '#0ea5e9'
+  });
+  state.adapter.addIntent('federated', globalMatrix);
+  
+  return globalMatrix;
 }
 
