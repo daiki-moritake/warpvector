@@ -348,20 +348,29 @@ const result = baseVector;</code></pre>
           <div class="card__header">
             <div class="card__title">
               <span class="card__title-icon" style="background:rgba(139,92,246,0.15);color:var(--accent-purple);">🤖</span>
-              Auto-learn Intents
+              Continuous & Federated Learning
             </div>
-            <span class="dim-badge">IntentMatrixFactory</span>
+            <span class="dim-badge">FederatedAggregator</span>
           </div>
           <div class="card__body">
             <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;line-height:1.6;">
-              Uses <code style="color:var(--accent-purple);">IntentMatrixFactory</code> from <code>@warpvector/train</code> to automatically learn optimal intent matrices using <strong style="color:var(--text-primary);">InfoNCE contrastive learning</strong>.
+              Provide <strong>👍/👎 feedback</strong> on search results. WarpVector will learn locally. 
+              Then aggregate weights using <code style="color:var(--accent-purple);">FederatedAggregator</code> without centralizing raw data.
             </p>
-            <button class="bench-btn" id="autoLearnBtn" style="background:linear-gradient(135deg, rgba(139,92,246,0.2), rgba(59,130,246,0.2));border-color:rgba(139,92,246,0.3);">🧠 Auto-learn from Documents</button>
-            <div id="autoLearnResult" style="margin-top:12px;"></div>
+            
+            <div id="fedEdgeList" class="fed-edge-list">
+              <!-- Edge list will be dynamically rendered here -->
+            </div>
+
+            <button class="fed-aggregator-btn" id="fedAggregatorBtn" disabled>
+              🌐 Run FedAvg (Waiting...)
+            </button>
+            
             <p style="font-size:12px;color:var(--text-secondary);margin-top:16px;line-height:1.6; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 12px;">
-              <span style="color:var(--accent-cyan); font-weight:600;">🔐 Federated Learning Ready:</span><br>
-              Safely aggregate learned weights from multiple edges using <code>FederatedAggregator</code> without centralizing raw data.
+              * <strong style="color:var(--text-primary);">Auto-learning</strong> from document categories is also supported using <code>IntentMatrixFactory</code>.
             </p>
+            <button class="bench-btn" id="autoLearnBtn" style="background:linear-gradient(135deg, rgba(139,92,246,0.2), rgba(59,130,246,0.2));border-color:rgba(139,92,246,0.3); margin-top:8px;">🧠 Auto-learn from Categories</button>
+            <div id="autoLearnResult" style="margin-top:12px;"></div>
           </div>
         </div>
       </div>
@@ -407,9 +416,14 @@ console.log(result.vector); <span class="token-comment">// Int8Array (highly com
     </div>
   </footer>
 
-  <script type="module">
+    <script type="module">
     import { initPlayground } from './src/main.ts';
     initPlayground('en');
+
+    // Trigger initial render of Federated UI
+    setTimeout(() => {
+      if (window.renderFedEdgesUI) window.renderFedEdgesUI();
+    }, 1000);
 
     // Scroll reveal animation
     const observer = new IntersectionObserver((entries) => {

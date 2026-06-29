@@ -22,6 +22,9 @@ import {
   type AutoLearnResult,
   type EvalMetrics,
   type DataCategory,
+  fedEdges,
+  handleFeedbackAction,
+  runFederatedAggregation
 } from './demo-engine.ts';
 
 type Lang = 'en' | 'ja';
@@ -248,6 +251,69 @@ export async function initPlayground(lang: Lang) {
       });
     });
   }
+
+  // Feedback Action Event Delegation
+  getElement('rankingList').addEventListener('click', async (e) => {
+    const target = e.target as HTMLElement;
+    if (target.classList.contains('feedback-btn')) {
+      const isGood = target.classList.contains('btn-good');
+      const item = target.closest('.ranking-item');
+      if (!item) return;
+      const docId = item.getAttribute('data-doc-id');
+      if (!docId) return;
+      
+      // Update Button UI
+      item.querySelectorAll('.feedback-btn').forEach(btn => btn.classList.remove('active-good', 'active-bad'));
+      target.classList.add(isGood ? 'active-good' : 'active-bad');
+
+      await handleFeedbackAction(state, docId, isGood);
+      renderFedEdgesUI();
+    }
+  });
+
+  function renderFedEdgesUI() {
+    const listEl = document.getElementById('fedEdgeList');
+    const btnEl = document.getElementById('fedAggregatorBtn') as HTMLButtonElement | null;
+    if (!listEl || !btnEl) return;
+
+    let html = '';
+    let readyCount = 0;
+    for (const edge of fedEdges) {
+      if (edge.hasLocalUpdate) readyCount++;
+      html += `
+        <div class="fed-edge">
+          <div class="fed-edge-info">
+            <span class="fed-edge-name">${edge.name}</span>
+            <span class="fed-edge-status">${edge.collectedFeedback} feedbacks</span>
+          </div>
+          <div class="fed-progress-bar">
+            <div class="fed-progress-fill" style="width: ${Math.min(100, (edge.collectedFeedback/3)*100)}%; ${edge.hasLocalUpdate ? 'background: #10b981;' : ''}"></div>
+          </div>
+        </div>
+      `;
+    }
+    listEl.innerHTML = html;
+    btnEl.disabled = readyCount === 0;
+    if (readyCount > 0) {
+      btnEl.textContent = lang === 'ja' ? `🌐 統合を実行 (${readyCount} Edge Ready)` : `🌐 Run FedAvg (${readyCount} Edge Ready)`;
+    } else {
+      btnEl.textContent = lang === 'ja' ? '🌐 統合を実行 (Waiting...)' : '🌐 Run FedAvg (Waiting...)';
+    }
+  }
+  
+  (window as any).renderFedEdgesUI = renderFedEdgesUI;
+
+
+  document.getElementById('fedAggregatorBtn')?.addEventListener('click', async () => {
+    await withButtonLoading('fedAggregatorBtn', lang === 'ja' ? '統合中...' : 'Aggregating...', async () => {
+      await runFederatedAggregation(state);
+      renderIntentButtons();
+      renderFedEdgesUI();
+      // Set to federated intent
+      const btn = document.querySelector('.intent-btn[data-intent="federated"]') as HTMLButtonElement;
+      if (btn) btn.click();
+    });
+  });
 
   // State
   let baseRankings = transformWithIntent(state, null).rankings;
@@ -522,11 +588,15 @@ export async function initPlayground(lang: Lang) {
              </span>`;
 
         html += `
-          <div class="ranking-item${highlightClass}">
+          <div class="ranking-item${highlightClass}" data-doc-id="${doc.id}">
             <span class="ranking-rank">${i + 1}</span>
             <span class="ranking-name" title="${doc.name}">${doc.name}</span>
             <span class="ranking-score">${doc.score.toFixed(3)}</span>
             ${changeHtml}
+            <div class="feedback-actions">
+              <button class="feedback-btn btn-good" title="Relevant (Good)">👍</button>
+              <button class="feedback-btn btn-bad" title="Irrelevant (Bad)">👎</button>
+            </div>
           </div>
         `;
       });
@@ -632,6 +702,8 @@ export async function initPlayground(lang: Lang) {
     updateCodeSnippet(code);
 
     updateEvalUI(metrics);
+
+    renderFedEdgesUI(); // Initial render for Fed Learning UI
 
     animateTransition(latencyMs, rankings);
   }

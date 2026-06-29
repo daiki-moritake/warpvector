@@ -348,20 +348,29 @@ const result = baseVector;</code></pre>
           <div class="card__header">
             <div class="card__title">
               <span class="card__title-icon" style="background:rgba(139,92,246,0.15);color:var(--accent-purple);">🤖</span>
-              インテント自動学習
+              継続的学習 & 連合学習
             </div>
-            <span class="dim-badge">IntentMatrixFactory</span>
+            <span class="dim-badge">FederatedAggregator</span>
           </div>
           <div class="card__body">
             <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;line-height:1.6;">
-              <code>@warpvector/train</code> の <code style="color:var(--accent-purple);">IntentMatrixFactory</code> を用いて、ドキュメントのカテゴリから <strong style="color:var(--text-primary);">InfoNCE 対照学習</strong>で最適なIntent行列を自動生成します。
+              検索結果に対して <strong>👍/👎 フィードバック</strong> を行うと、ブラウザ内でローカル学習が走ります。
+              学習済みの重みは、<code style="color:var(--accent-purple);">FederatedAggregator</code> によって生データを送信することなく安全に統合されます。
             </p>
-            <button class="bench-btn" id="autoLearnBtn" style="background:linear-gradient(135deg, rgba(139,92,246,0.2), rgba(59,130,246,0.2));border-color:rgba(139,92,246,0.3);">🧠 ドキュメントから自動学習</button>
-            <div id="autoLearnResult" style="margin-top:12px;"></div>
+            
+            <div id="fedEdgeList" class="fed-edge-list">
+              <!-- Edge list will be dynamically rendered here -->
+            </div>
+
+            <button class="fed-aggregator-btn" id="fedAggregatorBtn" disabled>
+              🌐 統合を実行 (Waiting...)
+            </button>
+            
             <p style="font-size:12px;color:var(--text-secondary);margin-top:16px;line-height:1.6; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 12px;">
-              <span style="color:var(--accent-cyan); font-weight:600;">🔐 Federated Learning Ready:</span><br>
-              <code>FederatedAggregator</code> を用いることで、ユーザーの生データを中央サーバーに集めることなく、複数エッジの学習済み行列のみを安全に統合できます。
+              * <code>IntentMatrixFactory</code> を用いた、ドキュメント群からの<strong style="color:var(--text-primary);">自動学習</strong>もサポートしています。
             </p>
+            <button class="bench-btn" id="autoLearnBtn" style="background:linear-gradient(135deg, rgba(139,92,246,0.2), rgba(59,130,246,0.2));border-color:rgba(139,92,246,0.3); margin-top:8px;">🧠 ドキュメントから自動学習</button>
+            <div id="autoLearnResult" style="margin-top:12px;"></div>
           </div>
         </div>
       </div>
@@ -407,9 +416,14 @@ console.log(result.vector); <span class="token-comment">// 超圧縮されたInt
     </div>
   </footer>
 
-  <script type="module">
+    <script type="module">
     import { initPlayground } from './src/main.ts';
     initPlayground('ja');
+
+    // Trigger initial render of Federated UI
+    setTimeout(() => {
+      if (window.renderFedEdgesUI) window.renderFedEdgesUI();
+    }, 1000);
 
     // Scroll reveal animation
     const observer = new IntersectionObserver((entries) => {
