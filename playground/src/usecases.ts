@@ -47,26 +47,26 @@ const uc2StatusIcon = document.getElementById('uc2-status-icon');
 const uc2StatusText = document.getElementById('uc2-status-text');
 
 document.getElementById('uc2-cloud')?.addEventListener('click', () => {
-  if (!uc2Ram) return;
+  if (!uc2Ram || !uc2Latency || !uc2Privacy || !uc2StatusIcon || !uc2StatusText) return;
   uc2Ram.textContent = '614 MB';
   uc2Latency.textContent = isJa ? '120 ms (通信あり)' : '120 ms (Network)';
   uc2Latency.style.color = '#f87171';
   uc2Privacy.textContent = isJa ? '高 (データ送信)' : 'High';
   uc2Privacy.style.color = '#f87171';
-  uc2StatusIcon!.textContent = '☁️';
-  uc2StatusText!.textContent = isJa ? 'クラウド接続中' : 'Cloud API Connected';
+  uc2StatusIcon.textContent = '☁️';
+  uc2StatusText.textContent = isJa ? 'クラウド接続中' : 'Cloud API Connected';
 });
 
 document.getElementById('uc2-local')?.addEventListener('click', () => {
-  if (!uc2Ram) return;
+  if (!uc2Ram || !uc2Latency || !uc2Privacy || !uc2StatusIcon || !uc2StatusText) return;
   uc2Ram.textContent = '19.2 MB (96.9% 削減!)';
   uc2Ram.style.color = '#34d399';
   uc2Latency.textContent = isJa ? '0.8 ms (ローカル推論)' : '0.8 ms (Local Inference)';
   uc2Latency.style.color = '#34d399';
   uc2Privacy.textContent = isJa ? 'ゼロ (オフライン)' : 'Zero (Offline)';
   uc2Privacy.style.color = '#34d399';
-  uc2StatusIcon!.textContent = '📱';
-  uc2StatusText!.textContent = isJa ? 'オンデバイス (WASM)' : 'On-Device (WASM)';
+  uc2StatusIcon.textContent = '📱';
+  uc2StatusText.textContent = isJa ? 'オンデバイス (WASM)' : 'On-Device (WASM)';
 });
 
 // ---- Use Case 3: Legal Anisotropy ----
