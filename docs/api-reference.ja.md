@@ -144,6 +144,40 @@ Oja's Rule によるオンラインPCAを用いて、ベクトル空間の等方
 
 ## Training Classes (`@warpvector/train`)
 
+### `IntentMatrixFactory`
+サンプルのベクトル群から InfoNCE ベースの対照学習を行い、最適な初期 Intent 行列を自動生成するファクトリクラス。
+
+- `constructor(dimension: number)`
+- `addCategory(categoryName: string, vectors: (number[] | Float32Array)[]): this`
+- `build(options?: IntentMatrixFactoryOptions): Promise<Record<string, IntentWeights>>`
+
+### `FeedbackCollector`
+ユーザーの暗黙的フィードバック（クリック、滞在時間など）を収集し、対照学習用データ（InfoNCE, Triplet）に自動変換するクラス。
+
+- `constructor(config?: FeedbackCollectorConfig)`
+- `recordImpression(impression: Impression): string`
+- `recordFeedback(feedback: FeedbackEvent): void`
+- `toInfoNCEExamples(): InfoNCEExample[]`
+- `toTripletExamples(): TripletExample[]`
+- `flush(): void`
+
+### `AdaptiveScheduler`
+フィードバックのバッチ処理と学習率の自動減衰を管理し、一定件数に達したタイミングで自動的に学習を発火させるスケジューラー。
+
+- `constructor(trainer: BaseTrainer, config: SchedulerConfig)`
+- `addFeedback(currentWeights: IntentWeights, examples: TrainingExample[]): Promise<IntentWeights | null>`
+  - 学習が実行された場合のみ新しい重みを返し、それ以外は `null` を返します。
+- `exportState(): string`
+- `static importState(trainer: BaseTrainer, stateJson: string): AdaptiveScheduler`
+
+### `FederatedAggregator`
+複数エッジ・クライアントから送られた学習済み行列（Weights）を集約し、FedAvg アルゴリズムで安全に統合するクラス。
+
+- `constructor(baseWeights: IntentWeights, dimension: number)`
+- `submitUpdate(update: ClientUpdate): void`
+- `aggregate(): IntentWeights`
+- `reset(newBaseWeights: IntentWeights): void`
+
 ### `PipelineAutoTuner`
 検索精度（MRR等）を最大化するパイプラインのハイパーパラメータ構成を自動探索（グリッドサーチ）するAuto-MLユーティリティ。
 
@@ -308,6 +342,10 @@ LlamaIndex の BaseEmbedding インターフェースをラップし、検索ク
 - `TripletOnlineOptions`: `{ learningRate?: number; margin?: number; regularization?: number }`
 - `MigrationExample`: `{ source: number[] | Float32Array; target: number[] | Float32Array }`
 - `BaseTrainingOptions`: `{ epochs?: number; learningRate?: number; regularization?: number; autoTune?: boolean }`
+- `IntentMatrixFactoryOptions`: `{ training?: BaseTrainingOptions; temperature?: number; generateRoutingVectors?: boolean; maxNegativesPerAnchor?: number }`
+- `FeedbackCollectorConfig`: `{ dwellThresholdMs?: number; maxImpressions?: number }`
+- `SchedulerConfig`: `{ batchSize?: number; initialLearningRate?: number; minLearningRate?: number; decayRate?: number; maxBufferSize?: number }`
+- `ClientUpdate`: `{ weights: IntentWeights; interactionCount: number }`
 
 ### Extras Types
 - `QuantizationConfig`: `{ type: "int8" | "binary"; dim: number; dynamic?: boolean }`

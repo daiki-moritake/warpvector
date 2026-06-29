@@ -207,6 +207,52 @@ export function colbertMaxSimWasm(
 }
 
 /**
+ * Late Interaction (ColBERT) の MaxSim スコアを複数のドキュメントに対して一括計算するWASM関数（バッチ処理版）。
+ * JS側とWASM側のコンテキストスイッチを最小化し、極限のパフォーマンスを引き出すために使用します。
+ * 
+ * @param {usize} queryPtr - クエリ行列のポインタ (f32)
+ * @param {usize} docsPtr - ドキュメント群が連結された行列の先頭ポインタ (f32)
+ * @param {usize} docTokensPtr - 各ドキュメントのトークン数(M_k)を格納した配列のポインタ (i32, サイズ: numDocs)
+ * @param {usize} resultsPtr - 各ドキュメントに対する MaxSim スコアを格納する配列のポインタ (f32, サイズ: numDocs)
+ * @param {i32} numDocs - ドキュメントの数
+ * @param {i32} queryTokens - クエリのトークン数 (N)
+ * @param {i32} dim - ベクトルの次元数 (d)
+ */
+export function colbertMaxSimBatchWasm(
+  queryPtr: usize,
+  docsPtr: usize,
+  docTokensPtr: usize,
+  resultsPtr: usize,
+  numDocs: i32,
+  queryTokens: i32,
+  dim: i32
+): void {
+  let currentDocOffset = docsPtr;
+  for (let d = 0; d < numDocs; d++) {
+    let docTokens = load<i32>(docTokensPtr + d * 4);
+    if (queryTokens <= 0 || docTokens <= 0) {
+      store<f32>(resultsPtr + d * 4, 0.0);
+    } else {
+      let totalScore: f32 = 0.0;
+      for (let i = 0; i < queryTokens; i++) {
+        let qOffset = queryPtr + (i * dim) * 4;
+        let maxSim: f32 = -1e30; // 負の無限大の代わり
+        for (let j = 0; j < docTokens; j++) {
+          let dOffset = currentDocOffset + (j * dim) * 4;
+          let sim = innerProductSimd(qOffset, dOffset, dim);
+          if (sim > maxSim) {
+            maxSim = sim;
+          }
+        }
+        totalScore += maxSim;
+      }
+      store<f32>(resultsPtr + d * 4, totalScore);
+    }
+    currentDocOffset += docTokens * dim * 4;
+  }
+}
+
+/**
  * プロジェクション（次元削減・拡張）を行うWASMコア関数。
  * 
  * @param {usize} matrixPtr - 変換行列(W)のポインタ (f32)

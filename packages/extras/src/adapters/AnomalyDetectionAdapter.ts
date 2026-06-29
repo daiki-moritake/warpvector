@@ -100,18 +100,26 @@ export class AnomalyDetectionAdapter implements WarpAdapter {
       );
     }
 
-    // safe mode: クリップ処理とNaN/Infinityのゼロ埋め
-    const safeVector = new Float32Array(vector.length);
+    // safe mode: NaN/Infinityはエラーにし、外れ値は全体スケーリングで対応
+    let maxAbs = 0.0;
     for (let i = 0; i < vector.length; i++) {
-      let val = vector[i];
+      const val = vector[i];
       if (Number.isNaN(val) || !Number.isFinite(val)) {
-        val = 0.0;
-      } else if (val > this.maxValue) {
-        val = this.maxValue;
-      } else if (val < -this.maxValue) {
-        val = -this.maxValue;
+        throw new Error(
+          `AnomalyDetectionAdapter [SAFE MODE]: Invalid value (${val}) detected at index ${i}. Processing aborted.`
+        );
       }
-      safeVector[i] = val;
+      const absVal = Math.abs(val);
+      if (absVal > maxAbs) {
+        maxAbs = absVal;
+      }
+    }
+
+    const scale = maxAbs > this.maxValue ? this.maxValue / maxAbs : 1.0;
+    const safeVector = new Float32Array(vector.length);
+    
+    for (let i = 0; i < vector.length; i++) {
+      safeVector[i] = vector[i] * scale;
     }
 
     return safeVector;
