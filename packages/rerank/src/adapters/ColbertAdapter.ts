@@ -11,6 +11,7 @@ export class ColbertAdapter {
   private getWasmExports(): {
     memory: WebAssembly.Memory;
     colbertMaxSimWasm: CallableFunction;
+    colbertMaxSimBatchWasm?: CallableFunction;
   } | null {
     const wasm = getWasmInstance();
     if (!wasm) {
@@ -19,6 +20,7 @@ export class ColbertAdapter {
     return wasm.exports as {
       memory: WebAssembly.Memory;
       colbertMaxSimWasm: CallableFunction;
+      colbertMaxSimBatchWasm?: CallableFunction;
     };
   }
 
@@ -128,8 +130,70 @@ export class ColbertAdapter {
         }))
         .sort((a, b) => b.score - a.score);
     }
-    const { memory, colbertMaxSimWasm } = exports;
+    const { memory, colbertMaxSimWasm, colbertMaxSimBatchWasm } = exports;
 
+    // Use colbertMaxSimBatchWasm if available (for extreme performance)
+    if (typeof colbertMaxSimBatchWasm === "function") {
+      const numDocs = documentTokensArray.length;
+      if (numDocs === 0) return [];
+
+      const docTokensLengths = new Int32Array(numDocs);
+      let totalDocTokens = 0;
+      for (let i = 0; i < numDocs; i++) {
+        const docLen = documentTokensArray[i].length;
+        const tokens = docLen / dim;
+        if (tokens % 1 !== 0) {
+          throw new Error(`Invalid documentTokens length at index ${i}`);
+        }
+        docTokensLengths[i] = tokens;
+        totalDocTokens += tokens;
+      }
+
+      const queryBytes = queryTokens.byteLength;
+      const docsBytes = totalDocTokens * dim * Float32Array.BYTES_PER_ELEMENT;
+      const docTokensMetaBytes = numDocs * Int32Array.BYTES_PER_ELEMENT;
+      const resultsBytes = numDocs * Float32Array.BYTES_PER_ELEMENT;
+
+      return withWasmMemoryStack(() => {
+        const queryPtr = allocateWasmMemory(queryBytes);
+        const docsPtr = allocateWasmMemory(docsBytes);
+        const docTokensPtr = allocateWasmMemory(docTokensMetaBytes);
+        const resultsPtr = allocateWasmMemory(resultsBytes);
+
+        writeFloat32ArrayToWasm(memory, queryTokens, queryPtr);
+
+        const memI32 = new Int32Array(memory.buffer);
+        memI32.set(docTokensLengths, docTokensPtr / 4);
+
+        const memF32 = new Float32Array(memory.buffer);
+        let offset = docsPtr / 4;
+        for (let i = 0; i < numDocs; i++) {
+          memF32.set(documentTokensArray[i], offset);
+          offset += documentTokensArray[i].length;
+        }
+
+        colbertMaxSimBatchWasm(
+          queryPtr,
+          docsPtr,
+          docTokensPtr,
+          resultsPtr,
+          numDocs,
+          numQueryTokens,
+          dim
+        );
+
+        // Fetch results with a fresh view to avoid detached buffer issues
+        const resF32 = new Float32Array(memory.buffer, resultsPtr, numDocs);
+        const results = new Array(numDocs);
+        for (let i = 0; i < numDocs; i++) {
+          results[i] = { index: i, score: resF32[i] };
+        }
+
+        return results.sort((a, b) => b.score - a.score);
+      });
+    }
+
+    // Fallback to iterative WASM calls
     // ドキュメントの中で最大の長さを探す
     let maxDocLen = 0;
     for (const doc of documentTokensArray) {
