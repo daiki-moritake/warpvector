@@ -46,7 +46,7 @@
     <div class="hero-content">
       <a href="https://github.com/daiki-moritake/warpvector/releases" target="_blank" class="hero-badge">
         <span class="hero-badge-tag">NEW</span>
-        <span class="hero-badge-text">v0.5.0 Released: Async Pipelines & Eval Kit →</span>
+        <span class="hero-badge-text">v0.7.2 Released: Auto-Learning & Federated Aggregation →</span>
       </a>
       <h1 class="hero-title">
         Warp Embeddings<br>
@@ -358,6 +358,10 @@ const result = baseVector;</code></pre>
             </p>
             <button class="bench-btn" id="autoLearnBtn" style="background:linear-gradient(135deg, rgba(139,92,246,0.2), rgba(59,130,246,0.2));border-color:rgba(139,92,246,0.3);">🧠 Auto-learn from Documents</button>
             <div id="autoLearnResult" style="margin-top:12px;"></div>
+            <p style="font-size:12px;color:var(--text-secondary);margin-top:16px;line-height:1.6; border-top: 1px dashed rgba(255,255,255,0.1); padding-top: 12px;">
+              <span style="color:var(--accent-cyan); font-weight:600;">🔐 Federated Learning Ready:</span><br>
+              Safely aggregate learned weights from multiple edges using <code>FederatedAggregator</code> without centralizing raw data.
+            </p>
           </div>
         </div>
       </div>
@@ -395,7 +399,7 @@ console.log(result.vector); <span class="token-comment">// Int8Array (highly com
   </section>
 
   <footer class="footer">
-    <p>Powered by <a href="https://github.com/daiki-moritake/warpvector" target="_blank">WarpVector</a> v0.5.0</p>
+    <p>Powered by <a href="https://github.com/daiki-moritake/warpvector" target="_blank">WarpVector</a> v0.7.2</p>
     <div class="footer-links">
       <a href="https://github.com/daiki-moritake/warpvector" target="_blank">GitHub</a>
       <a href="https://www.npmjs.com/package/warpvector" target="_blank">npm</a>
