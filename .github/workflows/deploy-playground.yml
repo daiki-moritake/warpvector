@@ -6,6 +6,10 @@ on:
     paths:
       - 'playground/**'
       - 'packages/core/**'
+      - 'packages/ml/**'
+      - 'packages/extras/**'
+      - 'packages/eval/**'
+      - 'packages/train/**'
       - '.github/workflows/deploy-playground.yml'
   workflow_dispatch:
 
@@ -21,6 +25,9 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -39,11 +46,9 @@ jobs:
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
-        with:
-          enablement: true
 
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v4
         with:
           path: playground/dist
 
