@@ -2,10 +2,28 @@
 
 This guide covers breaking changes and migration steps for each major version upgrade.
 
-- [v0.4 → v0.5](#v04--v05) (latest)
+- [v0.8.0 → v0.8.1](#v080--v081) (latest)
+- [v0.4 → v0.5](#v04--v05)
 - [v0.3 → v0.4](#v03--v04)
 - [v0.2 → v0.3](#v02--v03)
 - [v0.1 → v0.2](#v01--v02)
+
+---
+
+## v0.8.0 → v0.8.1
+
+### Breaking Changes
+
+#### 1. VectorDBAdapter Renamed
+
+`VectorDBAdapter` has been renamed to `VectorDBFormatter` to better reflect its role in formatting vectors for databases.
+
+```diff
+- import { VectorDBAdapter } from "warpvector";
+- VectorDBAdapter.toVectorizeQuery(vector);
++ import { VectorDBFormatter } from "warpvector";
++ VectorDBFormatter.toVectorizeQuery(vector);
+```
 
 ---
 

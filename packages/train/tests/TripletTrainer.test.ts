@@ -1,7 +1,6 @@
 import { expect, test, describe } from "bun:test";
-import { TripletTrainer, TripletExample } from "../src/trainers/TripletTrainer";
-import { IntentAdapter, IntentWeights } from "@warpvector/core";
-import { cosineSimilarity } from "@warpvector/core";
+import { TripletTrainer } from "../src/trainers/TripletTrainer";
+import { IntentAdapter, IntentWeights, type TripletExample, cosineSimilarity } from "@warpvector/core";
 
 describe("TripletTrainer", () => {
   test("trains W and b to map anchor closer to positive and further from negative", async () => {

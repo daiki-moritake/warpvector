@@ -140,7 +140,7 @@ describe("FinalStageAdapter pipeline", () => {
       },
     ];
 
-    const restored = WarpPipeline.importState(legacyState);
+    const restored = WarpPipeline.importState(legacyState as any);
     const result = await restored.run([3, 4], { intent: "default" });
     expect(result).toBeInstanceOf(Float32Array);
     expect(result.length).toBe(2);

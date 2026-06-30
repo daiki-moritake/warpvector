@@ -1,6 +1,6 @@
 {
   "name": "warpvector",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "Zero-dependency TypeScript middleware for dynamic vector space transformation. Warp embeddings at runtime with WASM-accelerated affine transforms, quantization, online learning, and ColBERT — no retraining needed.",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
@@ -69,7 +69,7 @@
     "sync:versions": "bun run scripts/sync-versions.ts",
     "prebuild": "bun run typecheck",
     "build:wasm": "bun run scripts/build-wasm.ts",
-    "build:packages": "bun run sync:versions && bun run build:wasm && npm run build --workspaces --if-present",
+    "build:packages": "bun run sync:versions && bun run build:wasm && npm --workspaces run build --if-present",
     "build": "bun run build:packages && tsup",
     "test:workspaces": "bun run --filter '*' test",
     "test": "bun run build:wasm && bun test && bun run test:workspaces",

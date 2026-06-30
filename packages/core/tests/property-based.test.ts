@@ -136,8 +136,8 @@ describe("プロパティベーステスト: Serialization Roundtrip", () => {
 
   it("QuantizationAdapter (Int8): exportState → importState で出力が再現される", () => {
     const quantizer = new QuantizationAdapter({ type: "int8", dim });
-    const stateJson = quantizer.exportState();
-    const restored = QuantizationAdapter.importState(stateJson as string);
+    const stateJson = quantizer.exportState!();
+    const restored = QuantizationAdapter.importState(stateJson as any);
 
     const input = testVector(dim, 55);
     const original = quantizer.encode(input);
@@ -149,8 +149,8 @@ describe("プロパティベーステスト: Serialization Roundtrip", () => {
 
   it("QuantizationAdapter (Binary): exportState → importState で出力が再現される", () => {
     const quantizer = new QuantizationAdapter({ type: "binary", dim });
-    const stateJson = quantizer.exportState();
-    const restored = QuantizationAdapter.importState(stateJson as string);
+    const stateJson = quantizer.exportState!();
+    const restored = QuantizationAdapter.importState(stateJson as any);
 
     const input = testVector(dim, 88);
     const original = quantizer.encode(input);
