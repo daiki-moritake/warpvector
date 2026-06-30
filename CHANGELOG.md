@@ -4,6 +4,26 @@ All notable changes to WarpVector will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [0.8.0] - 2026-06-30
+
+### Added
+- **Federated Learning UI**: Implemented a new federated learning UI with user feedback collection and aggregation orchestration in the playground.
+
+### Changed
+- **Quantization Optimization**: Significantly improved the rendering performance of the demo engine by reusing the `QuantizationAdapter` instance, eliminating redundant object instantiations during hot loops.
+- **Enhanced Whitening Convergence**: Improved the offline training process for `WhiteningAdapter` in the demo by introducing multi-epoch training iterations, resulting in faster and more stable principal component convergence and better anisotropy correction.
+- **Type Safety**: Consolidated use case definitions and improved overall type safety in `usecases.ts`.
+- **Engine Alignment**: Refactored and updated the `demo-engine` implementation to align with the latest engine interfaces.
+
+## [0.7.2] - 2026-06-29
+
+### Added
+- **Documentation**: Added a practical guide "Project Integration for Auto-Learning and Federated Learning" (`docs/cookbook/practical-auto-learning.ja.md`).
+- **Documentation**: Added auto-learning related classes to `docs/api-reference.ja.md` (`IntentMatrixFactory`, `FeedbackCollector`, `AdaptiveScheduler`, `FederatedAggregator`).
+
+### Fixed
+- **AnomalyDetectionAdapter**: Fixed a failing test to properly handle `NaN` inputs in safe mode.
+
 ## [0.7.1] - 2026-06-28
 
 ### Fixed
