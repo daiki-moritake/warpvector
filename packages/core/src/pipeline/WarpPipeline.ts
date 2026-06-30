@@ -613,7 +613,10 @@ export class WarpPipeline {
         try {
           stepState = JSON.parse(stepState);
         } catch (e) {
-          throw new Error(`Failed to parse legacy JSON state for ${step.type}`);
+          throw new Error(
+            `Failed to parse legacy JSON state for ${step.type}`,
+            { cause: e },
+          );
         }
       }
 
@@ -649,6 +652,7 @@ export class WarpPipeline {
         } catch (e) {
           throw new Error(
             `Failed to parse legacy JSON state for ${finalStageState.type}`,
+            { cause: e },
           );
         }
       }
