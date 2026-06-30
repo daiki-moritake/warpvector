@@ -1,6 +1,6 @@
 {
   "name": "@warpvector/experimental",
-  "version": "0.7.2",
+  "version": "0.8.0",
   "description": "Experimental features for WarpVector — unstable APIs, use at your own risk",
   "main": "src/index.ts",
   "module": "src/index.ts",

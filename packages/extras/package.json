@@ -1,6 +1,6 @@
 {
   "name": "@warpvector/extras",
-  "version": "0.7.2",
+  "version": "0.8.0",
   "description": "Extended adapters: Quantization, VSA, Hybrid Search, and Safety for WarpVector",
   "main": "src/index.ts",
   "module": "src/index.ts",

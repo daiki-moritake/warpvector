@@ -1,6 +1,6 @@
 {
   "name": "@warpvector/train",
-  "version": "0.7.2",
+  "version": "0.8.0",
   "description": "Machine learning trainers and auto-tuning tools for WarpVector (Backend / Node.js only)",
   "main": "src/index.ts",
   "module": "src/index.ts",
