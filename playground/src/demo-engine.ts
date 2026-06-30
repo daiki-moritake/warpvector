@@ -453,7 +453,7 @@ export async function createDemoState(
   }
 
   // Initialize Whitening Adapter and learn from base vectors
-  const whiteningAdapter = new WhiteningAdapter(DIM, { learningRate: 0.1, numComponents: 2 });
+  const whiteningAdapter = new WhiteningAdapter({ dim: DIM, learningRate: 0.1, numComponents: 2 });
   // Oja's rule converges better with multiple passes over the dataset if the set is static
   for (let epoch = 0; epoch < 3; epoch++) {
     for (const doc of docs) {
