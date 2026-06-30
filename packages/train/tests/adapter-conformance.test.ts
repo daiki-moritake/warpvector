@@ -11,6 +11,9 @@ function testAdapterConformance(
 ) {
   describe(`${adapterName} Conformance`, () => {
     test("exportState() returns a valid AdapterState object", () => {
+      if (!adapter.exportState) {
+        throw new Error("adapter must implement exportState for conformance test");
+      }
       const state = adapter.exportState();
       expect(typeof state).toBe("object");
       expect(state).not.toBeNull();
@@ -22,6 +25,9 @@ function testAdapterConformance(
     });
 
     test("importState() correctly restores the adapter", () => {
+      if (!adapter.exportState) {
+        throw new Error("adapter must implement exportState for conformance test");
+      }
       const state = adapter.exportState();
       const AdapterClass = adapter.constructor as any;
 

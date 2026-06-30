@@ -11,6 +11,9 @@ function testAdapterConformance(
 ) {
   describe(`${adapterName} Conformance`, () => {
     test("exportState() returns a valid AdapterState object", () => {
+      if (!adapter.exportState) {
+        throw new Error("adapter must implement exportState for conformance test");
+      }
       const state = adapter.exportState();
       expect(typeof state).toBe("object");
       expect(state).not.toBeNull();
@@ -22,6 +25,9 @@ function testAdapterConformance(
     });
 
     test("importState() correctly restores the adapter", () => {
+      if (!adapter.exportState) {
+        throw new Error("adapter must implement exportState for conformance test");
+      }
       const state = adapter.exportState();
       const AdapterClass = adapter.constructor as any;
 
@@ -63,16 +69,13 @@ describe("Adapter Conformance Tests (ML)", () => {
     },
   ]);
   // mlpAdapter requires async init() but conformance test doesn't do async, let's just initialize it manually
-  mlpAdapter["initialized"] = true;
-  mlpAdapter["dimensions"] = [4, 2];
+  (mlpAdapter as any).initialized = true;
+  (mlpAdapter as any).dimensions = [4, 2];
 
   const moeAdapter = new MoeAdapter({
-    dim,
-    numExperts: 2,
-    topK: 1,
     experts: [
-      { adapterType: "MlpAdapter", state: mlpAdapter.exportState() },
-      { adapterType: "MlpAdapter", state: mlpAdapter.exportState() },
+      { id: "expert1", adapter: mlpAdapter },
+      { id: "expert2", adapter: mlpAdapter },
     ],
   });
 

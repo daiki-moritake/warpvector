@@ -1,7 +1,6 @@
 import { expect, test, describe } from "bun:test";
-import { InfoNCETrainer, InfoNCEExample } from "../src/trainers/InfoNCETrainer";
-import { IntentAdapter, IntentWeights } from "@warpvector/core";
-import { cosineSimilarity } from "@warpvector/core";
+import { InfoNCETrainer } from "../src/trainers/InfoNCETrainer";
+import { IntentAdapter, IntentWeights, type InfoNCEExample, cosineSimilarity } from "@warpvector/core";
 
 describe("InfoNCETrainer", () => {
   test("trains W and b to map anchor closer to positive and further from multiple negatives", async () => {
