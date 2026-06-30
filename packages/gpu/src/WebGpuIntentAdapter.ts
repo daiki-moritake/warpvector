@@ -274,11 +274,11 @@ export class WebGpuIntentAdapter extends AbstractWarpAdapter {
     };
   }
 
-  static importState(state: any): WebGpuIntentAdapter {
+  static importState(state: AdapterState): WebGpuIntentAdapter {
     return new WebGpuIntentAdapter(
-      state.intents,
-      state.inputDim,
-      state.outputDim,
+      state.intents as Record<string, IntentWeights>,
+      state.inputDim as number,
+      state.outputDim as number,
     );
   }
 }

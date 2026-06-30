@@ -7,6 +7,7 @@ import {
   AbstractWarpAdapter,
   safeJsonParse,
   assertObject,
+  type AdapterState,
 } from "@warpvector/core";
 
 export interface AnomalyDetectionConfig {
@@ -35,13 +36,6 @@ export class AnomalyDetectionAdapter extends AbstractWarpAdapter {
 
   constructor(config: AnomalyDetectionConfig = {}) {
     super();
-    if (arguments.length > 1) {
-      throw new Error(
-        "[WarpVector DX Error] AnomalyDetectionAdapter のコンストラクタ引数が変更されました。\n" +
-          "次元数 (dim) などを第1引数に渡す必要はありません。すべての設定は1つのオブジェクトで渡してください。\n" +
-          "例: new AnomalyDetectionAdapter({ mode: 'safe', maxValue: 3.0 })",
-      );
-    }
 
     // threshold のような古いプロパティ名への警告
     if (config && "threshold" in config) {
@@ -110,7 +104,7 @@ export class AnomalyDetectionAdapter extends AbstractWarpAdapter {
       const val = vector[i];
       if (Number.isNaN(val) || !Number.isFinite(val)) {
         throw new Error(
-          `AnomalyDetectionAdapter [SAFE MODE]: Invalid value (${val}) detected at index ${i}. Processing aborted.`
+          `AnomalyDetectionAdapter [SAFE MODE]: Invalid value (${val}) detected at index ${i}. Processing aborted.`,
         );
       }
       const absVal = Math.abs(val);
@@ -121,7 +115,7 @@ export class AnomalyDetectionAdapter extends AbstractWarpAdapter {
 
     const scale = maxAbs > this.maxValue ? this.maxValue / maxAbs : 1.0;
     const safeVector = new Float32Array(vector.length);
-    
+
     for (let i = 0; i < vector.length; i++) {
       safeVector[i] = vector[i] * scale;
     }
@@ -129,23 +123,18 @@ export class AnomalyDetectionAdapter extends AbstractWarpAdapter {
     return safeVector;
   }
 
-  public exportState(): string {
-    return JSON.stringify({
+  public exportState(): AdapterState {
+    return {
       __version: "1.0",
       mode: this.mode,
       maxValue: this.maxValue,
-    });
+    };
   }
 
-  public static importState(stateJson: string): AnomalyDetectionAdapter {
-    const data = assertObject(
-      safeJsonParse(stateJson, "AnomalyDetectionAdapter"),
-      "root",
-    );
+  public static importState(data: AdapterState): AnomalyDetectionAdapter {
     const mode =
       data.mode === "strict" || data.mode === "safe" ? data.mode : "strict";
-    const maxValue =
-      typeof data.maxValue === "number" ? data.maxValue : 100.0;
+    const maxValue = typeof data.maxValue === "number" ? data.maxValue : 100.0;
     return new AnomalyDetectionAdapter({ mode, maxValue });
   }
 }

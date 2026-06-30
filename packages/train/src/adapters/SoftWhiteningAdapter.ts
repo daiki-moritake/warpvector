@@ -1,5 +1,7 @@
 import {
   type WarpAdapter,
+  type InputVector,
+  type AdapterState,
   assertDimension,
   normalize,
   innerProduct,
@@ -72,28 +74,18 @@ export class SoftWhiteningAdapter extends AbstractWarpAdapter {
 
   /**
    * 新しい SoftWhiteningAdapter を作成します。
-   * @param dim ベクトルの次元数
-   * @param config 設定オプション
+   * @param config 設定オプション（次元数 dim は必須）
    */
-  constructor(dim: number, config: SoftWhiteningConfig = {}) {
+  constructor(config: { dim: number } & SoftWhiteningConfig) {
     super();
-    this.dim = dim;
-    if (arguments.length > 2) {
+
+    if (typeof config.dim !== "number" || config.dim <= 0) {
       throw new Error(
-        "[WarpVector DX Error] SoftWhiteningAdapter のコンストラクタ引数が変更されました。\n" +
-          "次元数 (dim) を第1引数、設定オブジェクトを第2引数として渡してください（引数は最大2つです）。\n" +
-          "例: new SoftWhiteningAdapter(1536, { tau: 0.5 })",
+        "[WarpVector DX Error] SoftWhiteningAdapter の 'dim' (次元数) は正の数値である必要があります。",
       );
     }
 
-    if (typeof dim !== "number" || dim <= 0) {
-      throw new Error(
-        "[WarpVector DX Error] SoftWhiteningAdapter の第1引数 'dim' (次元数) は正の数値である必要があります。\n" +
-          "もし設定オブジェクトのみを渡している場合は、必ず第1引数に次元数を指定してください。",
-      );
-    }
-
-    this.dim = dim;
+    this.dim = config.dim;
     this.learningRate = config.learningRate ?? 0.01;
     this.numComponents = config.numComponents ?? 5;
     this.tau = config.tau ?? 1.0;
@@ -106,15 +98,15 @@ export class SoftWhiteningAdapter extends AbstractWarpAdapter {
       throw new Error("SoftWhiteningAdapter: numComponents must be positive.");
     }
 
-    this.mean = new Float32Array(dim);
+    this.mean = new Float32Array(this.dim);
     this.eigenvalues = new Float32Array(this.numComponents);
     this.components = [];
 
     // 主成分ベクトルをランダムに初期化（正規化済み）
     // 固有値は微小な値で初期化
     for (let k = 0; k < this.numComponents; k++) {
-      const pc = new Float32Array(dim);
-      for (let i = 0; i < dim; i++) {
+      const pc = new Float32Array(this.dim);
+      for (let i = 0; i < this.dim; i++) {
         pc[i] = Math.random() * 2 - 1;
       }
       this.components.push(normalize(pc));
@@ -269,7 +261,7 @@ export class SoftWhiteningAdapter extends AbstractWarpAdapter {
    * @param vectors 変換対象のベクトル配列
    * @returns シャープニングされた新しいベクトルの配列
    */
-  public tuneBatch(vectors: Float32Array[]): Float32Array[] {
+  public tuneBatch(vectors: InputVector[]): Float32Array[] {
     const batchSize = vectors.length;
     const results = new Array<Float32Array>(batchSize);
 
@@ -322,8 +314,8 @@ export class SoftWhiteningAdapter extends AbstractWarpAdapter {
   /**
    * 現在の学習状態をシリアライズして出力します。
    */
-  public exportState(): string {
-    return JSON.stringify({
+  public exportState(): AdapterState {
+    return {
       dim: this.dim,
       count: this.count,
       learningRate: this.learningRate,
@@ -333,17 +325,13 @@ export class SoftWhiteningAdapter extends AbstractWarpAdapter {
       mean: Array.from(this.mean),
       eigenvalues: Array.from(this.eigenvalues),
       components: this.components.map((c) => Array.from(c)),
-    });
+    };
   }
 
   /**
    * シリアライズされた学習状態から SoftWhiteningAdapter を復元します。
    */
-  public static importState(stateJson: string): SoftWhiteningAdapter {
-    const data = assertObject(
-      safeJsonParse(stateJson, "SoftWhiteningAdapter"),
-      "root",
-    );
+  public static importState(data: AdapterState): SoftWhiteningAdapter {
     const dim = assertPositiveInt(data.dim, "dim");
     const learningRate =
       typeof data.learningRate === "number" ? data.learningRate : 0.01;
@@ -359,7 +347,8 @@ export class SoftWhiteningAdapter extends AbstractWarpAdapter {
     const eigenvalues = assertNumberArray(data.eigenvalues, "eigenvalues");
     const components = assertArray(data.components, "components");
 
-    const adapter = new SoftWhiteningAdapter(dim, {
+    const adapter = new SoftWhiteningAdapter({
+      dim,
       learningRate,
       numComponents,
       tau,

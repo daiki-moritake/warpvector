@@ -39,13 +39,13 @@ export function quantizePipeline(
 
 // WarpPipeline にextras系アダプタを自動登録 (side-effect)
 WarpPipeline.registerAdapter("AnomalyDetectionAdapter", (state) =>
-  AnomalyDetectionAdapter.importState(state as string),
+  AnomalyDetectionAdapter.importState(state as any),
 );
 
 // FinalStageAdapter として登録（パイプライン末尾の量子化復元用）
 WarpPipeline.registerFinalStage("QuantizationAdapter", (state) =>
-  QuantizationAdapter.importState(state as string),
+  QuantizationAdapter.importState(state as any),
 );
 WarpPipeline.registerFinalStage("SafeQuantizationAdapter", (state) =>
-  SafeQuantizationAdapter.importState(state as string),
+  SafeQuantizationAdapter.importState(state as any),
 );

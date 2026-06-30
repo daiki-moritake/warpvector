@@ -1,8 +1,5 @@
 import { describe, it, expect } from "bun:test";
-import {
-  FeedbackCollector,
-  type SearchImpression,
-} from "@warpvector/core";
+import { FeedbackCollector, type SearchImpression } from "@warpvector/core";
 
 function makeVec(seed: number, dim = 4): Float32Array {
   const v = new Float32Array(dim);

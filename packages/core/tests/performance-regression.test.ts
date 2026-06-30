@@ -104,7 +104,8 @@ describe("パフォーマンス回帰テスト", () => {
   });
 
   test("WhiteningAdapter.tune() — 白色化 < 0.5ms (768d)", () => {
-    const adapter = new WhiteningAdapter(DIM);
+    const dim = 768;
+    const adapter = new WhiteningAdapter({ dim, numComponents: 1 });
     const corpus = randomBatch(DIM, 50);
     for (const v of corpus) adapter.update(v);
     const vec = randomVec(DIM);

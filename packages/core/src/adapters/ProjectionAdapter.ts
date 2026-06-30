@@ -13,7 +13,11 @@ import {
   withWasmMemoryStack,
   readFloat32ArrayFromWasm,
 } from "../wasm/wasm-loader";
-import { WarpAdapter, TransformOutput } from "../interfaces/WarpAdapter";
+import {
+  WarpAdapter,
+  TransformOutput,
+  AdapterState,
+} from "../interfaces/WarpAdapter";
 import { AbstractWarpAdapter } from "./AbstractWarpAdapter";
 
 /**
@@ -204,7 +208,7 @@ export class ProjectionAdapter extends AbstractWarpAdapter {
   /**
    * 現在の射影行列の状態をシリアライズしてエクスポートします。
    */
-  public exportState(): string {
+  public exportState(): AdapterState {
     const projections: Record<string, { matrix: number[]; bias?: number[] }> =
       {};
     for (const [name, matrix] of this.matrices.entries()) {
@@ -214,22 +218,18 @@ export class ProjectionAdapter extends AbstractWarpAdapter {
         bias: bias ? Array.from(bias) : undefined,
       };
     }
-    return JSON.stringify({
+    return {
       inDimension: this.inDimension,
       outDimension: this.outDimension,
       projections,
-    });
+    };
   }
 
   /**
    * エクスポートされた状態から ProjectionAdapter を復元します。
    * 注意: 保存されている matrix は既にフラット化された 1D 配列であることを前提としています。
    */
-  public static importState(stateJson: string): ProjectionAdapter {
-    const data = assertObject(
-      safeJsonParse(stateJson, "ProjectionAdapter"),
-      "root",
-    );
+  public static importState(data: AdapterState): ProjectionAdapter {
     const inDimension = assertPositiveInt(data.inDimension, "inDimension");
     const outDimension = assertPositiveInt(data.outDimension, "outDimension");
     const adapter = new ProjectionAdapter(inDimension, outDimension);

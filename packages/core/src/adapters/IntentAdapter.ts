@@ -20,7 +20,11 @@ import {
   allocateWasmMemory,
   withWasmMemoryStack,
 } from "../wasm/wasm-loader";
-import { WarpAdapter, TransformOutput } from "../interfaces/WarpAdapter";
+import {
+  WarpAdapter,
+  TransformOutput,
+  AdapterState,
+} from "../interfaces/WarpAdapter";
 import { AbstractWarpAdapter } from "./AbstractWarpAdapter";
 
 /**
@@ -496,9 +500,7 @@ export class IntentAdapter extends AbstractWarpAdapter {
     offset += dim * dim * 4;
 
     const bias = new Float32Array(dim);
-    new Uint8Array(bias.buffer).set(
-      binary.subarray(offset, offset + dim * 4),
-    );
+    new Uint8Array(bias.buffer).set(binary.subarray(offset, offset + dim * 4));
     offset += dim * 4;
 
     let routingVector: Float32Array | undefined = undefined;
@@ -520,7 +522,7 @@ export class IntentAdapter extends AbstractWarpAdapter {
    * 現在の IntentAdapter の全状態（全インテント）を JSON としてシリアライズしてエクスポートします。
    * (WarpPipeline 等の統合管理用)
    */
-  public exportState(): string {
+  public exportState(): AdapterState {
     const intents: Record<
       string,
       { matrix: number[]; bias: number[]; routingVector?: number[] }
@@ -534,17 +536,13 @@ export class IntentAdapter extends AbstractWarpAdapter {
         routingVector: routing ? Array.from(routing) : undefined,
       };
     }
-    return JSON.stringify({ dimension: this.dimension, intents });
+    return { dimension: this.dimension, intents };
   }
 
   /**
-   * エクスポートされた JSON 状態から IntentAdapter を復元します。
+   * エクスポートされた状態から IntentAdapter を復元します。
    */
-  public static importState(stateJson: string): IntentAdapter {
-    const data = assertObject(
-      safeJsonParse(stateJson, "IntentAdapter"),
-      "root",
-    );
+  public static importState(data: AdapterState): IntentAdapter {
     const dimension = assertPositiveInt(data.dimension, "dimension");
     const adapter = new IntentAdapter(dimension);
 

@@ -1,4 +1,9 @@
-import { IntentWeights, initWasm, wasmMutex, type InfoNCEExample } from "@warpvector/core";
+import {
+  IntentWeights,
+  initWasm,
+  wasmMutex,
+  type InfoNCEExample,
+} from "@warpvector/core";
 import {
   assertDimension,
   getFlatMatrixAndBias,
@@ -7,7 +12,6 @@ import {
   softmax,
 } from "@warpvector/core";
 import { BaseTrainer } from "../trainers/BaseTrainer";
-
 
 /**
  * InfoNCETrainer のオンライン学習オプション
@@ -156,7 +160,9 @@ export class InfoNCETrainer extends BaseTrainer<InfoNCEExample, IntentWeights> {
       assertDimension(example.anchor, dim, "InfoNCETrainer.train anchor");
       assertDimension(example.positive, dim, "InfoNCETrainer.train positive");
       if (example.negatives.length === 0) {
-        throw new Error("InfoNCETrainer requires at least one negative example.");
+        throw new Error(
+          "InfoNCETrainer requires at least one negative example.",
+        );
       }
       for (const neg of example.negatives) {
         assertDimension(neg, dim, "InfoNCETrainer.train negative");
@@ -197,7 +203,9 @@ export class InfoNCETrainer extends BaseTrainer<InfoNCEExample, IntentWeights> {
         options.temperature <= 0 ||
         Number.isNaN(options.temperature)
       ) {
-        throw new Error("InfoNCETrainer: temperature must be a positive number.");
+        throw new Error(
+          "InfoNCETrainer: temperature must be a positive number.",
+        );
       }
     }
   }

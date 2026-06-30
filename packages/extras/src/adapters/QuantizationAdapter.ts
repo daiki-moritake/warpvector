@@ -10,6 +10,7 @@ import {
   withWasmMemoryStack,
   writeFloat32ArrayToWasm,
   type OutputVector,
+  type AdapterState,
 } from "@warpvector/core";
 
 export type QuantizationType = "int8" | "binary";
@@ -168,24 +169,20 @@ export class QuantizationAdapter implements FinalStageAdapter {
 
   // `encode` は既に上に定義されたため、古い `encode` や `tune` は削除。
 
-  public exportState(): string {
-    return JSON.stringify({
+  public exportState(): AdapterState {
+    return {
       type: this.type,
       dim: this.dim,
       dynamic: this.dynamic,
-    });
+    };
   }
 
-  public static importState(stateJson: string): QuantizationAdapter {
-    const data = assertObject(
-      safeJsonParse(stateJson, "QuantizationAdapter"),
-      "root",
-    );
+  public static importState(data: AdapterState): QuantizationAdapter {
     assertType(data.type, "string", "type");
-    assertPositiveInt(data.dim, "dim");
+    const dim = assertPositiveInt(data.dim, "dim");
     return new QuantizationAdapter({
       type: data.type as QuantizationType,
-      dim: data.dim as number,
+      dim: dim,
       dynamic: typeof data.dynamic === "boolean" ? data.dynamic : false,
     });
   }

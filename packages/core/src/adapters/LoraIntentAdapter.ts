@@ -13,6 +13,7 @@ import {
 import {
   WarpAdapter,
   TransformOutput,
+  AdapterState,
 } from "../interfaces/WarpAdapter";
 import { AbstractWarpAdapter } from "./AbstractWarpAdapter";
 
@@ -100,7 +101,11 @@ export class LoraIntentAdapter extends AbstractWarpAdapter {
     if (matrixA instanceof Float32Array) {
       flatA = new Float32Array(matrixA);
     } else if (Array.isArray(matrixA) && !Array.isArray(matrixA[0])) {
-      assertDimension(matrixA as number[], this.dimension * this.rank, `Intent '${intentName}' Matrix A (1D)`);
+      assertDimension(
+        matrixA as number[],
+        this.dimension * this.rank,
+        `Intent '${intentName}' Matrix A (1D)`,
+      );
       flatA = new Float32Array(matrixA as number[]);
     } else {
       flatA = flattenMatrix(
@@ -115,7 +120,11 @@ export class LoraIntentAdapter extends AbstractWarpAdapter {
     if (matrixB instanceof Float32Array) {
       flatB = new Float32Array(matrixB);
     } else if (Array.isArray(matrixB) && !Array.isArray(matrixB[0])) {
-      assertDimension(matrixB as number[], this.rank * this.dimension, `Intent '${intentName}' Matrix B (1D)`);
+      assertDimension(
+        matrixB as number[],
+        this.rank * this.dimension,
+        `Intent '${intentName}' Matrix B (1D)`,
+      );
       flatB = new Float32Array(matrixB as number[]);
     } else {
       flatB = flattenMatrix(
@@ -186,7 +195,7 @@ export class LoraIntentAdapter extends AbstractWarpAdapter {
   /**
    * 現在の LoraIntentAdapter の全状態を JSON としてエクスポートします。
    */
-  public exportState(): string {
+  public exportState(): AdapterState {
     const intents: Record<
       string,
       { matrixA: number[]; matrixB: number[]; bias: number[] }
@@ -200,21 +209,17 @@ export class LoraIntentAdapter extends AbstractWarpAdapter {
         bias: Array.from(bias),
       };
     }
-    return JSON.stringify({
+    return {
       dimension: this.dimension,
       rank: this.rank,
       intents,
-    });
+    };
   }
 
   /**
-   * エクスポートされた JSON 状態から LoraIntentAdapter を復元します。
+   * エクスポートされた状態から LoraIntentAdapter を復元します。
    */
-  public static importState(stateJson: string): LoraIntentAdapter {
-    const data = assertObject(
-      safeJsonParse(stateJson, "LoraIntentAdapter"),
-      "root",
-    );
+  public static importState(data: AdapterState): LoraIntentAdapter {
     const dimension = assertPositiveInt(data.dimension, "dimension");
     const rank = assertPositiveInt(data.rank, "rank");
     const adapter = new LoraIntentAdapter(dimension, rank);

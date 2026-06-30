@@ -11,12 +11,11 @@ export * from "./trainers/TripletTrainer";
 export * from "./trainers/CrossEncoderTrainer";
 export * from "./trainers/MigrationTrainer";
 
-
 export * from "./automl/metrics";
 export * from "./automl/PipelineAutoTuner";
 export * from "./factory/IntentMatrixFactory";
 
 // WarpPipeline に高度なアダプタを自動登録 (side-effect)
 WarpPipeline.registerAdapter("SoftWhiteningAdapter", (state) =>
-  SoftWhiteningAdapter.importState(state as string),
+  SoftWhiteningAdapter.importState(state as any),
 );

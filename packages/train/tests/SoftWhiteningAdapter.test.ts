@@ -8,7 +8,8 @@ describe("SoftWhiteningAdapter", () => {
   });
 
   test("should initialize correctly", () => {
-    const adapter = new SoftWhiteningAdapter(10, {
+    const adapter = new SoftWhiteningAdapter({
+      dim: 10,
       learningRate: 0.05,
       numComponents: 3,
       tau: 2.0,
@@ -22,16 +23,17 @@ describe("SoftWhiteningAdapter", () => {
   });
 
   test("should throw error for invalid parameters", () => {
-    expect(() => new SoftWhiteningAdapter(10, { tau: -1.0 })).toThrow(
+    expect(() => new SoftWhiteningAdapter({ dim: 10, tau: -1.0 })).toThrow(
       "non-negative",
     );
-    expect(() => new SoftWhiteningAdapter(10, { numComponents: 0 })).toThrow(
-      "positive",
-    );
+    expect(
+      () => new SoftWhiteningAdapter({ dim: 10, numComponents: 0 }),
+    ).toThrow("positive");
   });
 
   test("should track eigenvalues and update components online", () => {
-    const adapter = new SoftWhiteningAdapter(5, {
+    const adapter = new SoftWhiteningAdapter({
+      dim: 5,
       learningRate: 0.1,
       numComponents: 2,
     });
@@ -59,7 +61,8 @@ describe("SoftWhiteningAdapter", () => {
   });
 
   test("should sharpen vector smoothly using inverse heat kernel (tau)", () => {
-    const adapter = new SoftWhiteningAdapter(4, {
+    const adapter = new SoftWhiteningAdapter({
+      dim: 4,
       learningRate: 0.1,
       numComponents: 1,
       tau: 5.0, // High tau for strong sharpening
@@ -100,7 +103,8 @@ describe("SoftWhiteningAdapter", () => {
   });
 
   test("should serialize and deserialize state", () => {
-    const adapter = new SoftWhiteningAdapter(3, {
+    const adapter = new SoftWhiteningAdapter({
+      dim: 3,
       learningRate: 0.05,
       numComponents: 2,
       tau: 1.5,
@@ -120,7 +124,8 @@ describe("SoftWhiteningAdapter", () => {
     expect(restored.components.length).toBe(adapter.components.length);
   });
   test("should normalize output when normalizeOutput is true", () => {
-    const adapter = new SoftWhiteningAdapter(4, {
+    const adapter = new SoftWhiteningAdapter({
+      dim: 4,
       tau: 1.0,
       numComponents: 1,
       normalizeOutput: true,
@@ -134,7 +139,8 @@ describe("SoftWhiteningAdapter", () => {
   });
 
   test("tuneBatch should produce identical results to tune in loop", () => {
-    const adapter = new SoftWhiteningAdapter(3, {
+    const adapter = new SoftWhiteningAdapter({
+      dim: 3,
       tau: 2.0,
       numComponents: 2,
       normalizeOutput: true,

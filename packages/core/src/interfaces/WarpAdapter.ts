@@ -3,7 +3,7 @@ export type InputVector = number[] | Float32Array;
 export type TransformOutput = Float32Array;
 /** 最終出力型（量子化後を含む） */
 export type OutputVector = Float32Array | Int8Array | Uint8Array;
-export type AdapterState = Record<string, unknown> | string;
+export type AdapterState = Record<string, unknown>;
 
 /**
  * WarpVector のすべてのベクトル変換アダプターに共通するインターフェース。

@@ -1,4 +1,9 @@
-import { WarpAdapter, InputVector, TransformOutput, AdapterState } from "../interfaces/WarpAdapter";
+import {
+  WarpAdapter,
+  InputVector,
+  TransformOutput,
+  AdapterState,
+} from "../interfaces/WarpAdapter";
 
 /**
  * WarpAdapter の基本実装を提供する抽象クラス。
@@ -7,11 +12,17 @@ import { WarpAdapter, InputVector, TransformOutput, AdapterState } from "../inte
 export abstract class AbstractWarpAdapter implements WarpAdapter {
   public abstract tune(vector: InputVector, context?: string): TransformOutput;
 
-  public tuneBatch(vectors: InputVector[], context?: string): TransformOutput[] {
-    return vectors.map(v => this.tune(v, context));
+  public tuneBatch(
+    vectors: InputVector[],
+    context?: string,
+  ): TransformOutput[] {
+    return vectors.map((v) => this.tune(v, context));
   }
 
-  public async tuneBatchAsync(vectors: InputVector[], context?: string): Promise<TransformOutput[]> {
+  public async tuneBatchAsync(
+    vectors: InputVector[],
+    context?: string,
+  ): Promise<TransformOutput[]> {
     // デフォルト実装は同期版を Promise でラップするだけ
     return Promise.resolve(this.tuneBatch(vectors, context));
   }

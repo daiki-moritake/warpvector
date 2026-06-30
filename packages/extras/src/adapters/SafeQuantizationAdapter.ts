@@ -5,6 +5,7 @@ import {
   assertObject,
   assertPositiveInt,
   assertType,
+  type AdapterState,
 } from "@warpvector/core";
 import { QuantizationAdapter, QuantizationConfig } from "./QuantizationAdapter";
 
@@ -95,7 +96,7 @@ export class SafeQuantizationAdapter implements FinalStageAdapter {
       if (Number.isNaN(val) || !Number.isFinite(val)) {
         throw new Error(
           `[WarpVector Error] SafeQuantizationAdapter encountered an invalid value (${val}) at index ${i}. ` +
-          "Quantization aborted to prevent data corruption."
+            "Quantization aborted to prevent data corruption.",
         );
       }
       const absVal = Math.abs(val);
@@ -116,26 +117,23 @@ export class SafeQuantizationAdapter implements FinalStageAdapter {
     return this.baseAdapter.encode(safeVector);
   }
 
-  public exportState(): string {
-    return JSON.stringify({
+  public exportState(): AdapterState {
+    return {
       __version: "1.0",
       ...this.options,
-    });
+    };
   }
 
-  public static importState(stateJson: string): SafeQuantizationAdapter {
-    const data = assertObject(
-      safeJsonParse(stateJson, "SafeQuantizationAdapter"),
-      "root",
-    );
+  public static importState(data: AdapterState): SafeQuantizationAdapter {
     assertType(data.type, "string", "type");
-    assertPositiveInt(data.dim, "dim");
+    const dim = assertPositiveInt(data.dim, "dim");
 
     const options: SafeQuantizationOptions = {
       type: data.type as any,
-      dim: data.dim as number,
+      dim: dim,
       dynamic: typeof data.dynamic === "boolean" ? data.dynamic : false,
-      clipThreshold: typeof data.clipThreshold === "number" ? data.clipThreshold : undefined,
+      clipThreshold:
+        typeof data.clipThreshold === "number" ? data.clipThreshold : undefined,
     };
     return new SafeQuantizationAdapter(options);
   }

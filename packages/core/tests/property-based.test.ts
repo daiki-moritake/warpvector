@@ -5,14 +5,8 @@ import {
   ProjectionAdapter,
   WarpPipeline,
 } from "@warpvector/core";
-import {
-  MlpAdapter,
-  WhiteningAdapter,
-} from "@warpvector/ml";
-import {
-  QuantizationAdapter,
-  VsaAdapter,
-} from "@warpvector/extras";
+import { MlpAdapter, WhiteningAdapter } from "@warpvector/ml";
+import { QuantizationAdapter, VsaAdapter } from "@warpvector/extras";
 import { ColbertAdapter } from "@warpvector/rerank";
 
 /**

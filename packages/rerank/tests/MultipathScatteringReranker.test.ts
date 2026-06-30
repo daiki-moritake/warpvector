@@ -25,18 +25,12 @@ describe("MultipathScatteringReranker", () => {
     expect(
       () => new MultipathScatteringReranker({ maxIterations: NaN }),
     ).toThrow();
-    expect(
-      () => new MultipathScatteringReranker({ tolerance: 0 }),
-    ).toThrow();
+    expect(() => new MultipathScatteringReranker({ tolerance: 0 })).toThrow();
     expect(
       () => new MultipathScatteringReranker({ tolerance: -1e-5 }),
     ).toThrow();
-    expect(
-      () => new MultipathScatteringReranker({ tolerance: NaN }),
-    ).toThrow();
-    expect(
-      () => new MultipathScatteringReranker({ threshold: NaN }),
-    ).toThrow();
+    expect(() => new MultipathScatteringReranker({ tolerance: NaN })).toThrow();
+    expect(() => new MultipathScatteringReranker({ threshold: NaN })).toThrow();
   });
 
   test("should amplify true hub source based on multipath scattering", () => {

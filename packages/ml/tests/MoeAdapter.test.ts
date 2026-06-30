@@ -100,9 +100,9 @@ describe("MoeAdapter", () => {
     });
 
     const state = moe.exportState();
-    expect(typeof state).toBe("string");
+    expect(typeof state).toBe("object");
 
-    const parsed = JSON.parse(state as string);
+    const parsed = state as any;
     expect(parsed.type).toBe("MoeAdapter");
     expect(parsed.experts[0].id).toBe("expert1");
 

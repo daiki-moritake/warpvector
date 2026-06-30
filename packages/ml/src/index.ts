@@ -10,11 +10,11 @@ export * from "./adapters/WhiteningAdapter";
 
 // WarpPipeline にml系アダプタを自動登録 (side-effect)
 WarpPipeline.registerAdapter("MlpAdapter", (state) =>
-  MlpAdapter.importState(state as string),
+  MlpAdapter.importState(state as any),
 );
 WarpPipeline.registerAdapter("WhiteningAdapter", (state) =>
-  WhiteningAdapter.importState(state as string),
+  WhiteningAdapter.importState(state as any),
 );
 WarpPipeline.registerAdapter("MoeAdapter", (state) =>
-  MoeAdapter.importState(state as string),
+  MoeAdapter.importState(state as any),
 );

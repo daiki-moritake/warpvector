@@ -129,37 +129,37 @@ export class MoeAdapter extends AbstractWarpAdapter {
           : undefined,
       });
     }
-    return JSON.stringify(state);
+    return state;
   }
 
   /**
    * JSON文字列またはオブジェクトから MoeAdapter を復元します。
    * 内部のエキスパートは AdapterRegistry を通じて動的に復元されます。
    */
-  static importState(state: AdapterState): MoeAdapter {
-    const parsed = typeof state === "string" ? JSON.parse(state) : state;
+  static importState(parsed: AdapterState): MoeAdapter {
     if (parsed.type !== "MoeAdapter") {
       throw new Error(`Invalid state type for MoeAdapter: ${parsed.type}`);
     }
 
-
-    const experts: ExpertDefinition[] = parsed.experts.map((exp: any) => {
-      const importFn = AdapterRegistry.get(exp.adapterType);
-      if (!importFn) {
-        throw new Error(
-          `Cannot import MoeAdapter: unknown adapter type '${exp.adapterType}' for expert '${exp.id}'. Did you register it?`,
-        );
-      }
-      return {
-        id: exp.id,
-        centroid: exp.centroid,
-        adapter: importFn(exp.adapterState),
-      };
-    });
+    const experts: ExpertDefinition[] = (parsed.experts as any[]).map(
+      (exp: any) => {
+        const importFn = AdapterRegistry.get(exp.adapterType);
+        if (!importFn) {
+          throw new Error(
+            `Cannot import MoeAdapter: unknown adapter type '${exp.adapterType}' for expert '${exp.id}'. Did you register it?`,
+          );
+        }
+        return {
+          id: exp.id,
+          centroid: exp.centroid,
+          adapter: importFn(exp.adapterState),
+        };
+      },
+    );
 
     return new MoeAdapter({
       experts,
-      routingStrategy: parsed.routingStrategy,
+      routingStrategy: parsed.routingStrategy as any,
     });
   }
 }

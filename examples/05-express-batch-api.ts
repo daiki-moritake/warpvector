@@ -22,10 +22,7 @@ async function getPipeline(): Promise<WarpPipeline> {
 
   const pipeline = new WarpPipeline(VECTOR_DIMENSION)
     .addStep("anomaly", new AnomalyDetectionAdapter({ maxValue: 3.0 }))
-    .addStep(
-      "whitening",
-      new WhiteningAdapter(VECTOR_DIMENSION),
-    )
+    .addStep("whitening", new WhiteningAdapter(VECTOR_DIMENSION))
     .setFinalStage(
       "quantize",
       new SafeQuantizationAdapter({

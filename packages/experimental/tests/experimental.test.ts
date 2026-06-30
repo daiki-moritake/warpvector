@@ -50,9 +50,9 @@ describe("@warpvector/experimental", () => {
     const result = detector.tune(input);
     expect(result).toBeInstanceOf(Float32Array);
     // maxValue = 1.0, maxAbs = 2.0 -> scale = 0.5
-    expect(result[3]).toBe(1.0); 
-    expect(result[0]).toBe(0.25); 
-    
+    expect(result[3]).toBe(1.0);
+    expect(result[0]).toBe(0.25);
+
     // NaN は safe mode でもエラーになる
     const nanInput = new Float32Array([0.5, NaN, 0.3, 999]);
     expect(() => detector.tune(nanInput)).toThrow(/Invalid value \(NaN\)/);

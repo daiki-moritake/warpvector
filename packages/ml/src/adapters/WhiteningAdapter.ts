@@ -17,6 +17,7 @@ import {
   assertArray,
   TransformOutput,
   AbstractWarpAdapter,
+  type AdapterState,
 } from "@warpvector/core";
 
 export interface WhiteningConfig {
@@ -56,22 +57,28 @@ export class WhiteningAdapter extends AbstractWarpAdapter {
 
   /**
    * 新しい WhiteningAdapter を作成します。
-   * @param dim ベクトルの次元数
    * @param config 設定オプション
    */
-  constructor(dim: number, config: WhiteningConfig = {}) {
+  constructor(config: { dim: number } & WhiteningConfig) {
     super();
-    this.dim = dim;
+
+    if (typeof config.dim !== "number" || config.dim <= 0) {
+      throw new Error(
+        "[WarpVector DX Error] WhiteningAdapter の 'dim' (次元数) は正の数値である必要があります。",
+      );
+    }
+
+    this.dim = config.dim;
     this.learningRate = config.learningRate ?? 0.01;
     this.numComponents = config.numComponents ?? 1;
 
-    this.mean = new Float32Array(dim);
+    this.mean = new Float32Array(this.dim);
     this.components = [];
 
     // 主成分ベクトルをランダムに初期化（正規化済み）
     for (let k = 0; k < this.numComponents; k++) {
-      const pc = new Float32Array(dim);
-      for (let i = 0; i < dim; i++) {
+      const pc = new Float32Array(this.dim);
+      for (let i = 0; i < this.dim; i++) {
         pc[i] = Math.random() * 2 - 1;
       }
       this.components.push(normalize(pc));
@@ -201,25 +208,21 @@ export class WhiteningAdapter extends AbstractWarpAdapter {
    * 現在の学習状態（平均ベクトル、主成分ベクトルなど）をシリアライズして出力します。
    * エッジ環境でのインスタンス再構築時に役立ちます。
    */
-  public exportState(): string {
-    return JSON.stringify({
+  public exportState(): AdapterState {
+    return {
       dim: this.dim,
       count: this.count,
       learningRate: this.learningRate,
       numComponents: this.numComponents,
       mean: Array.from(this.mean),
       components: this.components.map((c) => Array.from(c)),
-    });
+    };
   }
 
   /**
    * シリアライズされた学習状態から WhiteningAdapter を復元します。
    */
-  public static importState(stateJson: string): WhiteningAdapter {
-    const data = assertObject(
-      safeJsonParse(stateJson, "WhiteningAdapter"),
-      "root",
-    );
+  public static importState(data: AdapterState): WhiteningAdapter {
     const dim = assertPositiveInt(data.dim, "dim");
     const learningRate =
       typeof data.learningRate === "number" ? data.learningRate : 0.01;
@@ -231,7 +234,7 @@ export class WhiteningAdapter extends AbstractWarpAdapter {
     const mean = assertNumberArray(data.mean, "mean");
     const components = assertArray(data.components, "components");
 
-    const adapter = new WhiteningAdapter(dim, { learningRate, numComponents });
+    const adapter = new WhiteningAdapter({ dim, learningRate, numComponents });
     adapter.count = count;
     adapter.mean = new Float32Array(mean);
     adapter.components = components.map(
