@@ -184,9 +184,7 @@ export class VsaAdapter {
     // 事前にすべてのベクトルの長さを一括検証してループ内のオーバーヘッドを避ける
     for (let v = 0; v < numVectors; v++) {
       if (bins[v].length !== len) {
-        throw new Error(
-          `Binary vector at index ${v} has mismatched length.`,
-        );
+        throw new Error(`Binary vector at index ${v} has mismatched length.`);
       }
     }
 

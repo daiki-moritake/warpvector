@@ -1,8 +1,7 @@
 import { describe, it, expect } from "bun:test";
-import { TripletTrainer } from "../src/trainers/TripletTrainer";
-import { AdaptiveScheduler } from "../src/feedback/AdaptiveScheduler";
-import type { TripletExample } from "../src/trainers/TripletTrainer";
-import type { IntentWeights } from "@warpvector/core";
+import { TripletTrainer } from "../../src/trainers/TripletTrainer";
+import { AdaptiveScheduler } from "@warpvector/core";
+import type { IntentWeights, TripletExample } from "@warpvector/core";
 
 const DIM = 4;
 

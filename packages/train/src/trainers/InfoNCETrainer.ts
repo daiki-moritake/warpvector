@@ -1,4 +1,9 @@
-import { IntentWeights, initWasm, wasmMutex } from "@warpvector/core";
+import {
+  IntentWeights,
+  initWasm,
+  wasmMutex,
+  type InfoNCEExample,
+} from "@warpvector/core";
 import {
   assertDimension,
   getFlatMatrixAndBias,
@@ -7,19 +12,6 @@ import {
   softmax,
 } from "@warpvector/core";
 import { BaseTrainer } from "../trainers/BaseTrainer";
-
-/**
- * 学習データのペア（Anchor, Positive, 複数のNegatives）
- * @interface InfoNCEExample
- */
-export interface InfoNCEExample {
-  /** 基準となるベクトル（検索クエリなど） */
-  anchor: number[] | Float32Array;
-  /** Anchorに近づけたい正解ベクトル（クリックされた商品など） */
-  positive: number[] | Float32Array;
-  /** Anchorから遠ざけたい不正解ベクトルの配列（スルーされた商品群など） */
-  negatives: (number[] | Float32Array)[];
-}
 
 /**
  * InfoNCETrainer のオンライン学習オプション
@@ -168,7 +160,9 @@ export class InfoNCETrainer extends BaseTrainer<InfoNCEExample, IntentWeights> {
       assertDimension(example.anchor, dim, "InfoNCETrainer.train anchor");
       assertDimension(example.positive, dim, "InfoNCETrainer.train positive");
       if (example.negatives.length === 0) {
-        throw new Error("InfoNCETrainer requires at least one negative example.");
+        throw new Error(
+          "InfoNCETrainer requires at least one negative example.",
+        );
       }
       for (const neg of example.negatives) {
         assertDimension(neg, dim, "InfoNCETrainer.train negative");
@@ -209,7 +203,9 @@ export class InfoNCETrainer extends BaseTrainer<InfoNCEExample, IntentWeights> {
         options.temperature <= 0 ||
         Number.isNaN(options.temperature)
       ) {
-        throw new Error("InfoNCETrainer: temperature must be a positive number.");
+        throw new Error(
+          "InfoNCETrainer: temperature must be a positive number.",
+        );
       }
     }
   }

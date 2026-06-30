@@ -15,7 +15,7 @@ import {
   ProjectionWeights,
 } from "../adapters/ProjectionAdapter";
 import { AlignmentAdapter } from "../adapters/AlignmentAdapter";
-import { VectorDBAdapter } from "../adapters/VectorDBAdapter";
+import { VectorDBFormatter } from "../formatters/VectorDBFormatter";
 import { AdapterRegistry } from "./AdapterRegistry";
 import { FormatRegistry } from "./FormatRegistry";
 import { WarpPipelineError } from "../errors";
@@ -608,7 +608,19 @@ export class WarpPipeline {
         );
       }
 
-      const adapter = importFn(step.state as AdapterState);
+      let stepState = step.state;
+      if (typeof stepState === "string") {
+        try {
+          stepState = JSON.parse(stepState);
+        } catch (e) {
+          throw new Error(
+            `Failed to parse legacy JSON state for ${step.type}`,
+            { cause: e },
+          );
+        }
+      }
+
+      const adapter = importFn(stepState as AdapterState);
       pipeline.steps.push({ type: step.type, adapter });
     }
 
@@ -632,7 +644,20 @@ export class WarpPipeline {
           `Unknown final stage adapter type: ${finalStageState.type}. Did you forget to register it via WarpPipeline.registerFinalStage?`,
         );
       }
-      const adapter = importFn(finalStageState.state as AdapterState);
+
+      let finalState = finalStageState.state;
+      if (typeof finalState === "string") {
+        try {
+          finalState = JSON.parse(finalState);
+        } catch (e) {
+          throw new Error(
+            `Failed to parse legacy JSON state for ${finalStageState.type}`,
+            { cause: e },
+          );
+        }
+      }
+
+      const adapter = importFn(finalState as AdapterState);
       pipeline.finalStage = { type: finalStageState.type, adapter };
     }
 
@@ -761,29 +786,29 @@ export class WarpPipeline {
 
 // core パッケージに含まれるアダプタのみ初期登録
 WarpPipeline.registerAdapter("IntentAdapter", (state) =>
-  IntentAdapter.importState(state as string),
+  IntentAdapter.importState(state),
 );
 WarpPipeline.registerAdapter("LoraIntentAdapter", (state) =>
-  LoraIntentAdapter.importState(state as string),
+  LoraIntentAdapter.importState(state),
 );
 WarpPipeline.registerAdapter("ProjectionAdapter", (state) =>
-  ProjectionAdapter.importState(state as string),
+  ProjectionAdapter.importState(state),
 );
 WarpPipeline.registerAdapter("AlignmentAdapter", (state) =>
-  AlignmentAdapter.importState(state as string),
+  AlignmentAdapter.importState(state),
 );
 
 // 組み込みフォーマットを初期登録
 WarpPipeline.registerFormat("pgvector", (vec, _opts) =>
-  VectorDBAdapter.toPgvector(vec),
+  VectorDBFormatter.toPgvector(vec),
 );
 WarpPipeline.registerFormat("pinecone", (vec, opts) =>
-  VectorDBAdapter.toPineconeQuery(
+  VectorDBFormatter.toPineconeQuery(
     vec,
     opts.topK as number,
     opts.filter as Record<string, unknown>,
   ),
 );
 WarpPipeline.registerFormat("redis", (vec, _opts) =>
-  VectorDBAdapter.toRedis(vec),
+  VectorDBFormatter.toRedis(vec),
 );

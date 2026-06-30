@@ -179,7 +179,7 @@ export class ColbertAdapter {
           resultsPtr,
           numDocs,
           numQueryTokens,
-          dim
+          dim,
         );
 
         // Fetch results with a fresh view to avoid detached buffer issues

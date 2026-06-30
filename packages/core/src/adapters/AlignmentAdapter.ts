@@ -1,10 +1,10 @@
 import { assertDimension, flattenMatrix, applyAffine } from "../utils";
 import {
-  safeJsonParse,
   assertPositiveInt,
   assertObject,
   assertNumberArray,
 } from "../validation";
+import type { AdapterState } from "../interfaces/WarpAdapter";
 import { ProjectionAdapter, ProjectionWeights } from "./ProjectionAdapter";
 
 /**
@@ -57,11 +57,7 @@ export class AlignmentAdapter extends ProjectionAdapter {
   /**
    * エクスポートされた状態から AlignmentAdapter を復元します。
    */
-  public static importState(stateJson: string): AlignmentAdapter {
-    const data = assertObject(
-      safeJsonParse(stateJson, "AlignmentAdapter"),
-      "root",
-    );
+  public static importState(data: AdapterState): AlignmentAdapter {
     const inDim = assertPositiveInt(data.inDimension, "inDimension");
     const outDim = assertPositiveInt(data.outDimension, "outDimension");
     const adapter = new AlignmentAdapter(inDim, outDim);

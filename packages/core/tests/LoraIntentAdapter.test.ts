@@ -70,7 +70,7 @@ describe("LoraIntentAdapter Core Logic", () => {
   test("exportState and importState work correctly and states can be fed back into constructor", () => {
     const adapter = new LoraIntentAdapter(3, 1, dummyIntents);
     const state = adapter.exportState();
-    expect(typeof state).toBe("string");
+    expect(typeof state).toBe("object");
 
     // 1. importState で復元
     const restored = LoraIntentAdapter.importState(state);
@@ -78,12 +78,19 @@ describe("LoraIntentAdapter Core Logic", () => {
     expect(result1[0]).toBeCloseTo(8, 5);
 
     // 2. 復元した adapter.exportState() で得た intents から新規に adapter を構築できるか検証
-    const parsed = JSON.parse(state);
     expect(() => {
-      new LoraIntentAdapter(parsed.dimension, parsed.rank, parsed.intents);
+      new LoraIntentAdapter(
+        state.dimension as number,
+        state.rank as number,
+        state.intents as any,
+      );
     }).not.toThrow();
 
-    const reconstructed = new LoraIntentAdapter(parsed.dimension, parsed.rank, parsed.intents);
+    const reconstructed = new LoraIntentAdapter(
+      state.dimension as number,
+      state.rank as number,
+      state.intents as any,
+    );
     const result2 = reconstructed.tune([1, 2, 3], "scaleAndShift");
     expect(result2[0]).toBeCloseTo(8, 5);
   });

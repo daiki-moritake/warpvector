@@ -1,5 +1,5 @@
 import { Prisma } from "@prisma/client/extension";
-import { VectorDBAdapter } from "@warpvector/core";
+import { VectorDBFormatter } from "@warpvector/core";
 import { WarpAdapter } from "@warpvector/core";
 import sqlTemplate, { Sql, raw } from "sql-template-tag";
 
@@ -75,7 +75,7 @@ export const withWarpVector = (config: WarpPrismaConfig) => {
 
             // 4. WarpVectorによる推論（リアルタイム変換）
             const tunedVector = config.adapter.tune(args.vector);
-            const pgVectorStr = VectorDBAdapter.toPgvector(tunedVector);
+            const pgVectorStr = VectorDBFormatter.toPgvector(tunedVector);
 
             // 5. 安全な SQL プレースホルダーオブジェクトの組み立て
             const rawTable = raw(`"${tableName}"`);

@@ -108,11 +108,11 @@ describe("WarpTracer", () => {
   });
 });
 
-describe("VectorDBAdapter Vectorize", () => {
+describe("VectorDBFormatter Vectorize", () => {
   test("toVectorizeQuery() が正しい形式のクエリを返す", async () => {
-    const { VectorDBAdapter } = await import("@warpvector/core");
+    const { VectorDBFormatter } = await import("@warpvector/core");
     const vec = new Float32Array([0.1, 0.2, 0.3]);
-    const query = VectorDBAdapter.toVectorizeQuery(vec, 5, {
+    const query = VectorDBFormatter.toVectorizeQuery(vec, 5, {
       returnMetadata: true,
     });
 
@@ -123,14 +123,14 @@ describe("VectorDBAdapter Vectorize", () => {
   });
 
   test("toVectorizeQuery() がデフォルト topK=10 を使用", async () => {
-    const { VectorDBAdapter } = await import("@warpvector/core");
-    const query = VectorDBAdapter.toVectorizeQuery([1, 2, 3]);
+    const { VectorDBFormatter } = await import("@warpvector/core");
+    const query = VectorDBFormatter.toVectorizeQuery([1, 2, 3]);
     expect(query.options.topK).toBe(10);
   });
 
   test("toVectorizeRecord() が正しい形式のレコードを返す", async () => {
-    const { VectorDBAdapter } = await import("@warpvector/core");
-    const record = VectorDBAdapter.toVectorizeRecord(
+    const { VectorDBFormatter } = await import("@warpvector/core");
+    const record = VectorDBFormatter.toVectorizeRecord(
       "doc-1",
       new Float32Array([0.5, 0.6]),
       { title: "test" },
@@ -143,8 +143,8 @@ describe("VectorDBAdapter Vectorize", () => {
   });
 
   test("toVectorizeRecord() がメタデータなしで動作", async () => {
-    const { VectorDBAdapter } = await import("@warpvector/core");
-    const record = VectorDBAdapter.toVectorizeRecord("doc-2", [1, 2]);
+    const { VectorDBFormatter } = await import("@warpvector/core");
+    const record = VectorDBFormatter.toVectorizeRecord("doc-2", [1, 2]);
     expect(record.id).toBe("doc-2");
     expect(record.values).toEqual([1, 2]);
     expect(record.metadata).toBeUndefined();

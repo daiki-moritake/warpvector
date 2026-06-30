@@ -5,7 +5,8 @@ import { cosineSimilarity, normalize } from "@warpvector/core";
 describe("WhiteningAdapter", () => {
   test("Online PCA removes the primary bias direction and reduces anisotropy", () => {
     const dim = 10;
-    const adapter = new WhiteningAdapter(dim, {
+    const adapter = new WhiteningAdapter({
+      dim,
       learningRate: 0.05,
       numComponents: 1,
     });
@@ -65,7 +66,7 @@ describe("WhiteningAdapter", () => {
   });
 
   test("throws error if dimension mismatch", () => {
-    const adapter = new WhiteningAdapter(5);
+    const adapter = new WhiteningAdapter({ dim: 5 });
     expect(() => adapter.update([1, 2, 3, 4])).toThrow();
     expect(() => adapter.tune([1, 2, 3, 4, 5, 6])).toThrow();
   });

@@ -230,13 +230,16 @@ describe("Advanced Math Utils", () => {
   test("importIntentBinary handles unaligned Uint8Array safely", () => {
     const adapter = new IntentAdapter(2);
     adapter.addIntent("test", {
-      matrix: [[1, 2], [3, 4]],
+      matrix: [
+        [1, 2],
+        [3, 4],
+      ],
       bias: [0.1, 0.2],
-      routingVector: [0.3, 0.4]
+      routingVector: [0.3, 0.4],
     });
 
     const binary = adapter.exportIntentBinary("test");
-    
+
     // アライメントを崩すために、前に1バイト余計なデータを配置したバッファを作成
     const unalignedBuffer = new ArrayBuffer(binary.length + 1);
     const unalignedView = new Uint8Array(unalignedBuffer);

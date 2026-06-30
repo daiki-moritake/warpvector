@@ -9,7 +9,7 @@ import { IntentAdapter, initWasm, cosineSimilarity, type IntentWeights } from '@
 import { WhiteningAdapter } from '@warpvector/ml';
 import { QuantizationAdapter, type QuantizationType, TaskArithmetic } from '@warpvector/extras';
 import { calculateNDCG, calculateRecall } from '@warpvector/eval';
-import { FeedbackCollector, AdaptiveScheduler, FederatedAggregator } from '@warpvector/train';
+import { FeedbackCollector, AdaptiveScheduler, FederatedAggregator } from '@warpvector/core';
 
 // all-MiniLM-L6-v2 uses 384 dimensions
 export const DIM = 384;

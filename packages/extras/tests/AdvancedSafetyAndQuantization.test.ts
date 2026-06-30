@@ -3,7 +3,7 @@ import { MlpAdapter, WhiteningAdapter } from "@warpvector/ml";
 import { BaseTrainer, IntentTrainer } from "@warpvector/train";
 import {
   WarpPipeline,
-  VectorDBAdapter,
+  VectorDBFormatter,
   getWasmAllocatorOffset,
   int8DotProduct,
   globalWasmPool,
@@ -66,7 +66,8 @@ describe("Advanced Safety, Memory allocation, and Quantization Tests", () => {
     const mlpAdapter = new MlpAdapter([
       { matrix: w, bias: b, activation: "linear" },
     ]);
-    const whiteningAdapter = new WhiteningAdapter(dim, {
+    const whiteningAdapter = new WhiteningAdapter({
+      dim,
       learningRate: 0.1,
       numComponents: 2,
     });
@@ -118,8 +119,12 @@ describe("Advanced Safety, Memory allocation, and Quantization Tests", () => {
     expect(approxDot).toBeCloseTo(expectedDot, 4);
 
     // 絶対値の最大値が 1200.0 と 1000.0 を超える大きなベクトル
-    const largeVector1 = [1000.0, -1200.0, 500.0, 300.0, -100.0, 400.0, 0.0, 100.0];
-    const largeVector2 = [200.0, 100.0, -400.0, 100.0, 200.0, -300.0, 100.0, 200.0];
+    const largeVector1 = [
+      1000.0, -1200.0, 500.0, 300.0, -100.0, 400.0, 0.0, 100.0,
+    ];
+    const largeVector2 = [
+      200.0, 100.0, -400.0, 100.0, 200.0, -300.0, 100.0, 200.0,
+    ];
 
     const qLarge1 = adapter.encode(new Float32Array(largeVector1)) as Int8Array;
     const qLarge2 = adapter.encode(new Float32Array(largeVector2)) as Int8Array;
@@ -132,7 +137,8 @@ describe("Advanced Safety, Memory allocation, and Quantization Tests", () => {
 
     // 最大値が 1000.0 を超えても、正しく dynamic 量子化と判定され、
     // ドット積がスケールを考慮して近似復元されること (誤差 2% 未満)
-    const relativeError = Math.abs(approxLargeDot - expectedLargeDot) / Math.abs(expectedLargeDot);
+    const relativeError =
+      Math.abs(approxLargeDot - expectedLargeDot) / Math.abs(expectedLargeDot);
     expect(relativeError).toBeLessThan(0.02);
   });
 
@@ -180,10 +186,10 @@ describe("Advanced Safety, Memory allocation, and Quantization Tests", () => {
     ).rejects.toThrow("Invalid topK value.");
   });
 
-  test("VectorDBAdapter.toPgvector converts binary vector to binary bit-string", () => {
+  test("VectorDBFormatter.toPgvector converts binary vector to binary bit-string", () => {
     // Binary量子化されたベクトルのモック (16ビット分 = 2バイト)
     const binaryVector = new Uint8Array([240, 15]); // 240 = 11110000, 15 = 00001111
-    const pgvectorStr = VectorDBAdapter.toPgvector(binaryVector);
+    const pgvectorStr = VectorDBFormatter.toPgvector(binaryVector);
 
     expect(pgvectorStr).toBe("1111000000001111");
   });

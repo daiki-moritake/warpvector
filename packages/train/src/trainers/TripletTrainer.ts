@@ -1,4 +1,9 @@
-import { IntentWeights, initWasm, wasmMutex } from "@warpvector/core";
+import {
+  IntentWeights,
+  initWasm,
+  wasmMutex,
+  type TripletExample,
+} from "@warpvector/core";
 import {
   assertDimension,
   getFlatMatrixAndBias,
@@ -6,19 +11,6 @@ import {
   innerProduct,
 } from "@warpvector/core";
 import { BaseTrainer } from "../trainers/BaseTrainer";
-
-/**
- * 学習データのペア（Anchor, Positive, Negative）
- * @interface TripletExample
- */
-export interface TripletExample {
-  /** 基準となるベクトル（検索クエリなど） */
-  anchor: number[] | Float32Array;
-  /** Anchorに近づけたい正解ベクトル（クリックされた商品など） */
-  positive: number[] | Float32Array;
-  /** Anchorから遠ざけたい不正解ベクトル（スルーされた商品など） */
-  negative: number[] | Float32Array;
-}
 
 /**
  * TripletTrainer のオンライン学習オプション
@@ -195,7 +187,9 @@ export class TripletTrainer extends BaseTrainer<TripletExample, IntentWeights> {
         options.margin < 0 ||
         Number.isNaN(options.margin)
       ) {
-        throw new Error("TripletTrainer: margin must be a non-negative number.");
+        throw new Error(
+          "TripletTrainer: margin must be a non-negative number.",
+        );
       }
     }
   }

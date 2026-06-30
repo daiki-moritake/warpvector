@@ -14,6 +14,9 @@ import {
   assertArray,
   assertNumberArray,
   assertType,
+  TransformOutput,
+  AbstractWarpAdapter,
+  type AdapterState,
 } from "@warpvector/core";
 
 /**
@@ -50,7 +53,7 @@ function getActivationId(activation: Activation): number {
  * const mlp = new MlpAdapter([{ inputDim: 1536, outputDim: 128, activation: "relu" }]);
  * const output = mlp.tune(inputVector);
  */
-export class MlpAdapter implements WarpAdapter {
+export class MlpAdapter extends AbstractWarpAdapter {
   private layers: MlpLayer[];
   private wasmInstance: WebAssembly.Instance | null = null;
 
@@ -73,6 +76,7 @@ export class MlpAdapter implements WarpAdapter {
   >();
 
   constructor(layers: MlpLayer[]) {
+    super();
     if (layers.length === 0) {
       throw new Error("MlpAdapter requires at least one layer.");
     }
@@ -378,8 +382,8 @@ export class MlpAdapter implements WarpAdapter {
   /**
    * 現在のMLP構造と重みをシリアライズして出力します。
    */
-  public exportState(): string {
-    return JSON.stringify({
+  public exportState(): AdapterState {
+    return {
       layers: this.layers.map((layer) => {
         let matrix: number[][] | number[];
         if (layer.matrix instanceof Float32Array) {
@@ -393,15 +397,14 @@ export class MlpAdapter implements WarpAdapter {
           activation: layer.activation,
         };
       }),
-    });
+    };
   }
 
   /**
    * シリアライズされた状態から MlpAdapter を復元します。
    * 注意: 復元後、再度 `await init()` を呼び出してWASMメモリを初期化する必要があります。
    */
-  public static importState(stateJson: string): MlpAdapter {
-    const data = assertObject(safeJsonParse(stateJson, "MlpAdapter"), "root");
+  public static importState(data: AdapterState): MlpAdapter {
     const rawLayers = assertArray(data.layers, "layers");
     const layers: MlpLayer[] = rawLayers.map((rawLayer: unknown, i: number) => {
       const l = assertObject(rawLayer, `layers[${i}]`);

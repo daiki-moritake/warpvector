@@ -6,53 +6,41 @@ import { ProjectionAdapter } from "../src/adapters/ProjectionAdapter";
 describe("importState validation", () => {
   // --- IntentAdapter ---
   describe("IntentAdapter.importState", () => {
-    test("rejects non-JSON string", () => {
-      expect(() => IntentAdapter.importState("not json")).toThrow(
-        "JSONのパースに失敗しました",
-      );
-    });
-
     test("rejects missing dimension", () => {
-      expect(() =>
-        IntentAdapter.importState(JSON.stringify({ intents: {} })),
-      ).toThrow("dimension");
+      expect(() => IntentAdapter.importState({ intents: {} })).toThrow(
+        "dimension",
+      );
     });
 
     test("rejects non-integer dimension", () => {
       expect(() =>
-        IntentAdapter.importState(
-          JSON.stringify({ dimension: 1.5, intents: {} }),
-        ),
+        IntentAdapter.importState({ dimension: 1.5, intents: {} }),
       ).toThrow("正の整数");
     });
 
     test("rejects negative dimension", () => {
       expect(() =>
-        IntentAdapter.importState(
-          JSON.stringify({ dimension: -1, intents: {} }),
-        ),
+        IntentAdapter.importState({ dimension: -1, intents: {} }),
       ).toThrow("正の整数");
     });
 
     test("rejects missing intents object", () => {
-      expect(() =>
-        IntentAdapter.importState(JSON.stringify({ dimension: 3 })),
-      ).toThrow("intents");
+      expect(() => IntentAdapter.importState({ dimension: 3 })).toThrow(
+        "intents",
+      );
     });
 
     test("rejects intent with NaN in matrix", () => {
       expect(() =>
-        IntentAdapter.importState(
-          JSON.stringify({
-            dimension: 2,
-            intents: {
-              bad: {
-                matrix: [1, NaN, 0, 1],
-                bias: [0, 0],
-              },
+        IntentAdapter.importState({
+          dimension: 2,
+          intents: {
+            bad: {
+              matrix: [1, NaN, 0, 1],
+              bias: [0, 0],
             },
-          }),
-        ),
+          },
+        }),
       ).toThrow("有限な数値ではありません");
     });
 
@@ -66,7 +54,7 @@ describe("importState validation", () => {
         bias: [0, 0],
       });
       const state = adapter.exportState!();
-      const restored = IntentAdapter.importState(state as string);
+      const restored = IntentAdapter.importState(state);
       expect(restored).toBeDefined();
       const result = restored.tune([1, 2], "test");
       expect(Array.from(result)).toEqual([1, 2]);
@@ -75,17 +63,9 @@ describe("importState validation", () => {
 
   // --- LoraIntentAdapter ---
   describe("LoraIntentAdapter.importState", () => {
-    test("rejects non-JSON", () => {
-      expect(() => LoraIntentAdapter.importState("{bad}")).toThrow(
-        "JSONのパースに失敗しました",
-      );
-    });
-
     test("rejects missing rank", () => {
       expect(() =>
-        LoraIntentAdapter.importState(
-          JSON.stringify({ dimension: 3, intents: {} }),
-        ),
+        LoraIntentAdapter.importState({ dimension: 3, intents: {} }),
       ).toThrow("rank");
     });
 
@@ -104,24 +84,16 @@ describe("importState validation", () => {
         bias: [0, 0, 0],
       });
       const state = adapter.exportState!();
-      const restored = LoraIntentAdapter.importState(state as string);
+      const restored = LoraIntentAdapter.importState(state);
       expect(restored).toBeDefined();
     });
   });
 
   // --- ProjectionAdapter ---
   describe("ProjectionAdapter.importState", () => {
-    test("rejects non-JSON", () => {
-      expect(() => ProjectionAdapter.importState("garbage")).toThrow(
-        "JSONのパースに失敗しました",
-      );
-    });
-
     test("rejects missing outDimension", () => {
       expect(() =>
-        ProjectionAdapter.importState(
-          JSON.stringify({ inDimension: 3, projections: {} }),
-        ),
+        ProjectionAdapter.importState({ inDimension: 3, projections: {} }),
       ).toThrow("outDimension");
     });
 
@@ -135,7 +107,7 @@ describe("importState validation", () => {
         },
       });
       const state = adapter.exportState!();
-      const restored = ProjectionAdapter.importState(state as string);
+      const restored = ProjectionAdapter.importState(state);
       expect(restored).toBeDefined();
       const result = restored.tune([1, 2, 3], "default");
       expect(result.length).toBe(2);

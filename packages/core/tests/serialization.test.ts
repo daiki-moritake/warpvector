@@ -6,7 +6,8 @@ import { WarpPipeline } from "../src/pipeline/WarpPipeline";
 
 describe("Universal Serialization", () => {
   test("WhiteningAdapter serialization", () => {
-    const adapter = new WhiteningAdapter(4, {
+    const adapter = new WhiteningAdapter({
+      dim: 4,
       learningRate: 0.05,
       numComponents: 2,
     });
@@ -16,7 +17,7 @@ describe("Universal Serialization", () => {
     adapter.update([-1.0, -2.0, -3.0, -4.0]);
 
     const state = adapter.exportState();
-    expect(typeof state).toBe("string");
+    expect(typeof state).toBe("object");
 
     const restored = WhiteningAdapter.importState(state);
 

@@ -1,5 +1,4 @@
-import { TripletExample } from "../trainers/TripletTrainer";
-import type { InfoNCEExample } from "../trainers/InfoNCETrainer";
+import { TripletExample, InfoNCEExample } from "../interfaces/training";
 
 /**
  * 検索結果のインプレッション（表示）情報。

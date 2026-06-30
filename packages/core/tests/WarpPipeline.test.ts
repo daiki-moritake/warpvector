@@ -48,7 +48,7 @@ describe("WarpPipeline", () => {
     const pipeline = new WarpPipeline(8)
       .addStep(
         "WhiteningAdapter",
-        new WhiteningAdapter(8, { numComponents: 1 }),
+        new WhiteningAdapter({ dim: 8, numComponents: 1 }),
       )
       .addIntent({
         test: {
@@ -94,7 +94,7 @@ describe("WarpPipeline", () => {
       steps: [
         {
           type: "IntentAdapter",
-          state: JSON.stringify({
+          state: {
             dimension: 2,
             intents: {
               test: {
@@ -102,12 +102,12 @@ describe("WarpPipeline", () => {
                 bias: [0, 0],
               },
             },
-          }),
+          },
         },
       ],
       finalStage: {
         type: "NonExistentFinalStage",
-        state: "{}",
+        state: {},
       },
     };
 

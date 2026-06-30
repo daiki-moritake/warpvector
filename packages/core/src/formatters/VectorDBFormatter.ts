@@ -2,13 +2,13 @@
  * 外部のベクトルデータベース（pgvector, Pinecone, Redisなど）へ
  * ワープ変換後のベクトルを保存・検索するためのアダプター/ユーティリティクラス
  */
-export class VectorDBAdapter {
+export class VectorDBFormatter {
   /**
    * PostgreSQL (pgvector) 用のクエリ文字列表現を生成します。
    * INSERT や SELECT の際に使用できる形式です。
    *
    * @example
-   * const sql = `SELECT * FROM items ORDER BY embedding <-> '${VectorDBAdapter.toPgvector(warpedVector)}' LIMIT 5`;
+   * const sql = `SELECT * FROM items ORDER BY embedding <-> '${VectorDBFormatter.toPgvector(warpedVector)}' LIMIT 5`;
    *
    * @param {number[] | Float32Array} vector ワープ変換後のベクトル
    * @returns {string} `'[0.1, 0.2, 0.3]'` のような文字列表現
@@ -16,7 +16,7 @@ export class VectorDBAdapter {
   public static toPgvector(
     vector: number[] | Float32Array | Int8Array | Uint8Array,
   ): string {
-    VectorDBAdapter.validateVector(vector, "toPgvector");
+    VectorDBFormatter.validateVector(vector, "toPgvector");
     if (vector instanceof Uint8Array) {
       let bitString = "";
       for (let i = 0; i < vector.length; i++) {
@@ -32,7 +32,7 @@ export class VectorDBAdapter {
    * Pinecone クライアントに直接渡せる形式のオブジェクトを返します。
    *
    * @example
-   * const query = VectorDBAdapter.toPineconeQuery(warpedVector, 10, { genre: "comedy" });
+   * const query = VectorDBFormatter.toPineconeQuery(warpedVector, 10, { genre: "comedy" });
    * await index.query(query);
    *
    * @param {number[] | Float32Array} vector 検索クエリベクトル
@@ -45,7 +45,7 @@ export class VectorDBAdapter {
     topK: number = 10,
     filter?: Record<string, unknown>,
   ): Record<string, unknown> {
-    VectorDBAdapter.validateVector(vector, "toPineconeQuery");
+    VectorDBFormatter.validateVector(vector, "toPineconeQuery");
     return {
       vector: Array.from(vector),
       topK,
@@ -59,7 +59,7 @@ export class VectorDBAdapter {
    * Node.js環境では Buffer.from() を使って Buffer に変換して渡してください。
    *
    * @example
-   * const blob = Buffer.from(VectorDBAdapter.toRedis(warpedVector));
+   * const blob = Buffer.from(VectorDBFormatter.toRedis(warpedVector));
    * await redis.call('FT.SEARCH', 'idx', '*=>[KNN 5 @embedding $BLOB]', 'PARAMS', '2', 'BLOB', blob, 'DIALECT', '2');
    *
    * @param {number[] | Float32Array} vector ワープ変換後のベクトル
@@ -68,7 +68,7 @@ export class VectorDBAdapter {
   public static toRedis(
     vector: number[] | Float32Array | Int8Array | Uint8Array,
   ): Uint8Array {
-    VectorDBAdapter.validateVector(vector, "toRedis");
+    VectorDBFormatter.validateVector(vector, "toRedis");
     if (vector instanceof Int8Array) {
       return new Uint8Array(
         vector.buffer.slice(
@@ -104,7 +104,7 @@ export class VectorDBAdapter {
    * Vectorize の `index.query()` メソッドに渡せる形式です。
    *
    * @example
-   * const query = VectorDBAdapter.toVectorizeQuery(warpedVector, 10, { returnMetadata: true });
+   * const query = VectorDBFormatter.toVectorizeQuery(warpedVector, 10, { returnMetadata: true });
    * const results = await env.VECTORIZE_INDEX.query(query.vector, query.options);
    *
    * @param vector ワープ変換後のベクトル
@@ -129,7 +129,7 @@ export class VectorDBAdapter {
       filter?: Record<string, unknown>;
     };
   } {
-    VectorDBAdapter.validateVector(vector, "toVectorizeQuery");
+    VectorDBFormatter.validateVector(vector, "toVectorizeQuery");
     return {
       vector: Array.from(vector),
       options: {
@@ -145,7 +145,7 @@ export class VectorDBAdapter {
    *
    * @example
    * const records = documents.map((doc, i) =>
-   *   VectorDBAdapter.toVectorizeRecord(`doc-${i}`, warpedVectors[i], { title: doc.title })
+   *   VectorDBFormatter.toVectorizeRecord(`doc-${i}`, warpedVectors[i], { title: doc.title })
    * );
    * await env.VECTORIZE_INDEX.upsert(records);
    *
@@ -163,7 +163,7 @@ export class VectorDBAdapter {
     values: number[];
     metadata?: Record<string, unknown>;
   } {
-    VectorDBAdapter.validateVector(vector, "toVectorizeRecord");
+    VectorDBFormatter.validateVector(vector, "toVectorizeRecord");
     return {
       id,
       values: Array.from(vector),
@@ -177,7 +177,7 @@ export class VectorDBAdapter {
   ): void {
     if (!vector) {
       throw new Error(
-        `VectorDBAdapter.${context}: Vector must not be null or undefined.`,
+        `VectorDBFormatter.${context}: Vector must not be null or undefined.`,
       );
     }
     if (
@@ -187,7 +187,7 @@ export class VectorDBAdapter {
       !Array.isArray(vector)
     ) {
       throw new Error(
-        `VectorDBAdapter.${context}: Invalid vector type. Must be Float32Array, Int8Array, Uint8Array, or number[].`,
+        `VectorDBFormatter.${context}: Invalid vector type. Must be Float32Array, Int8Array, Uint8Array, or number[].`,
       );
     }
 
@@ -196,7 +196,7 @@ export class VectorDBAdapter {
         const val = vector[i];
         if (typeof val !== "number" || !Number.isFinite(val)) {
           throw new Error(
-            `VectorDBAdapter.${context}: Vector contains invalid value (NaN or Infinity) at index ${i}.`,
+            `VectorDBFormatter.${context}: Vector contains invalid value (NaN or Infinity) at index ${i}.`,
           );
         }
       }
