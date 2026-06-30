@@ -15,7 +15,7 @@ import {
   ProjectionWeights,
 } from "../adapters/ProjectionAdapter";
 import { AlignmentAdapter } from "../adapters/AlignmentAdapter";
-import { VectorDBAdapter } from "../adapters/VectorDBAdapter";
+import { VectorDBFormatter } from "../formatters/VectorDBFormatter";
 import { AdapterRegistry } from "./AdapterRegistry";
 import { FormatRegistry } from "./FormatRegistry";
 import { WarpPipelineError } from "../errors";
@@ -775,15 +775,15 @@ WarpPipeline.registerAdapter("AlignmentAdapter", (state) =>
 
 // 組み込みフォーマットを初期登録
 WarpPipeline.registerFormat("pgvector", (vec, _opts) =>
-  VectorDBAdapter.toPgvector(vec),
+  VectorDBFormatter.toPgvector(vec),
 );
 WarpPipeline.registerFormat("pinecone", (vec, opts) =>
-  VectorDBAdapter.toPineconeQuery(
+  VectorDBFormatter.toPineconeQuery(
     vec,
     opts.topK as number,
     opts.filter as Record<string, unknown>,
   ),
 );
 WarpPipeline.registerFormat("redis", (vec, _opts) =>
-  VectorDBAdapter.toRedis(vec),
+  VectorDBFormatter.toRedis(vec),
 );

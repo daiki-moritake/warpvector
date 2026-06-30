@@ -1,4 +1,4 @@
-import type { IntentWeights } from "@warpvector/core";
+import type { IntentWeights } from "../adapters/IntentAdapter";
 
 /**
  * AdaptiveScheduler が受け付けるオンライン学習トレーナーのインターフェース。

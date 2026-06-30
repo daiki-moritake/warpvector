@@ -370,9 +370,9 @@ const warpEmbeddings = new WarpEmbeddings({
 **Cloudflare Vectorize:**
 
 ```typescript
-import { VectorDBAdapter } from "warpvector";
+import { VectorDBFormatter } from "warpvector";
 const tunedVector = await pipeline.run(queryEmbedding);
-const { vector, options } = VectorDBAdapter.toVectorizeQuery(tunedVector, 10);
+const { vector, options } = VectorDBFormatter.toVectorizeQuery(tunedVector, 10);
 const results = await env.VECTORIZE_INDEX.query(vector, options);
 ```
 

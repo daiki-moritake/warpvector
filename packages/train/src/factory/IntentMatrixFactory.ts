@@ -5,8 +5,8 @@ import {
   cosineSimilarity,
   innerProduct,
 } from "@warpvector/core";
+import type { InfoNCEExample, TripletExample } from "@warpvector/core";
 import { InfoNCETrainer } from "../trainers/InfoNCETrainer";
-import type { InfoNCEExample } from "../trainers/InfoNCETrainer";
 import type { BaseTrainingOptions } from "../trainers/types";
 
 /**

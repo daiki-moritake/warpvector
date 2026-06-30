@@ -4,6 +4,7 @@ import {
   InputVector,
   TransformOutput,
   AdapterState,
+  AbstractWarpAdapter,
   applyAffine,
   flattenMatrix,
 } from "@warpvector/core";
@@ -13,7 +14,7 @@ export interface IntentWeights {
   bias: number[];
 }
 
-export class WebGpuIntentAdapter implements WarpAdapter {
+export class WebGpuIntentAdapter extends AbstractWarpAdapter {
   private device: GPUDevice | null = null;
   private pipeline: GPUComputePipeline | null = null;
   private fallbackMatrices: Record<string, Float32Array> = {};
@@ -24,6 +25,7 @@ export class WebGpuIntentAdapter implements WarpAdapter {
     private inputDim: number,
     private outputDim: number,
   ) {
+    super();
     // どんな環境（非対称行列など）でも確実に推論を継続できるよう独自のJSフォールバックを初期化
     for (const [key, val] of Object.entries(this.intents)) {
       this.fallbackMatrices[key] = Array.isArray(val.matrix[0])

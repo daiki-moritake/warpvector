@@ -1,4 +1,5 @@
-import { IntentWeights, getFlatMatrixAndBias } from "@warpvector/core";
+import { IntentWeights } from "../adapters/IntentAdapter";
+import { getFlatMatrixAndBias } from "../utils";
 
 /**
  * クライアントから送信される重み更新情報。

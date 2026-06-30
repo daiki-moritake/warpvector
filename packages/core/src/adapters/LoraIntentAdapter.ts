@@ -13,8 +13,8 @@ import {
 import {
   WarpAdapter,
   TransformOutput,
-  InputVector,
 } from "../interfaces/WarpAdapter";
+import { AbstractWarpAdapter } from "./AbstractWarpAdapter";
 
 /**
  * 低ランク適応（LoRA）の重みを定義するインターフェース
@@ -44,7 +44,7 @@ export interface LoraIntentWeights {
  * LoraIntentAdapter クラス
  * 低ランク行列（A, B）を使用して高次元ベクトルのアフィン変換をメモリ効率良く行います。
  */
-export class LoraIntentAdapter implements WarpAdapter {
+export class LoraIntentAdapter extends AbstractWarpAdapter {
   private readonly dimension: number;
   private readonly rank: number;
 
@@ -69,6 +69,7 @@ export class LoraIntentAdapter implements WarpAdapter {
     rank: number,
     intents?: Record<string, LoraIntentWeights>,
   ) {
+    super();
     this.dimension = dimension;
     this.rank = rank;
     this.matricesA = new Map();

@@ -2,6 +2,9 @@ import {
   type WarpAdapter,
   type InputVector,
   type TransformOutput,
+  assertDimension,
+  assertArray,
+  AbstractWarpAdapter,
   safeJsonParse,
   assertObject,
 } from "@warpvector/core";
@@ -26,11 +29,12 @@ export interface AnomalyDetectionConfig {
  * 外部から入力されるベクトルに異常（NaN, Infinity, 極端な外れ値）がないかを
  * 検知・サニタイズするためのセキュリティ・アダプタ。
  */
-export class AnomalyDetectionAdapter implements WarpAdapter {
+export class AnomalyDetectionAdapter extends AbstractWarpAdapter {
   private mode: "strict" | "safe";
   private maxValue: number;
 
   constructor(config: AnomalyDetectionConfig = {}) {
+    super();
     if (arguments.length > 1) {
       throw new Error(
         "[WarpVector DX Error] AnomalyDetectionAdapter のコンストラクタ引数が変更されました。\n" +

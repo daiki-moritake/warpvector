@@ -15,6 +15,7 @@ import {
   assertObject,
   assertNumberArray,
   assertArray,
+  AbstractWarpAdapter,
 } from "@warpvector/core";
 
 export interface SoftWhiteningConfig {
@@ -53,7 +54,7 @@ export interface SoftWhiteningConfig {
  * LLM特有の「意味の拡散（コンテキストの混ざり合い）」を解消して、
  * 真の意図（シャープな特徴）を抽出するアダプターです。
  */
-export class SoftWhiteningAdapter implements WarpAdapter {
+export class SoftWhiteningAdapter extends AbstractWarpAdapter {
   public dim: number;
   public mean: Float32Array;
   public components: Float32Array[];
@@ -75,6 +76,8 @@ export class SoftWhiteningAdapter implements WarpAdapter {
    * @param config 設定オプション
    */
   constructor(dim: number, config: SoftWhiteningConfig = {}) {
+    super();
+    this.dim = dim;
     if (arguments.length > 2) {
       throw new Error(
         "[WarpVector DX Error] SoftWhiteningAdapter のコンストラクタ引数が変更されました。\n" +

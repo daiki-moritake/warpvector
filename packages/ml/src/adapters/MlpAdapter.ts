@@ -14,6 +14,8 @@ import {
   assertArray,
   assertNumberArray,
   assertType,
+  TransformOutput,
+  AbstractWarpAdapter,
 } from "@warpvector/core";
 
 /**
@@ -50,7 +52,7 @@ function getActivationId(activation: Activation): number {
  * const mlp = new MlpAdapter([{ inputDim: 1536, outputDim: 128, activation: "relu" }]);
  * const output = mlp.tune(inputVector);
  */
-export class MlpAdapter implements WarpAdapter {
+export class MlpAdapter extends AbstractWarpAdapter {
   private layers: MlpLayer[];
   private wasmInstance: WebAssembly.Instance | null = null;
 
@@ -73,6 +75,7 @@ export class MlpAdapter implements WarpAdapter {
   >();
 
   constructor(layers: MlpLayer[]) {
+    super();
     if (layers.length === 0) {
       throw new Error("MlpAdapter requires at least one layer.");
     }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test";
-import { FederatedAggregator } from "../src/feedback/FederatedAggregator";
+import { FederatedAggregator } from "@warpvector/core";
 import type { IntentWeights } from "@warpvector/core";
 
 const DIM = 2;

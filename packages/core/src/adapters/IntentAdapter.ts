@@ -21,6 +21,7 @@ import {
   withWasmMemoryStack,
 } from "../wasm/wasm-loader";
 import { WarpAdapter, TransformOutput } from "../interfaces/WarpAdapter";
+import { AbstractWarpAdapter } from "./AbstractWarpAdapter";
 
 /**
  * 意図（コンテキスト）ごとの変換情報を定義するインターフェース
@@ -52,7 +53,7 @@ export interface IntentWeights {
  * パフォーマンスのために内部ではすべての配列を Float32Array として扱い、
  * 大規模なバッチ処理には自動的にWASM/SIMDによる最適化を利用します。
  */
-export class IntentAdapter implements WarpAdapter {
+export class IntentAdapter extends AbstractWarpAdapter {
   private readonly dimension: number;
   private readonly matrices: Map<string, Float32Array>;
   private readonly biases: Map<string, Float32Array>;
@@ -67,6 +68,7 @@ export class IntentAdapter implements WarpAdapter {
    * @throws {Error} インテントが一つも提供されておらず、次元数も不明な場合にエラーをスローします。
    */
   constructor(intentsOrDimension: Record<string, IntentWeights> | number) {
+    super();
     this.matrices = new Map();
     this.biases = new Map();
     this.routingVectors = new Map();

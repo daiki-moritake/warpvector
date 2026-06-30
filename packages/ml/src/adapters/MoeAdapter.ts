@@ -5,6 +5,7 @@ import {
   type TransformOutput,
   type AdapterState,
   AdapterRegistry,
+  AbstractWarpAdapter,
 } from "@warpvector/core";
 
 export interface ExpertDefinition {
@@ -33,12 +34,13 @@ export interface MoeAdapterConfig {
  * 入力ベクトルに応じて、動的に適切なサブアダプタ（エキスパート）にルーティングします。
  * Gating Network として、各エキスパートのセントロイド（重心）とのコサイン類似度を用いたハードルーティングを行います。
  */
-export class MoeAdapter implements WarpAdapter {
+export class MoeAdapter extends AbstractWarpAdapter {
   private experts: Map<string, WarpAdapter> = new Map();
   private centroids: Map<string, Float32Array> = new Map();
   private config: MoeAdapterConfig;
 
   constructor(config: MoeAdapterConfig) {
+    super();
     this.config = config;
     for (const expert of config.experts) {
       this.experts.set(expert.id, expert.adapter);

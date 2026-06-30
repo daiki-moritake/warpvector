@@ -3,7 +3,7 @@ import { MlpAdapter, WhiteningAdapter } from "@warpvector/ml";
 import { BaseTrainer, IntentTrainer } from "@warpvector/train";
 import {
   WarpPipeline,
-  VectorDBAdapter,
+  VectorDBFormatter,
   getWasmAllocatorOffset,
   int8DotProduct,
   globalWasmPool,
@@ -180,10 +180,10 @@ describe("Advanced Safety, Memory allocation, and Quantization Tests", () => {
     ).rejects.toThrow("Invalid topK value.");
   });
 
-  test("VectorDBAdapter.toPgvector converts binary vector to binary bit-string", () => {
+  test("VectorDBFormatter.toPgvector converts binary vector to binary bit-string", () => {
     // Binary量子化されたベクトルのモック (16ビット分 = 2バイト)
     const binaryVector = new Uint8Array([240, 15]); // 240 = 11110000, 15 = 00001111
-    const pgvectorStr = VectorDBAdapter.toPgvector(binaryVector);
+    const pgvectorStr = VectorDBFormatter.toPgvector(binaryVector);
 
     expect(pgvectorStr).toBe("1111000000001111");
   });

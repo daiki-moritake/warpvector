@@ -15,6 +15,8 @@ import {
   assertObject,
   assertNumberArray,
   assertArray,
+  TransformOutput,
+  AbstractWarpAdapter,
 } from "@warpvector/core";
 
 export interface WhiteningConfig {
@@ -39,7 +41,7 @@ export interface WhiteningConfig {
  * Oja's Rule によるオンラインPCAを実行し、
  * ベクトル空間の等方化（Whitening / Anisotropy Reduction）を行うアダプターです。
  */
-export class WhiteningAdapter implements WarpAdapter {
+export class WhiteningAdapter extends AbstractWarpAdapter {
   public dim: number;
   public mean: Float32Array;
   public components: Float32Array[];
@@ -58,6 +60,7 @@ export class WhiteningAdapter implements WarpAdapter {
    * @param config 設定オプション
    */
   constructor(dim: number, config: WhiteningConfig = {}) {
+    super();
     this.dim = dim;
     this.learningRate = config.learningRate ?? 0.01;
     this.numComponents = config.numComponents ?? 1;

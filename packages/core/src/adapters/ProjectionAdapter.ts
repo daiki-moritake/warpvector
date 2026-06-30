@@ -14,6 +14,7 @@ import {
   readFloat32ArrayFromWasm,
 } from "../wasm/wasm-loader";
 import { WarpAdapter, TransformOutput } from "../interfaces/WarpAdapter";
+import { AbstractWarpAdapter } from "./AbstractWarpAdapter";
 
 /**
  * 次元削減/拡張のための射影行列の重みを定義するインターフェース
@@ -39,7 +40,7 @@ export interface ProjectionWeights {
  * ProjectionAdapter クラス
  * PCAやSVDなどで事前計算された射影行列を用いて、ベクトルの次元削減（または拡張）を行います。
  */
-export class ProjectionAdapter implements WarpAdapter {
+export class ProjectionAdapter extends AbstractWarpAdapter {
   private readonly inDimension: number;
   private readonly outDimension: number;
 
@@ -60,6 +61,7 @@ export class ProjectionAdapter implements WarpAdapter {
     outDimension: number,
     projections?: Record<string, ProjectionWeights>,
   ) {
+    super();
     this.inDimension = inDimension;
     this.outDimension = outDimension;
     this.matrices = new Map();

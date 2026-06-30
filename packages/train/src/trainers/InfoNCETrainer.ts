@@ -1,4 +1,4 @@
-import { IntentWeights, initWasm, wasmMutex } from "@warpvector/core";
+import { IntentWeights, initWasm, wasmMutex, type InfoNCEExample } from "@warpvector/core";
 import {
   assertDimension,
   getFlatMatrixAndBias,
@@ -8,18 +8,6 @@ import {
 } from "@warpvector/core";
 import { BaseTrainer } from "../trainers/BaseTrainer";
 
-/**
- * 学習データのペア（Anchor, Positive, 複数のNegatives）
- * @interface InfoNCEExample
- */
-export interface InfoNCEExample {
-  /** 基準となるベクトル（検索クエリなど） */
-  anchor: number[] | Float32Array;
-  /** Anchorに近づけたい正解ベクトル（クリックされた商品など） */
-  positive: number[] | Float32Array;
-  /** Anchorから遠ざけたい不正解ベクトルの配列（スルーされた商品群など） */
-  negatives: (number[] | Float32Array)[];
-}
 
 /**
  * InfoNCETrainer のオンライン学習オプション
