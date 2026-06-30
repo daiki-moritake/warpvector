@@ -454,8 +454,11 @@ export async function createDemoState(
 
   // Initialize Whitening Adapter and learn from base vectors
   const whiteningAdapter = new WhiteningAdapter(DIM, { learningRate: 0.1, numComponents: 2 });
-  for (const doc of docs) {
-    whiteningAdapter.update(doc.baseVector); // Online learning for anisotropy removal
+  // Oja's rule converges better with multiple passes over the dataset if the set is static
+  for (let epoch = 0; epoch < 3; epoch++) {
+    for (const doc of docs) {
+      whiteningAdapter.update(doc.baseVector); // Online learning for anisotropy removal
+    }
   }
 
   const allCurrentVecs = [...docs.map(d => d.currentVector), queryVec];
@@ -511,7 +514,7 @@ export async function addCustomIntent(
 }
 
 // Helper to apply optimizations pipeline
-function applyPipeline(state: DemoState, baseVector: Float32Array, applyIntent: (v: Float32Array) => Float32Array): Float32Array {
+function applyPipeline(state: DemoState, baseVector: Float32Array, applyIntent: (v: Float32Array) => Float32Array, quantizer?: any): Float32Array {
   let v: Float32Array = new Float32Array(baseVector);
   
   // 1. Whitening (De-bias the space)
@@ -523,8 +526,7 @@ function applyPipeline(state: DemoState, baseVector: Float32Array, applyIntent: 
   v = applyIntent(v);
 
   // 3. Quantization (Compression)
-  if (state.quantMode !== 'none') {
-    const quantizer = new QuantizationAdapter({ type: state.quantMode, dim: DIM });
+  if (state.quantMode !== 'none' && quantizer) {
     const quantized = quantizer.encode(v);
     if (state.quantMode === 'int8' && quantized instanceof Int8Array) {
       v = decodeInt8(quantized, DIM);
@@ -584,10 +586,12 @@ function applyAndRank(
 ): { latencyMs: number; rankings: RankedDoc[]; vanillaRankings: RankedDoc[] } {
   const t0 = performance.now();
 
+  const quantizer = state.quantMode !== 'none' ? new QuantizationAdapter({ type: state.quantMode, dim: DIM }) : undefined;
+
   for (const doc of state.docs) {
-    doc.currentVector = applyPipeline(state, doc.baseVector, intentFunc);
+    doc.currentVector = applyPipeline(state, doc.baseVector, intentFunc, quantizer);
   }
-  state.query.currentVector = applyPipeline(state, state.query.baseVector, intentFunc);
+  state.query.currentVector = applyPipeline(state, state.query.baseVector, intentFunc, quantizer);
 
   for (const doc of state.docs) {
     doc.pos = projectTo2D(doc.currentVector, state.basis1, state.basis2);
