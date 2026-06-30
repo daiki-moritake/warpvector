@@ -2,10 +2,28 @@
 
 各メジャーバージョンアップグレードの破壊的変更とマイグレーション手順をまとめています。
 
-- [v0.4 → v0.5](#v04--v05)（最新）
+- [v0.8.0 → v0.8.1](#v080--v081)（最新）
+- [v0.4 → v0.5](#v04--v05)
 - [v0.3 → v0.4](#v03--v04)
 - [v0.2 → v0.3](#v02--v03)
 - [v0.1 → v0.2](#v01--v02)
+
+---
+
+## v0.8.0 → v0.8.1
+
+### 破壊的変更
+
+#### 1. VectorDBAdapter のリネーム
+
+役割をより明確にするため、`VectorDBAdapter` を `VectorDBFormatter` にリネームしました。データベース用のクエリやレコードのフォーマット機能に特化していることを示しています。
+
+```diff
+- import { VectorDBAdapter } from "warpvector";
+- VectorDBAdapter.toVectorizeQuery(vector);
++ import { VectorDBFormatter } from "warpvector";
++ VectorDBFormatter.toVectorizeQuery(vector);
+```
 
 ---
 

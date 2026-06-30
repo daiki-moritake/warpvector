@@ -69,7 +69,7 @@
     "sync:versions": "bun run scripts/sync-versions.ts",
     "prebuild": "bun run typecheck",
     "build:wasm": "bun run scripts/build-wasm.ts",
-    "build:packages": "bun run sync:versions && bun run build:wasm && npm run build --workspaces --if-present",
+    "build:packages": "bun run sync:versions && bun run build:wasm && npm --workspaces run build --if-present",
     "build": "bun run build:packages && tsup",
     "test:workspaces": "bun run --filter '*' test",
     "test": "bun run build:wasm && bun test && bun run test:workspaces",
