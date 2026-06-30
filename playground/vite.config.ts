@@ -10,6 +10,7 @@ export default defineConfig({
       '@warpvector/ml': resolve(__dirname, '../packages/ml/src/index.ts'),
       '@warpvector/extras': resolve(__dirname, '../packages/extras/src/index.ts'),
       '@warpvector/eval': resolve(__dirname, '../packages/eval/src/index.ts'),
+      '@warpvector/train': resolve(__dirname, '../packages/train/src/index.ts'),
     },
   },
   build: {
