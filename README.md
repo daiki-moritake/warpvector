@@ -7,7 +7,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Edge Ready](https://img.shields.io/badge/Edge-Ready-success.svg)](https://workers.cloudflare.com/)
 [![Zero Dependencies](https://img.shields.io/badge/Dependencies-0-brightgreen.svg)](https://www.npmjs.com/package/warpvector)
-[![Tests](https://img.shields.io/badge/Tests-297%20passed-success.svg)](https://github.com/daiki-moritake/warpvector/actions)
+[![Tests](https://img.shields.io/badge/Tests-330%20passed-success.svg)](https://github.com/daiki-moritake/warpvector/actions)
 
 **Warp your vector space at runtime — no retraining, no Python, just TypeScript.**
 

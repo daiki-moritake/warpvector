@@ -4,6 +4,17 @@ All notable changes to WarpVector will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [0.9.0] - 2026-07-01
+
+### Added
+- **Root Rerank Exports**: `ColbertAdapter`, `TimeReversalReranker`, `MultipathScatteringReranker`, and `BaseGraphReranker` are now re-exported from the root `warpvector` package. Users no longer need to import from `warpvector/rerank` explicitly.
+
+### Deprecated
+- **`@warpvector/experimental` Package**: This package is now deprecated. All features have been stable in `@warpvector/extras` and `@warpvector/rerank` for multiple releases. The package will continue to work via re-exports but emits a runtime deprecation warning. It will be removed in v1.0.0.
+
+### Changed
+- **Package Metadata**: Updated `@warpvector/extras` description and keywords to accurately reflect its contents (removed ColBERT reference, added Anomaly Detection).
+
 ## [0.8.1] - 2026-06-30
 
 ### Changed
