@@ -1,9 +1,9 @@
 import { initWasm, wasmMutex } from "@warpvector/core";
 
 import { AbstractAdamTrainer } from "./AbstractAdamTrainer";
-import { BaseTrainingOptions } from "./types";
+import { BaseTrainingOptions, EpochMetrics } from "./types";
 
-export type { BaseTrainingOptions };
+export type { BaseTrainingOptions, EpochMetrics };
 export { AbstractAdamTrainer };
 
 /**
@@ -53,6 +53,31 @@ export abstract class BaseTrainer<
 
       this.validateHyperparameters(options);
 
+      // Validation split: 学習データと検証データに分割
+      let trainExamples: TExample[];
+      let valExamples: TExample[] | null = null;
+
+      if (options.validationSplit !== undefined) {
+        if (options.validationSplit <= 0 || options.validationSplit >= 1) {
+          throw new Error(
+            "validationSplit must be between 0 and 1 (exclusive).",
+          );
+        }
+        const splitIdx = Math.floor(
+          this.examples.length * (1 - options.validationSplit),
+        );
+        if (splitIdx < 1 || splitIdx >= this.examples.length) {
+          throw new Error(
+            `Not enough examples (${this.examples.length}) for validationSplit=${options.validationSplit}. ` +
+              "Need at least 1 example in each split.",
+          );
+        }
+        trainExamples = this.examples.slice(0, splitIdx);
+        valExamples = this.examples.slice(splitIdx);
+      } else {
+        trainExamples = this.examples;
+      }
+
       if (options.autoTune) {
         options.learningRate = this.findBestLearningRate(options);
         options.autoTune = false;
@@ -80,7 +105,8 @@ export abstract class BaseTrainer<
       let patienceCounter = 0;
 
       for (let epoch = 0; epoch < epochs; epoch++) {
-        for (const example of this.examples) {
+        // 学習ステップ（学習データのみ使用）
+        for (const example of trainExamples) {
           this.t++;
           this.adamStep(
             flatMatrix,
@@ -97,26 +123,57 @@ export abstract class BaseTrainer<
           );
         }
 
-        if (patience !== undefined) {
-          let currentLoss = 0;
-          for (const example of this.examples) {
-            currentLoss += this.calculateLoss(
+        // エポック終了時の評価
+        const needsEvaluation = patience !== undefined || options.onEpochEnd;
+
+        if (needsEvaluation) {
+          // 学習ロスの計算
+          let trainLoss = 0;
+          for (const example of trainExamples) {
+            trainLoss += this.calculateLoss(
               flatMatrix,
               bias,
               example,
               options,
             );
           }
-          currentLoss /= this.examples.length || 1;
+          trainLoss /= trainExamples.length || 1;
 
-          if (currentLoss < bestLoss) {
-            bestLoss = currentLoss;
-            patienceCounter = 0;
-          } else {
-            patienceCounter++;
-            if (patienceCounter >= patience) {
-              options.onEarlyStopping?.(epoch + 1, patience);
-              break;
+          // 検証ロスの計算（validation split が設定されている場合）
+          let valLoss: number | undefined;
+          if (valExamples) {
+            let valLossSum = 0;
+            for (const example of valExamples) {
+              valLossSum += this.calculateLoss(
+                flatMatrix,
+                bias,
+                example,
+                options,
+              );
+            }
+            valLoss = valLossSum / valExamples.length;
+          }
+
+          // onEpochEnd コールバック
+          if (options.onEpochEnd) {
+            const metrics: EpochMetrics = { trainLoss, valLoss };
+            options.onEpochEnd(epoch + 1, metrics);
+          }
+
+          // Early stopping の判定
+          if (patience !== undefined) {
+            // 検証ロスが利用可能ならそちらで判定、なければ学習ロス
+            const monitorLoss = valLoss ?? trainLoss;
+
+            if (monitorLoss < bestLoss) {
+              bestLoss = monitorLoss;
+              patienceCounter = 0;
+            } else {
+              patienceCounter++;
+              if (patienceCounter >= patience) {
+                options.onEarlyStopping?.(epoch + 1, patience);
+                break;
+              }
             }
           }
         }

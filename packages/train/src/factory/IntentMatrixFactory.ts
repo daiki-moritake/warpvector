@@ -7,6 +7,14 @@ import {
 } from "@warpvector/core";
 import type { InfoNCEExample, TripletExample } from "@warpvector/core";
 import { InfoNCETrainer } from "../trainers/InfoNCETrainer";
+
+/**
+ * Negative サンプリング戦略。
+ * - "uniform": 均等サンプリング（既存の動作）
+ * - "hard": anchor に最も近い（最も紛らわしい）negative を優先選択
+ * - "semi-hard": positive より遠いが、ランダムよりは近い negative を選択
+ */
+export type NegativeStrategy = "uniform" | "hard" | "semi-hard";
 import type { BaseTrainingOptions } from "../trainers/types";
 
 /**
@@ -40,6 +48,15 @@ export interface IntentMatrixFactoryOptions {
    * @default 7
    */
   maxNegativesPerAnchor?: number;
+
+  /**
+   * Negative サンプリング戦略。
+   * - "uniform": 均等サンプリング（デフォルト、既存の動作）
+   * - "hard": anchor に最も近い negative を優先。紛らわしい境界ケースに集中して学習
+   * - "semi-hard": positive より遠いが近めの negative を選択。学習の安定性と効率のバランス
+   * @default "uniform"
+   */
+  negativeStrategy?: NegativeStrategy;
 }
 
 /**
@@ -180,6 +197,7 @@ export class IntentMatrixFactory {
     const temperature = options.temperature ?? 0.07;
     const generateRouting = options.generateRoutingVectors ?? true;
     const maxNegsPerAnchor = options.maxNegativesPerAnchor ?? 7;
+    const negativeStrategy = options.negativeStrategy ?? "uniform";
 
     const trainingOptions: BaseTrainingOptions = {
       epochs: 200,
@@ -210,6 +228,7 @@ export class IntentMatrixFactory {
         categoryVectors,
         otherCategoryNames,
         maxNegsPerAnchor,
+        negativeStrategy,
       );
 
       // InfoNCETrainer でカテゴリ特化のアフィン変換を学習
@@ -246,6 +265,7 @@ export class IntentMatrixFactory {
     categoryVectors: (number[] | Float32Array)[],
     otherCategoryNames: string[],
     maxNegatives: number,
+    negativeStrategy: NegativeStrategy = "uniform",
   ): InfoNCEExample[] {
     const examples: InfoNCEExample[] = [];
 
@@ -270,11 +290,14 @@ export class IntentMatrixFactory {
         positive = anchor;
       }
 
-      // negatives: 他カテゴリからサンプリング
+      // negatives: 他カテゴリからサンプリング（戦略に応じて選択方法が変わる）
       const negatives = this.sampleNegatives(
         allNegatives,
         maxNegatives,
         i, // シードとして使用
+        negativeStrategy,
+        anchor,
+        positive,
       );
 
       if (negatives.length === 0) {
@@ -289,26 +312,78 @@ export class IntentMatrixFactory {
 
   /**
    * negative サンプルをサンプリングします。
-   * 全サンプル数が maxNegatives 以下の場合は全てを使用し、
-   * それ以上の場合はストライドベースで均等にサンプリングします。
+   * 戦略に応じて、均等 / ハード / セミハード の選択方法を使い分けます。
+   *
+   * @param allNegatives 全ての negative 候補ベクトル
+   * @param maxNegatives 選択する最大数
+   * @param seed 乱数シード（再現性のため）
+   * @param strategy サンプリング戦略
+   * @param anchor 現在の anchor ベクトル（hard/semi-hard で使用）
+   * @param positive 現在の positive ベクトル（semi-hard で使用）
    */
   private sampleNegatives(
     allNegatives: (number[] | Float32Array)[],
     maxNegatives: number,
     seed: number,
+    strategy: NegativeStrategy = "uniform",
+    anchor?: number[] | Float32Array,
+    positive?: number[] | Float32Array,
   ): (number[] | Float32Array)[] {
     if (allNegatives.length <= maxNegatives) {
       return allNegatives;
     }
 
-    // ストライドベースの均等サンプリング（決定的・再現可能）
-    const result: (number[] | Float32Array)[] = [];
-    const stride = allNegatives.length / maxNegatives;
-    for (let i = 0; i < maxNegatives; i++) {
-      const idx = Math.floor((i * stride + seed) % allNegatives.length);
-      result.push(allNegatives[idx]);
+    if (strategy === "uniform" || !anchor) {
+      // ストライドベースの均等サンプリング（決定的・再現可能）
+      const result: (number[] | Float32Array)[] = [];
+      const stride = allNegatives.length / maxNegatives;
+      for (let i = 0; i < maxNegatives; i++) {
+        const idx = Math.floor((i * stride + seed) % allNegatives.length);
+        result.push(allNegatives[idx]);
+      }
+      return result;
     }
-    return result;
+
+    // anchor との類似度を計算してソート
+    const scored = allNegatives.map((neg, idx) => ({
+      neg,
+      idx,
+      similarity: cosineSimilarity(anchor, neg),
+    }));
+
+    if (strategy === "hard") {
+      // Hard Negative Mining: anchor に最も近い（最も紛らわしい）negative を選択
+      scored.sort((a, b) => b.similarity - a.similarity);
+      return scored.slice(0, maxNegatives).map((s) => s.neg);
+    }
+
+    // Semi-Hard Negative Mining:
+    // positive との類似度より低いが、なるべく近い negative を選択
+    // 条件: sim(anchor, neg) < sim(anchor, pos) かつ sim が高い順
+    const posSim = positive
+      ? cosineSimilarity(anchor, positive)
+      : Infinity;
+
+    // positive より遠い negative を、近い順にソート
+    const semiHardCandidates = scored
+      .filter((s) => s.similarity < posSim)
+      .sort((a, b) => b.similarity - a.similarity);
+
+    if (semiHardCandidates.length >= maxNegatives) {
+      return semiHardCandidates.slice(0, maxNegatives).map((s) => s.neg);
+    }
+
+    // Semi-hard だけで足りない場合、hard negative で補完
+    const result = semiHardCandidates.map((s) => s.neg);
+    const hardFallback = scored
+      .filter((s) => s.similarity >= posSim)
+      .sort((a, b) => b.similarity - a.similarity);
+    for (const item of hardFallback) {
+      if (result.length >= maxNegatives) break;
+      result.push(item.neg);
+    }
+
+    return result.slice(0, maxNegatives);
   }
 
   /**

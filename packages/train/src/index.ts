@@ -14,6 +14,11 @@ export * from "./trainers/MigrationTrainer";
 export * from "./automl/metrics";
 export * from "./automl/PipelineAutoTuner";
 export * from "./factory/IntentMatrixFactory";
+export * from "./factory/LlmIntentBootstrapper";
+export * from "./augmentation/VectorAugmentor";
+export * from "./validation/TrainingValidator";
+export * from "./alignment/ProcrustesAligner";
+export * from "./math/svd";
 
 // WarpPipeline に高度なアダプタを自動登録 (side-effect)
 WarpPipeline.registerAdapter("SoftWhiteningAdapter", (state) =>

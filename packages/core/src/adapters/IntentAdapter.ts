@@ -53,6 +53,28 @@ export interface IntentWeights {
 }
 
 /**
+ * 確信度付きの自動ブレンド結果。
+ * `tuneAutoBlendedWithConfidence()` の戻り値として使用されます。
+ *
+ * @interface ConfidenceResult
+ */
+export interface ConfidenceResult {
+  /** 変換後のベクトル */
+  vector: Float32Array;
+  /**
+   * 変換の確信度 (0.0 〜 1.0)。
+   * Softmax 分布の正規化エントロピーに基づく。
+   * - 1.0 に近い: 1つの意図に強くルーティングされている（高確信度）
+   * - 0.0 に近い: 全意図に均等に分散している（低確信度、変換の効果が不確実）
+   */
+  confidence: number;
+  /** 最も高いスコアを持つ意図（エキスパート）の名前 */
+  routedExpert: string;
+  /** 各意図のブレンド重み */
+  blendWeights: Record<string, number>;
+}
+
+/**
  * 意図に応じたベクトル空間の動的変形（アフィン変換）を行うアダプタークラス。
  * パフォーマンスのために内部ではすべての配列を Float32Array として扱い、
  * 大規模なバッチ処理には自動的にWASM/SIMDによる最適化を利用します。
@@ -393,6 +415,87 @@ export class IntentAdapter extends AbstractWarpAdapter {
 
     // 計算した動的なウェイトを用いてブレンド処理を実行
     return this.tuneBlended(baseVector, blendWeights, activation);
+  }
+
+  /**
+   * 自己アテンション型動的ブレンドを確信度 (confidence) 付きで実行します。
+   *
+   * 内部の Softmax 分布のエントロピーを確信度の指標として使用します。
+   * - エントロピーが低い（= 1つのエキスパートに集中）→ 確信度が高い
+   * - エントロピーが高い（= 全エキスパートが均一）→ 確信度が低い
+   *
+   * 確信度が低い場合、変換行列の品質が不確実であるため、
+   * 元のベクトルをそのまま使用することを推奨します。
+   *
+   * @param {number[] | Float32Array} baseVector - ユーザーからのクエリベクトル
+   * @param {Activation} [activation] - 非線形活性化関数
+   * @returns {ConfidenceResult} 変換されたベクトルと確信度情報
+   * @throws {Error} ルーティングベクトルが存在しない場合
+   *
+   * @example
+   * ```typescript
+   * const result = adapter.tuneAutoBlendedWithConfidence(queryVector);
+   * if (result.confidence < 0.5) {
+   *   // 確信度が低い → 安全にバイパス
+   *   useOriginalVector(queryVector);
+   * } else {
+   *   useTransformedVector(result.vector);
+   * }
+   * ```
+   */
+  public tuneAutoBlendedWithConfidence(
+    baseVector: number[] | Float32Array,
+    activation?: Activation,
+  ): ConfidenceResult {
+    assertDimension(baseVector, this.dimension, "Base vector");
+
+    const intentNames: string[] = [];
+    const scores: number[] = [];
+
+    for (const [intentName, vector] of this.routingVectors.entries()) {
+      intentNames.push(intentName);
+      scores.push(cosineSimilarity(baseVector, vector));
+    }
+
+    if (intentNames.length === 0) {
+      throw new Error("No routing vectors available for auto-blending.");
+    }
+
+    const weightsArray = softmax(scores);
+    const blendWeights: Record<string, number> = {};
+    for (let i = 0; i < intentNames.length; i++) {
+      blendWeights[intentNames[i]] = weightsArray[i];
+    }
+
+    // 確信度の計算: 正規化エントロピー (0.0 = 完全に均一, 1.0 = 完全に集中)
+    const n = intentNames.length;
+    let entropy = 0;
+    for (let i = 0; i < n; i++) {
+      if (weightsArray[i] > 0) {
+        entropy -= weightsArray[i] * Math.log(weightsArray[i]);
+      }
+    }
+    const maxEntropy = Math.log(n);
+    const confidence = maxEntropy > 0 ? 1 - entropy / maxEntropy : 1.0;
+
+    // 最大重みのルーティング先を特定
+    let maxWeight = -Infinity;
+    let routedExpert = intentNames[0];
+    for (let i = 0; i < intentNames.length; i++) {
+      if (weightsArray[i] > maxWeight) {
+        maxWeight = weightsArray[i];
+        routedExpert = intentNames[i];
+      }
+    }
+
+    const vector = this.tuneBlended(baseVector, blendWeights, activation);
+
+    return {
+      vector,
+      confidence,
+      routedExpert,
+      blendWeights,
+    };
   }
 
   /**
