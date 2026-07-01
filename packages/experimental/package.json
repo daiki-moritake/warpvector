@@ -1,7 +1,8 @@
 {
   "name": "@warpvector/experimental",
-  "version": "0.8.1",
-  "description": "Experimental features for WarpVector — unstable APIs, use at your own risk",
+  "version": "0.9.0",
+  "description": "(DEPRECATED) Use @warpvector/extras, @warpvector/rerank, or warpvector directly. This package will be removed in v1.0.0.",
+  "deprecated": "This package is deprecated. Import from @warpvector/extras, @warpvector/rerank, or warpvector directly.",
   "main": "src/index.ts",
   "module": "src/index.ts",
   "types": "src/index.ts",

@@ -7,7 +7,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Edge Ready](https://img.shields.io/badge/Edge-Ready-success.svg)](https://workers.cloudflare.com/)
 [![Zero Dependencies](https://img.shields.io/badge/Dependencies-0-brightgreen.svg)](https://www.npmjs.com/package/warpvector)
-[![Tests](https://img.shields.io/badge/Tests-297%20passed-success.svg)](https://github.com/daiki-moritake/warpvector/actions)
+[![Tests](https://img.shields.io/badge/Tests-330%20passed-success.svg)](https://github.com/daiki-moritake/warpvector/actions)
 
 `WarpVector` は、AIモデルの再学習や重い再推論を行うことなく、検索クエリやコンテキスト（意図）に応じてベクトル空間を動的に変形させる、TypeScriptネイティブの軽量ミドルウェア・ユーティリティです。
 

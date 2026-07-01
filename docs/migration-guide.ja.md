@@ -2,11 +2,46 @@
 
 各メジャーバージョンアップグレードの破壊的変更とマイグレーション手順をまとめています。
 
-- [v0.8.0 → v0.8.1](#v080--v081)（最新）
+- [v0.8.1 → v0.9.0](#v081--v090)（最新）
+- [v0.8.0 → v0.8.1](#v080--v081)
 - [v0.4 → v0.5](#v04--v05)
 - [v0.3 → v0.4](#v03--v04)
 - [v0.2 → v0.3](#v02--v03)
 - [v0.1 → v0.2](#v01--v02)
+
+---
+
+## v0.8.1 → v0.9.0
+
+### 非推奨化
+
+#### 1. `@warpvector/experimental` パッケージの非推奨化
+
+`@warpvector/experimental` パッケージは非推奨になりました。エクスポートされていたすべての機能は、安定版パッケージで複数のリリースにわたり利用可能です。インポート先を移行してください：
+
+```diff
+- import { ColbertAdapter } from "@warpvector/experimental";
++ import { ColbertAdapter } from "warpvector/rerank";
++ // または:
++ import { ColbertAdapter } from "warpvector";
+
+- import { VsaAdapter, AnomalyDetectionAdapter, TaskArithmetic } from "@warpvector/experimental";
++ import { VsaAdapter, AnomalyDetectionAdapter, TaskArithmetic } from "warpvector/extras";
++ // または:
++ import { VsaAdapter, AnomalyDetectionAdapter, TaskArithmetic } from "warpvector";
+```
+
+> `@warpvector/experimental` パッケージは引き続き動作します（安定版パッケージからの re-export）。ただし、ランタイムでコンソール警告が出力されます。v1.0.0 で完全に削除される予定です。
+
+### 新機能
+
+#### 2. Rerank のエクスポートがルートパッケージから利用可能に
+
+`ColbertAdapter`、`TimeReversalReranker`、`MultipathScatteringReranker`、`BaseGraphReranker` がルートの `warpvector` パッケージから re-export されるようになりました。`warpvector/rerank` から明示的にインポートする必要がなくなりました：
+
+```typescript
+import { ColbertAdapter, TimeReversalReranker } from "warpvector";
+```
 
 ---
 

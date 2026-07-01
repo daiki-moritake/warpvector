@@ -1,7 +1,7 @@
 {
   "name": "@warpvector/extras",
-  "version": "0.8.1",
-  "description": "Extended adapters: Quantization, VSA, Hybrid Search, and Safety for WarpVector",
+  "version": "0.9.0",
+  "description": "Extended adapters: Quantization, VSA, Anomaly Detection, Hybrid Search, and Safety for WarpVector",
   "main": "src/index.ts",
   "module": "src/index.ts",
   "types": "src/index.ts",
@@ -26,7 +26,7 @@
   },
   "keywords": [
     "vector",
-    "colbert",
+    "anomaly-detection",
     "quantization",
     "vsa",
     "hybrid-search"
